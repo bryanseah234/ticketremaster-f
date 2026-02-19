@@ -9,12 +9,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.5.28"
+    "vue": "^3.5.28",
+    "pinia": "^2.1.7",
+    "vue-router": "^4.3.0",
+    "axios": "^1.6.8",
+    "@chenfengyuan/vue-qrcode": "^2.0.0",
+    "@stripe/stripe-js": "^2.4.0",
+    "vue-toastification": "^2.0.0",
+    "@heroicons/vue": "^2.1.0",
+    "@vueuse/core": "^10.9.0",
+    "dayjs": "^1.11.10"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.4",
     "vite": "^7.3.1",
-    "vite-plugin-vue-devtools": "^8.0.6"
+    "vite-plugin-vue-devtools": "^8.0.6",
+    "tailwindcss": "^3.4.1",
+    "@tailwindcss/vite": "^0.3.0"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
