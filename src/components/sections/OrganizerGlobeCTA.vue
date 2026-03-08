@@ -42,7 +42,7 @@ const resizeCanvas = () => {
 
 const draw = (time: number) => {
   const c = canvasRef.value
-  if (!c || !earthTexture.complete) {
+  if (!c) {
     raf = requestAnimationFrame(draw)
     return
   }
@@ -55,6 +55,11 @@ const draw = (time: number) => {
 
   const w = c.width / dpr
   const h = c.height / dpr
+  if (w < 2 || h < 2) {
+    resizeCanvas()
+    raf = requestAnimationFrame(draw)
+    return
+  }
   const r = Math.min(w, h) * 0.34
   const cx = w / 2
   const cy = h / 2
@@ -78,8 +83,16 @@ const draw = (time: number) => {
   const patternWidth = r * 2.8
   const patternHeight = r * 2
   const offset = (rotation % (patternWidth / 2))
-  ctx.drawImage(earthTexture, -offset + cx - patternWidth / 2, cy - patternHeight / 2, patternWidth, patternHeight)
-  ctx.drawImage(earthTexture, -offset + cx, cy - patternHeight / 2, patternWidth, patternHeight)
+  if (earthTexture.complete && earthTexture.naturalWidth > 0) {
+    ctx.drawImage(earthTexture, -offset + cx - patternWidth / 2, cy - patternHeight / 2, patternWidth, patternHeight)
+    ctx.drawImage(earthTexture, -offset + cx, cy - patternHeight / 2, patternWidth, patternHeight)
+  } else {
+    const base = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.2, cx, cy, r * 1.1)
+    base.addColorStop(0, 'rgba(120, 190, 255, 0.5)')
+    base.addColorStop(1, 'rgba(14, 30, 46, 0.85)')
+    ctx.fillStyle = base
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+  }
 
   const shading = ctx.createRadialGradient(cx - r * 0.36, cy - r * 0.3, r * 0.2, cx, cy, r)
   shading.addColorStop(0, 'rgba(255,255,255,0.32)')
@@ -149,7 +162,7 @@ onUnmounted(() => {
 
 <style scoped>
 .globe{width:100%;height:440px}
-.cta{padding:1.2rem;display:grid;align-content:center;justify-items:start;gap:.75rem}
+.cta{padding:1.2rem;display:grid;align-content:center;justify-items:center;gap:.75rem;text-align:center}
 .list-btn{width:auto}
 @media (max-width:920px){.globe{height:320px}}
 </style>

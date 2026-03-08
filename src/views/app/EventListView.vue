@@ -76,13 +76,16 @@ onMounted(load)
 <template>
   <section class="page">
     <h1 class="section-title">Discover Events</h1>
-    <p class="section-subtitle">Search by artist/event/venue, filter by date, and save your favorites.</p>
+    <p class="section-subtitle">Search by artist/event/venue, filter by date, and manage favorites.</p>
 
     <article class="glass filter-bar">
       <input v-model="search" placeholder="Search artist, event or venue" class="search-col" />
       <input v-model="dateFilter" type="date" class="date-col" />
 
       <button class="toggle" :class="{ active: onlyFavorites }" @click="onlyFavorites = !onlyFavorites" :aria-label="onlyFavorites ? 'show all events' : 'show favorite events'">
+        <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
+        </svg>
         <span class="knob"></span>
       </button>
 
@@ -100,9 +103,6 @@ onMounted(load)
         <div class="content">
           <div class="row" style="justify-content:space-between;align-items:flex-start;">
             <span class="badge">{{ event.venue?.name || 'Venue TBA' }}</span>
-            <button class="ghost save-chip" :aria-label="`toggle favorite ${event.name}`" @click="toggleFavorite(event.event_id)">
-              {{ favoriteIds.includes(event.event_id) ? 'Saved' : 'Save' }}
-            </button>
           </div>
 
           <h3>{{ event.name }}</h3>
@@ -112,7 +112,14 @@ onMounted(load)
             <span v-for="tier in (event.pricing_tiers || []).slice(0,2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
           </div>
 
-          <RouterLink :to="`/events/${event.event_id}`"><button>View Event</button></RouterLink>
+          <div class="row actions">
+            <RouterLink :to="`/events/${event.event_id}`"><button>View Event</button></RouterLink>
+            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click="toggleFavorite(event.event_id)">
+              <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       </article>
     </div>
@@ -130,11 +137,15 @@ onMounted(load)
 <style scoped>
 .filter-bar{padding:.8rem;display:grid;grid-template-columns:3fr 1.3fr auto auto auto;gap:.55rem;align-items:center;margin-bottom:1rem}
 .search-col{min-width:0}
-.date-col{min-width:0}
-.toggle{height:2.5rem;width:3.9rem;padding:.22rem;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.06)}
+.date-col{min-width:0;color-scheme:dark}
+.date-col::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.75}
+.date-col::-webkit-inner-spin-button{opacity:0}
+.toggle{position:relative;height:2.5rem;width:3.9rem;padding:.22rem;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.06)}
 .toggle .knob{display:block;width:1.8rem;height:1.8rem;border-radius:999px;background:#fff;transition:transform .18s ease}
+.toggle-icon{width:1.1rem;height:1.1rem;fill:#f8d4c2;position:absolute;left:.5rem;top:.7rem;opacity:.7;transition:opacity .18s ease}
 .toggle.active{background:rgba(249,115,22,.25)}
 .toggle.active .knob{transform:translateX(1.25rem);background:#ffedd5}
+.toggle.active .toggle-icon{opacity:1}
 
 .events-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}
 .event-card{position:relative;overflow:hidden;min-height:280px}
@@ -143,7 +154,10 @@ onMounted(load)
 .content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
 h3{color:#fff}
 .small{color:#d4d4d8}
-.save-chip{min-width:3.6rem;height:2rem;padding:0 .55rem;border-radius:.6rem}
+.heart-icon{width:1.1rem;height:1.1rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease}
+.heart-action.active .heart-icon{fill:rgba(255,186,126,.95)}
+.actions{justify-content:space-between}
+.heart-action{height:2.6rem;width:2.6rem;border-radius:.75rem;display:grid;place-items:center}
 
 @media (max-width:1100px){
   .events-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
