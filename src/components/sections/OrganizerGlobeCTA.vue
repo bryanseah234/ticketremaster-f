@@ -4,11 +4,43 @@ import { onMounted, onUnmounted, ref } from 'vue'
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let raf = 0
 let rotation = 0
+let lastTime = 0
+const rotationSpeed = 26
 const earthTexture = new Image()
 earthTexture.crossOrigin = 'anonymous'
 earthTexture.src = 'https://upload.wikimedia.org/wikipedia/commons/8/80/Equirectangular-projection.jpg'
 
-const draw = () => {
+const locations = [
+  { lat: 1.3521, lon: 103.8198 },
+  { lat: -33.8688, lon: 151.2093 },
+  { lat: 34.0522, lon: -118.2437 },
+  { lat: 51.5074, lon: -0.1278 },
+  { lat: 40.7128, lon: -74.006 },
+  { lat: 41.8781, lon: -87.6298 },
+  { lat: 6.5244, lon: 3.3792 },
+  { lat: 37.5665, lon: 126.978 },
+  { lat: 48.8566, lon: 2.3522 },
+  { lat: -8.4095, lon: 115.1889 },
+  { lat: 40.4168, lon: -3.7038 },
+  { lat: 37.9838, lon: 23.7275 },
+  { lat: 43.6532, lon: -79.3832 },
+  { lat: 25.2854, lon: 51.531 },
+  { lat: 49.2827, lon: -123.1207 },
+]
+
+const resizeCanvas = () => {
+  const c = canvasRef.value
+  if (!c) return
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const nextWidth = Math.max(1, Math.floor(c.clientWidth * dpr))
+  const nextHeight = Math.max(1, Math.floor(c.clientHeight * dpr))
+  if (c.width !== nextWidth || c.height !== nextHeight) {
+    c.width = nextWidth
+    c.height = nextHeight
+  }
+}
+
+const draw = (time: number) => {
   const c = canvasRef.value
   if (!c || !earthTexture.complete) {
     raf = requestAnimationFrame(draw)
@@ -18,8 +50,11 @@ const draw = () => {
   const ctx = c.getContext('2d')
   if (!ctx) return
 
-  const w = c.width
-  const h = c.height
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+  const w = c.width / dpr
+  const h = c.height / dpr
   const r = Math.min(w, h) * 0.34
   const cx = w / 2
   const cy = h / 2
@@ -59,18 +94,44 @@ const draw = () => {
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.stroke()
 
-  rotation += 0.35
+  const rotationAngle = (rotation / (patternWidth / 2)) * Math.PI
+  locations.forEach((location) => {
+    const lat = (location.lat * Math.PI) / 180
+    const lon = (location.lon * Math.PI) / 180
+    const x = Math.cos(lat) * Math.cos(lon)
+    const y = Math.sin(lat)
+    const z = Math.cos(lat) * Math.sin(lon)
+    const cosA = Math.cos(rotationAngle)
+    const sinA = Math.sin(rotationAngle)
+    const xr = x * cosA + z * sinA
+    const zr = -x * sinA + z * cosA
+    if (zr < 0) return
+    const px = cx + xr * r
+    const py = cy - y * r
+    const depth = Math.min(1, Math.max(0, (zr + 0.15) / 1.15))
+    const size = 2.2 + depth * 2.2
+    ctx.beginPath()
+    ctx.fillStyle = `rgba(255, 186, 126, ${0.28 + depth * 0.45})`
+    ctx.arc(px, py, size, 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  if (!lastTime) lastTime = time
+  const delta = Math.min(48, time - lastTime)
+  rotation += (delta / 1000) * rotationSpeed
+  lastTime = time
   raf = requestAnimationFrame(draw)
 }
 
 onMounted(() => {
-  const c = canvasRef.value
-  if (!c) return
-  c.width = c.clientWidth
-  c.height = c.clientHeight
+  resizeCanvas()
+  window.addEventListener('resize', resizeCanvas)
   raf = requestAnimationFrame(draw)
 })
-onUnmounted(() => cancelAnimationFrame(raf))
+onUnmounted(() => {
+  window.removeEventListener('resize', resizeCanvas)
+  cancelAnimationFrame(raf)
+})
 </script>
 
 <template>

@@ -2,11 +2,13 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
+// API base URL from env, with local fallback for development
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 const api = axios.create({ baseURL })
 
 let isRefreshing = false
+// Queue callbacks for requests waiting on a refreshed access token
 let queued: Array<(token: string | null) => void> = []
 
 const flushQueue = (token: string | null) => {
@@ -29,6 +31,7 @@ api.interceptors.response.use(
     const status = error?.response?.status
     const original = error.config || {}
 
+    // Refresh the access token once, then retry failed requests
     if (status === 401 && !original._retry) {
       const auth = useAuthStore()
       if (!auth.state.refreshToken) {
@@ -74,6 +77,7 @@ api.interceptors.response.use(
       }
     }
 
+    // Map common HTTP errors to user-facing messages
     if (status && status >= 400) {
       const message =
         status === 429 ? 'You are doing that too fast. Please wait a moment before trying again.' :

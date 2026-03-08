@@ -22,6 +22,7 @@ export const themeConfig: ThemeConfig = {
   },
 }
 
+// Convert theme values to CSS variables for consumption in components and CSS
 export const applyThemeVariables = (theme = themeConfig) => {
   const root = document.documentElement
   root.style.setProperty('--font-family', theme.fontFamily)
