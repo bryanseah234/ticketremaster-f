@@ -4,43 +4,38 @@
 
 ## Overview
 
-TicketRemaster is a modern event ticketing frontend built with Vue 3, Vite, Pinia, Vue Router, and Tailwind CSS. It communicates exclusively with the backend through Kong API Gateway. Staff QR scanning is handled by a separate OutSystems app.
+TicketRemaster is a modern event ticketing frontend built with Vue 3 + Vite. The landing page currently includes:
+- Parallax hero with frosted search bar
+- Featured events carousel with modal details
+- Global reach section with interactive globe-style CTA
+- Multi-column footer
 
-## Features
-- Event browsing, detail, and seat selection
-- Secure login, registration, and JWT-based authentication
-- Interactive seat reservation and checkout with OTP flow
-- Ticket management, QR code display, and transfer
-- Credit top-up via Stripe
-- Responsive, modern UI with Tailwind CSS
+## Dependency Requirements (for Vercel / CI)
 
-## Tech Stack
-- **Vue 3** (Composition API, `<script setup>`)
-- **Vite** (build tool)
-- **Vue Router 4** (SPA routing)
-- **Pinia** (state management)
-- **Axios** (HTTP client with JWT/refresh interceptors)
-- **Tailwind CSS v3** (utility-first styling)
-- **@chenfengyuan/vue-qrcode** (QR code rendering)
-- **@stripe/stripe-js** (Stripe Elements)
-- **vue-toastification** (toast notifications)
-- **@heroicons/vue** (icon set)
-- **@vueuse/core** (utility composables)
-- **dayjs** (date formatting)
+The landing implementation expects these packages to be installed from npm:
 
-## Folder Structure
+```bash
+npm install
 ```
-src/
-├── api/                # Axios instance
-├── assets/             # CSS, images
-├── components/         # Reusable UI components
-│   └── icons/          # Icon components
-├── views/              # Page components (one per route)
-├── stores/             # Pinia stores (auth, tickets, credits)
-├── router/             # Vue Router setup
-├── App.vue
-└── main.js
-```
+
+Key required dependencies now explicitly listed in `package.json`:
+- `@vueuse/core`
+- `@vueuse/motion`
+- `lucide-vue-next`
+- `three`
+- `@tresjs/core`
+- `@tresjs/cientos`
+- `tailwindcss` + `@tailwindcss/vite`
+
+If your Vercel build has normal npm registry access, these should install automatically during the build step.
+
+## Why install failed in this agent environment
+
+Install failed here with HTTP `403 Forbidden` from npm registry endpoints, which indicates an environment policy/proxy restriction rather than project code issues. Example from this run:
+- `GET https://registry.npmjs.org/@vueuse%2fcore -> 403`
+- `GET https://registry.npmjs.org/@tailwindcss%2fvite -> 403`
+
+So the dependency list is now in source control, but actual install must run in an environment with npm registry access (e.g., your Vercel build machine or local dev machine).
 
 ## Setup & Development
 
@@ -64,25 +59,6 @@ npm run build
 npm run preview
 ```
 
-## API Integration
-- All API calls go through Kong at `http://localhost:8000/api`
-- Authenticated endpoints require `Authorization: Bearer <access_token>`
-- JWT/refresh handled via Axios interceptors (see `src/api/client.js`)
-
-## Auth Flow
-- Login returns `access_token` (15min) and `refresh_token` (7 days)
-- `access_token` stored in Pinia (memory), `refresh_token` in localStorage
-- On 401, Axios auto-refreshes token; on refresh failure, logs out
-
-## Recommended IDE & Tools
-- [VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
-- [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-
 ## Notes
 - All business logic and API details are in `INSTRUCTIONS.md`
 - OutSystems QR scanner is a separate app (see `outsystems/README.md`)
-- Color palette/theme can be customized in `tailwind.config.js`
-
----
-
-For detailed API endpoints, flows, and error handling, see `INSTRUCTIONS.md` in the project root.
