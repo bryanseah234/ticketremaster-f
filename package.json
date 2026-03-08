@@ -13,12 +13,21 @@
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "vue": "^3.5.29",
-    "vue-router": "^5.0.3"
+    "vue-router": "^5.0.3",
+    "@vueuse/core": "^13.9.0",
+    "@vueuse/motion": "^3.0.3",
+    "lucide-vue-next": "^0.542.0",
+    "three": "^0.180.0",
+    "@tresjs/core": "^4.3.3",
+    "@tresjs/cientos": "^4.3.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.4",
     "vite": "^7.3.1",
-    "vite-plugin-vue-devtools": "^8.0.7"
+    "vite-plugin-vue-devtools": "^8.0.7",
+    "tailwindcss": "^4.1.13",
+    "@tailwindcss/vite": "^4.1.13",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

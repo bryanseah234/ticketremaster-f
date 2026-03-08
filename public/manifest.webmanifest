@@ -1,0 +1,16 @@
+{
+  "name": "TicketRemaster",
+  "short_name": "TicketRemaster",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0b0d",
+  "theme_color": "#f97316",
+  "description": "Buy, sell, and enjoy live events with secure ticket resales.",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
