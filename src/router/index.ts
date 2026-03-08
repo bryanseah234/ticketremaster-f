@@ -42,6 +42,7 @@ const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes })
 
+// Enforce auth and admin access rules before navigation
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn.value) return '/login'
