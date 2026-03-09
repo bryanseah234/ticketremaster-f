@@ -11,6 +11,7 @@ const auth = useAuthStore()
 const seats = ref<any[]>([])
 const selectedSeat = ref<any | null>(null)
 const holdSeconds = ref(0)
+const orderId = ref('')
 const error = ref('')
 const loading = ref(false)
 let timer: number | undefined
@@ -42,10 +43,30 @@ const reserveSeat = async () => {
     holdSeconds.value = data?.data?.ttl_seconds || 300
     if (timer) clearInterval(timer)
     timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
-    if (data?.data?.order_id) router.push(`/checkout/${data.data.order_id}`)
+    orderId.value = data?.data?.order_id || ''
+    if (orderId.value) {
+      const pending = {
+        order_id: orderId.value,
+        event_id: route.params.eventId,
+        seat: {
+          seat_id: selectedSeat.value.seat_id,
+          row_number: selectedSeat.value.row_number,
+          seat_number: selectedSeat.value.seat_number,
+          category: selectedSeat.value.category,
+          price: selectedSeat.value.price,
+        },
+      }
+      localStorage.setItem('pending_order', JSON.stringify(pending))
+    }
   } catch (e: any) {
+    const code = e?.response?.data?.error_code
     const status = e?.response?.status
-    if (status === 409) error.value = 'Seat unavailable, please choose another.'
+    if (code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD') error.value = 'Seat unavailable, please choose another.'
+    else if (code === 'SEAT_NOT_FOUND') error.value = 'Seat not found.'
+    else if (code === 'EVENT_ENDED') error.value = 'Event ended.'
+    else if (code === 'USER_NOT_FOUND') error.value = 'User not found.'
+    else if (code === 'INVALID_UUID') error.value = 'Invalid event or seat ID.'
+    else if (status === 409) error.value = 'Seat unavailable, please choose another.'
     else if (status === 410) error.value = 'Event ended or hold expired.'
     else error.value = 'Reserve failed.'
   }
@@ -77,10 +98,11 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
         </button>
       </div>
 
-      <div class="row" style="margin-top:1rem;">
+      <div class="row" style="margin-top:1rem;flex-wrap:wrap;gap:.6rem;">
         <span class="badge">Selected: {{ selectedSeat ? `${selectedSeat.row_number}-${selectedSeat.seat_number}` : 'None' }}</span>
         <span v-if="holdSeconds>0" class="badge">Hold: {{ holdDisplay }}</span>
         <button :disabled="!selectedSeat" @click="reserveSeat">Reserve</button>
+        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>
       </div>
     </article>
   </section>

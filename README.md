@@ -1,64 +1,75 @@
 # TicketRemaster Frontend
 
-> Vue 3 SPA for event ticketing, talking to backend via Kong API Gateway (`localhost:8000`).
+Vue 3 SPA for event ticketing, talking to backend via the API Gateway at `http://localhost:8000/api` in local development.
 
-## Overview
+## Features
 
-TicketRemaster is a modern event ticketing frontend built with Vue 3 + Vite. The landing page currently includes:
-- Parallax hero with frosted search bar
-- Featured events carousel with modal details
-- Global reach section with interactive globe-style CTA
-- Multi-column footer
+- Landing page with hero, featured events, and CTA sections
+- Event discovery with search, date filter, and favourites
+- Event detail with seat availability preview and seat reserve flow
+- Checkout with OTP flow for flagged users and credit balance display
+- Tickets list and QR display with auto-refresh
+- Ticket transfer initiate and confirm flows
+- Credit top-up with Stripe Elements
+- Marketplace page with required sections and listings
+- Admin event creation and dashboard
 
-## Dependency Requirements (for Vercel / CI)
+## Routes
 
-The landing implementation expects these packages to be installed from npm:
+- `/` Landing
+- `/events` Event listing
+- `/events/:eventId` Event detail
+- `/events/:eventId/seats` Seat selection
+- `/login` Login
+- `/register` Register
+- `/verify` Verify registration
+- `/checkout/:orderId` Checkout
+- `/tickets` My tickets
+- `/tickets/:seatId` Ticket QR
+- `/tickets/:seatId/transfer` Transfer initiate
+- `/transfer/:transferId` Transfer confirm
+- `/credits/topup` Credit top-up
+- `/profile` Profile + favourites
+- `/marketplace` Marketplace
+- `/admin/events/new` Admin event create
+- `/admin/events/:eventId/dashboard` Admin event dashboard
+
+## Tech Stack
+
+- Vue 3 + Vite 7
+- TypeScript
+- Vue Router 4
+- Pinia 2
+- Axios
+- Stripe.js
+- @chenfengyuan/vue-qrcode + qrcode
+- @vueuse/core
+- dayjs
+
+## Environment
+
+Create a `.env` file (use `.env.example` as a template):
 
 ```bash
-npm install
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_STRIPE_PUBLIC_KEY=pk_test_replace_me
 ```
-
-Key required dependencies now explicitly listed in `package.json`:
-- `@vueuse/core`
-- `@vueuse/motion`
-- `lucide-vue-next`
-- `three`
-- `@tresjs/core`
-- `@tresjs/cientos`
-- `tailwindcss` + `@tailwindcss/vite`
-
-If your Vercel build has normal npm registry access, these should install automatically during the build step.
-
-## Why install failed in this agent environment
-
-Install failed here with HTTP `403 Forbidden` from npm registry endpoints, which indicates an environment policy/proxy restriction rather than project code issues. Example from this run:
-- `GET https://registry.npmjs.org/@vueuse%2fcore -> 403`
-- `GET https://registry.npmjs.org/@tailwindcss%2fvite -> 403`
-
-So the dependency list is now in source control, but actual install must run in an environment with npm registry access (e.g., your Vercel build machine or local dev machine).
 
 ## Setup & Development
 
-### 1. Install dependencies
 ```bash
 npm install
-```
-
-### 2. Start development server
-```bash
 npm run dev
 ```
 
-### 3. Build for production
+## Build
+
 ```bash
 npm run build
-```
-
-### 4. Preview production build
-```bash
 npm run preview
 ```
 
 ## Notes
-- All business logic and API details are in `INSTRUCTIONS.md`
+
+- API contract reference: `API.md`
 - OutSystems QR scanner is a separate app (see `outsystems/README.md`)
