@@ -13,6 +13,7 @@ import TransferInitiateView from '@/views/app/TransferInitiateView.vue'
 import TransferConfirmView from '@/views/app/TransferConfirmView.vue'
 import CreditTopupView from '@/views/app/CreditTopupView.vue'
 import ProfileView from '@/views/app/ProfileView.vue'
+import MarketplaceView from '@/views/app/MarketplaceView.vue'
 import AdminEventCreateView from '@/views/app/AdminEventCreateView.vue'
 import AdminEventDashboardView from '@/views/app/AdminEventDashboardView.vue'
 import DesignSystemView from '@/views/app/DesignSystemView.vue'
@@ -35,6 +36,7 @@ const routes = [
   { path: '/transfer/:transferId', component: TransferConfirmView, meta: { requiresAuth: true } },
   { path: '/credits/topup', component: CreditTopupView, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfileView, meta: { requiresAuth: true } },
+  { path: '/marketplace', component: MarketplaceView, meta: { requiresAuth: true } },
   { path: '/admin/events/new', component: AdminEventCreateView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/events/:eventId/dashboard', component: AdminEventDashboardView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', component: NotFoundView },

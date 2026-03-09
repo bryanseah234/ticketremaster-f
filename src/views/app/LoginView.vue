@@ -12,6 +12,18 @@ const password = ref('')
 const loading = ref(false)
 const error = ref('')
 
+const extractError = (e: any) => {
+  const status = e?.response?.status
+  const code = e?.response?.data?.error_code || e?.response?.data?.error?.code
+  if (code === 'VALIDATION_ERROR') return 'Please check your email and password.'
+  if (status === 401) return 'Invalid email or password'
+  if (status === 403) return 'Please verify your phone number.'
+  if (status === 400) return 'Please check your email and password.'
+  if (code === 'UNAUTHORIZED') return 'Invalid email or password'
+  if (code === 'UNVERIFIED_ACCOUNT') return 'Please verify your phone number.'
+  return 'Login failed'
+}
+
 const submit = async () => {
   loading.value = true
   error.value = ''
@@ -20,11 +32,10 @@ const submit = async () => {
     auth.setSession(data.data)
     router.push('/events')
   } catch (e: any) {
-    if (e?.response?.status === 401) error.value = 'Invalid email or password'
-    else if (e?.response?.status === 403) {
-      error.value = 'Please verify your phone number.'
+    error.value = extractError(e)
+    if (e?.response?.status === 403 || e?.response?.data?.error_code === 'UNVERIFIED_ACCOUNT') {
       router.push('/verify')
-    } else error.value = 'Login failed'
+    }
   } finally {
     loading.value = false
   }

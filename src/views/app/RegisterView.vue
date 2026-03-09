@@ -8,6 +8,22 @@ const form = ref({ email: '', phone: '', password: '', confirm: '' })
 const loading = ref(false)
 const error = ref('')
 
+const extractError = (e: any) => {
+  const status = e?.response?.status
+  const code = e?.response?.data?.error_code || e?.response?.data?.error?.code
+  const fieldErrors = e?.response?.data?.errors
+  if (status === 409 || code === 'EMAIL_ALREADY_EXISTS') return 'This email is already registered.'
+  if (status === 400 || code === 'VALIDATION_ERROR') {
+    if (fieldErrors && typeof fieldErrors === 'object') {
+      const firstKey = Object.keys(fieldErrors)[0]
+      const firstValue = Array.isArray(fieldErrors[firstKey]) ? fieldErrors[firstKey][0] : fieldErrors[firstKey]
+      return firstValue || 'Please check your registration details.'
+    }
+    return 'Please check your registration details.'
+  }
+  return 'Registration failed.'
+}
+
 const submit = async () => {
   error.value = ''
   if (form.value.password !== form.value.confirm) {
@@ -21,8 +37,7 @@ const submit = async () => {
     if (pendingUserId) localStorage.setItem('pending_user_id', pendingUserId)
     router.push('/verify')
   } catch (e: any) {
-    if (e?.response?.status === 409) error.value = 'This email is already registered.'
-    else error.value = 'Registration failed.'
+    error.value = extractError(e)
   } finally {
     loading.value = false
   }

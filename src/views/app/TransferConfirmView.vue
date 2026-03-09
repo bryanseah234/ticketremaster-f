@@ -23,7 +23,13 @@ const confirm = async () => {
     message.value = `Transfer complete. New owner: ${data?.data?.new_owner_user_id || 'updated'}`
   } catch (e: any) {
     status.value = 'FAILED'
-    message.value = e?.response?.data?.error?.code || 'Transfer confirmation failed.'
+    const code = e?.response?.data?.error_code
+    if (code === 'OTP_INVALID') message.value = 'One or both OTP codes are wrong.'
+    else if (code === 'OTP_EXPIRED') message.value = 'OTP expired. Re-initiate the transfer.'
+    else if (code === 'OTP_MAX_RETRIES') message.value = 'Too many attempts. Transfer cancelled.'
+    else if (code === 'TRANSFER_INVALID_STATE') message.value = 'This transfer is no longer active.'
+    else if (code === 'TRANSFER_NOT_FOUND') message.value = 'Transfer not found.'
+    else message.value = 'Transfer confirmation failed.'
   } finally {
     loading.value = false
   }

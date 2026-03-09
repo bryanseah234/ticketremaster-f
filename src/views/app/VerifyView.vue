@@ -26,7 +26,11 @@ const submit = async () => {
     localStorage.removeItem('pending_user_id')
     router.push('/events')
   } catch (e: any) {
-    error.value = e?.response?.status === 400 ? 'Invalid OTP code or no pending verification found.' : 'Verification failed.'
+    const code = e?.response?.data?.error_code
+    if (code === 'BAD_REQUEST') error.value = 'Invalid OTP code or no pending verification found.'
+    else if (code === 'NOT_FOUND') error.value = 'User not found.'
+    else if (code === 'VALIDATION_ERROR') error.value = 'Please check the user ID and OTP code.'
+    else error.value = 'Verification failed.'
   } finally {
     loading.value = false
   }

@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
+import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from '@stripe/stripe-js'
 import api from '@/api/client'
 
 const balance = ref(0)
 const amount = ref(100)
 const loading = ref(false)
 const result = ref('')
+const stripe = ref<Stripe | null>(null)
+const elements = ref<StripeElements | null>(null)
+const card = ref<StripeCardElement | null>(null)
+const cardMount = ref<HTMLDivElement | null>(null)
+const stripeReady = ref(false)
 
 const loadBalance = async () => {
   try {
@@ -16,20 +22,67 @@ const loadBalance = async () => {
   }
 }
 
+const initStripe = async () => {
+  const publishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || ''
+  if (!publishableKey) {
+    result.value = 'Stripe public key is missing.'
+    return
+  }
+  stripe.value = await loadStripe(publishableKey)
+  if (!stripe.value) {
+    result.value = 'Unable to initialize Stripe.'
+    return
+  }
+  elements.value = stripe.value.elements()
+  card.value = elements.value.create('card')
+  if (cardMount.value) {
+    card.value.mount(cardMount.value)
+    stripeReady.value = true
+  }
+}
+
 const createTopUp = async () => {
   loading.value = true
   result.value = ''
   try {
     const { data } = await api.post('/credits/topup', { amount: amount.value })
-    result.value = data?.data?.client_secret ? 'Payment intent created. Continue with Stripe card confirmation.' : 'No client secret returned.'
-  } catch {
-    result.value = 'Amount invalid or payment initiation failed.'
+    const clientSecret = data?.data?.client_secret
+    if (!clientSecret) {
+      result.value = 'No client secret returned.'
+      return
+    }
+    if (!stripe.value || !card.value) {
+      result.value = 'Stripe is not ready.'
+      return
+    }
+    const confirmation = await stripe.value.confirmCardPayment(clientSecret, { payment_method: { card: card.value } })
+    if (confirmation.error) {
+      result.value = confirmation.error.message || 'Card payment failed.'
+      return
+    }
+    if (confirmation.paymentIntent?.status === 'succeeded') {
+      result.value = 'Top up succeeded.'
+      setTimeout(loadBalance, 2000)
+    } else {
+      result.value = `Payment status: ${confirmation.paymentIntent?.status || 'unknown'}`
+    }
+  } catch (e: any) {
+    const code = e?.response?.data?.error_code
+    if (code === 'VALIDATION_ERROR') result.value = 'Amount must be positive.'
+    else result.value = 'Payment initiation failed.'
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadBalance)
+onMounted(() => {
+  loadBalance()
+  initStripe()
+})
+
+onUnmounted(() => {
+  if (card.value) card.value.unmount()
+})
 </script>
 
 <template>
@@ -46,7 +99,11 @@ onMounted(loadBalance)
         <label>Custom Amount</label>
         <input v-model.number="amount" min="1" type="number" />
       </div>
-      <button :disabled="loading" @click="createTopUp">{{ loading ? 'Creating...' : 'Create Payment' }}</button>
+      <div>
+        <label>Card Details</label>
+        <div ref="cardMount" class="glass" style="padding:.6rem;"></div>
+      </div>
+      <button :disabled="loading || !stripeReady" @click="createTopUp">{{ loading ? 'Processing...' : 'Pay with Card' }}</button>
       <p class="small" style="color:#fdba74">{{ result }}</p>
     </article>
   </section>

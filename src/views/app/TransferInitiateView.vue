@@ -26,7 +26,15 @@ const startTransfer = async () => {
     })
     router.push(`/transfer/${data?.data?.transfer_id}`)
   } catch (e: any) {
-    message.value = e?.response?.data?.error?.code || 'Transfer initiation failed.'
+    const code = e?.response?.data?.error_code
+    if (code === 'NOT_SEAT_OWNER') message.value = "You don't own this ticket."
+    else if (code === 'INSUFFICIENT_CREDITS') message.value = 'Buyer does not have enough credits.'
+    else if (code === 'TRANSFER_IN_PROGRESS') message.value = 'A transfer is already pending for this ticket.'
+    else if (code === 'SELF_TRANSFER') message.value = 'You cannot transfer to yourself.'
+    else if (code === 'SEAT_UNAVAILABLE') message.value = 'Seat is not eligible for transfer.'
+    else if (code === 'USER_NOT_FOUND') message.value = 'Buyer not found.'
+    else if (code === 'SEAT_NOT_FOUND') message.value = 'Seat not found.'
+    else message.value = 'Transfer initiation failed.'
   } finally {
     loading.value = false
   }
