@@ -8,7 +8,7 @@ let lastTime = 0
 const rotationSpeed = 26
 const earthTexture = new Image()
 earthTexture.crossOrigin = 'anonymous'
-earthTexture.src = 'https://upload.wikimedia.org/wikipedia/commons/8/80/Equirectangular-projection.jpg'
+earthTexture.src = 'https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg'
 
 const locations = [
   { lat: 1.3521, lon: 103.8198 },
