@@ -112,6 +112,21 @@ onMounted(load)
         <div class="cover"></div>
         <div class="content">
           <div class="row" style="justify-content:space-between;align-items:flex-start;">
+            <span class="badge">{{ event.venue?.name || 'Venue TBA' }}</span>
+          </div>
+
+          <h3>{{ event.name }}</h3>
+          <p class="small">{{ new Date(event.event_date).toLocaleDateString() }}</p>
+
+          <div class="row" style="gap:.35rem;">
+            <span v-for="[cat, price] in Object.entries(event.pricing_tiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
+          </div>
+
+          <div class="row actions">
+            <RouterLink :to="`/events/${event.event_id}`"><button>View</button></RouterLink>
+            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click="toggleFavorite(event.event_id)">
+              <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
               </svg>
             </button>
           </div>

@@ -1,0 +1,87 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "TicketRemaster logo TicketRemaster" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "TicketRemaster logo" [ref=e6]
+          - generic [ref=e7]: TicketRemaster
+        - navigation [ref=e9]:
+          - link "Home" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "Events" [ref=e11] [cursor=pointer]:
+            - /url: /events
+          - link "Marketplace" [ref=e12] [cursor=pointer]:
+            - /url: /marketplace
+          - link "Login" [ref=e13] [cursor=pointer]:
+            - /url: /login
+    - article [ref=e15]:
+      - heading "Register" [level=1] [ref=e16]
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Email
+          - textbox "you@email.com" [active] [ref=e20]: new@example.com
+        - generic [ref=e21]:
+          - generic [ref=e22]: Phone
+          - textbox "+65..." [ref=e23]
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: Password
+          - textbox [ref=e27]
+        - generic [ref=e28]:
+          - generic [ref=e29]: Confirm Password
+          - textbox [ref=e30]
+      - button "Create Account" [ref=e31] [cursor=pointer]
+      - paragraph [ref=e32]:
+        - text: Already have an account?
+        - link "Sign in" [ref=e33] [cursor=pointer]:
+          - /url: /login
+    - contentinfo [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - img "TicketRemaster logo" [ref=e38]
+            - heading "TicketRemaster" [level=3] [ref=e39]
+          - paragraph [ref=e40]: Buy smarter
+          - paragraph [ref=e41]: Sell safer
+          - paragraph [ref=e42]: Experience more live moments
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]:
+              - heading "Company" [level=4] [ref=e46]
+              - link "About Us" [ref=e47] [cursor=pointer]:
+                - /url: /about
+              - link "Careers" [ref=e48] [cursor=pointer]:
+                - /url: /careers
+            - generic [ref=e49]:
+              - heading "Legal" [level=4] [ref=e50]
+              - link "Terms" [ref=e51] [cursor=pointer]:
+                - /url: /terms
+              - link "Privacy" [ref=e52] [cursor=pointer]:
+                - /url: /privacy
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - heading "Product" [level=4] [ref=e55]
+              - link "Buy Tickets" [ref=e56] [cursor=pointer]:
+                - /url: /events
+              - link "Sell Tickets" [ref=e57] [cursor=pointer]:
+                - /url: /marketplace
+              - link "Venues" [ref=e58] [cursor=pointer]:
+                - /url: /venues
+            - generic [ref=e59]:
+              - heading "Resources" [level=4] [ref=e60]
+              - link "Help Center" [ref=e61] [cursor=pointer]:
+                - /url: /help
+              - link "Resale Guarantees" [ref=e62] [cursor=pointer]:
+                - /url: /resale-guarantees
+        - generic [ref=e63]: © 2026 TicketRemaster. All rights reserved.
+    - complementary
+  - generic [ref=e64]:
+    - generic "Toggle devtools panel" [ref=e65] [cursor=pointer]:
+      - img [ref=e66]
+    - generic "Toggle Component Inspector":
+      - img
+```
