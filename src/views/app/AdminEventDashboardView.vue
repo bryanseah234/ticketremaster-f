@@ -10,12 +10,10 @@ const data = ref<any>(null)
 const toast = useToast()
 
 const occupancyRate = computed(() => {
-  if (!data.value) return 0
-  const sold = Number(data.value.seats_sold || 0)
-  const held = Number(data.value.seats_held || 0)
-  const available = Number(data.value.seats_available || 0)
-  const total = sold + held + available
-  return total ? Math.round(((sold + held) / total) * 100) : 0
+  if (!data.value?.stats) return 0
+  const sold = Number(data.value.stats.seats_sold || 0)
+  const total = Number(data.value.stats.total_seats || 0)
+  return total ? Math.round((sold / total) * 100) : 0
 })
 
 const load = async () => {
@@ -43,23 +41,23 @@ onMounted(load)
       <button class="secondary" @click="load">Refresh</button>
     </div>
 
-    <div v-if="data" class="grid-4" style="margin:1rem 0;">
-      <article class="glass metric"><p class="small">Seats sold</p><h3>{{ data.seats_sold }}</h3></article>
-      <article class="glass metric"><p class="small">Seats held</p><h3>{{ data.seats_held }}</h3></article>
-      <article class="glass metric"><p class="small">Seats available</p><h3>{{ data.seats_available }}</h3></article>
+    <div v-if="data?.stats" class="grid-4" style="margin:1rem 0;">
+      <article class="glass metric"><p class="small">Seats sold</p><h3>{{ data.stats.seats_sold }}</h3></article>
+      <article class="glass metric"><p class="small">Total seats</p><h3>{{ data.stats.total_seats }}</h3></article>
+      <article class="glass metric"><p class="small">Revenue</p><h3>${{ data.stats.revenue?.toLocaleString() || 0 }}</h3></article>
       <article class="glass metric"><p class="small">Occupancy</p><h3>{{ occupancyRate }}%</h3></article>
     </div>
 
     <article class="glass table-wrap">
       <table>
         <thead>
-          <tr><th>Seat</th><th>Status</th><th>Price</th></tr>
+          <tr><th>Seat</th><th>Status</th><th>Attendee Email</th></tr>
         </thead>
         <tbody>
-          <tr v-for="seat in (data?.seats_detail || [])" :key="seat.seat_id">
-            <td>{{ seat.row }}-{{ seat.seat_number }}</td>
-            <td><span class="badge">{{ seat.status }}</span></td>
-            <td>${{ seat.price }}</td>
+          <tr v-for="attendee in (data?.attendees || [])" :key="attendee.seat_id">
+            <td>{{ attendee.row_number }}-{{ attendee.seat_number }}</td>
+            <td><span class="badge">SOLD</span></td>
+            <td>{{ attendee.email }}</td>
           </tr>
         </tbody>
       </table>
