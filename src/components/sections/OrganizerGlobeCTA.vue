@@ -66,9 +66,9 @@ const draw = (time: number) => {
 
   ctx.clearRect(0, 0, w, h)
 
-  const glow = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.45, r * 0.15, cx, cy, r * 1.7)
-  glow.addColorStop(0, 'rgba(145, 214, 255, 0.45)')
-  glow.addColorStop(0.45, 'rgba(90, 170, 255, 0.25)')
+  const glow = ctx.createRadialGradient(cx - r * 0.32, cy - r * 0.4, r * 0.2, cx, cy, r * 1.6)
+  glow.addColorStop(0, 'rgba(145, 214, 255, 0.32)')
+  glow.addColorStop(0.5, 'rgba(90, 170, 255, 0.18)')
   glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
   ctx.fillStyle = glow
   ctx.beginPath()
@@ -96,23 +96,23 @@ const draw = (time: number) => {
   }
 
   ctx.globalCompositeOperation = 'multiply'
-  const lightShade = ctx.createRadialGradient(cx - r * 0.55, cy - r * 0.45, r * 0.18, cx + r * 0.35, cy + r * 0.2, r * 1.1)
-  lightShade.addColorStop(0, 'rgba(255,255,255,0.98)')
-  lightShade.addColorStop(0.52, 'rgba(175,175,175,0.92)')
-  lightShade.addColorStop(1, 'rgba(24,24,24,0.9)')
+  const lightShade = ctx.createRadialGradient(cx - r * 0.6, cy - r * 0.45, r * 0.2, cx + r * 0.45, cy + r * 0.25, r * 1.1)
+  lightShade.addColorStop(0, 'rgba(255,255,255,0.88)')
+  lightShade.addColorStop(0.55, 'rgba(160,160,160,0.82)')
+  lightShade.addColorStop(1, 'rgba(40,40,40,0.75)')
   ctx.fillStyle = lightShade
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
 
   ctx.globalCompositeOperation = 'source-atop'
-  const limb = ctx.createRadialGradient(cx - r * 0.1, cy - r * 0.1, r * 0.65, cx, cy, r)
+  const limb = ctx.createRadialGradient(cx - r * 0.1, cy - r * 0.1, r * 0.68, cx, cy, r)
   limb.addColorStop(0, 'rgba(0,0,0,0)')
-  limb.addColorStop(1, 'rgba(0,0,0,0.45)')
+  limb.addColorStop(1, 'rgba(0,0,0,0.32)')
   ctx.fillStyle = limb
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
 
   ctx.globalCompositeOperation = 'screen'
-  const specular = ctx.createRadialGradient(cx - r * 0.42, cy - r * 0.36, r * 0.07, cx - r * 0.22, cy - r * 0.22, r * 0.5)
-  specular.addColorStop(0, 'rgba(255,255,255,0.65)')
+  const specular = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.34, r * 0.06, cx - r * 0.2, cy - r * 0.2, r * 0.48)
+  specular.addColorStop(0, 'rgba(255,255,255,0.45)')
   specular.addColorStop(1, 'rgba(255,255,255,0)')
   ctx.fillStyle = specular
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
@@ -126,7 +126,7 @@ const draw = (time: number) => {
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.stroke()
 
-  const rotationAngle = (rotation / (patternWidth / 2)) * Math.PI
+  const rotationAngle = (-rotation / (patternWidth / 2)) * Math.PI
   locations.forEach((location) => {
     const lat = (location.lat * Math.PI) / 180
     const lon = (location.lon * Math.PI) / 180

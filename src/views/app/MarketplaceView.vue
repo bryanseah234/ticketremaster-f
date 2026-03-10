@@ -12,6 +12,9 @@ interface Listing {
   status: string
   created_at?: string
   updated_at?: string
+  event_name?: string
+  event_date?: string
+  image?: string
 }
 
 const auth = useAuthStore()
@@ -22,9 +25,9 @@ const loading = ref(false)
 const listings = ref<Listing[]>([])
 
 const fallbackListings: Listing[] = [
-  { listing_id: 'R-1001', seat_id: 'seat-101', asking_price: 180, status: 'ACTIVE', created_at: '2026-02-10T10:25:00Z' },
-  { listing_id: 'R-1002', seat_id: 'seat-204', asking_price: 120, status: 'ACTIVE', created_at: '2026-02-12T08:40:00Z' },
-  { listing_id: 'R-1003', seat_id: 'seat-318', asking_price: 220, status: 'ACTIVE', created_at: '2026-02-15T15:10:00Z' },
+  { listing_id: 'R-1001', seat_id: 'seat-101', asking_price: 180, status: 'ACTIVE', created_at: '2026-02-10T10:25:00Z', event_name: 'Underground Rap Session', event_date: '2026-03-20T19:30:00Z', image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=1400' },
+  { listing_id: 'R-1002', seat_id: 'seat-204', asking_price: 120, status: 'ACTIVE', created_at: '2026-02-12T08:40:00Z', event_name: 'Midnight Pulse', event_date: '2026-05-08T20:00:00Z', image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1400' },
+  { listing_id: 'R-1003', seat_id: 'seat-318', asking_price: 220, status: 'ACTIVE', created_at: '2026-02-15T15:10:00Z', event_name: 'Neon Skyline Festival', event_date: '2026-04-13T20:00:00Z', image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1400' },
 ]
 
 const loadListings = async () => {
@@ -40,6 +43,9 @@ const loadListings = async () => {
       status: item.status || 'ACTIVE',
       created_at: item.created_at,
       updated_at: item.updated_at,
+      event_name: item.event?.name || item.event_name,
+      event_date: item.event?.event_date || item.event_date,
+      image: item.event?.image || item.image,
     })) : fallbackListings
   } catch {
     listings.value = fallbackListings
@@ -59,58 +65,36 @@ onMounted(loadListings)
       <p class="section-subtitle">A trusted resale marketplace for verified tickets.</p>
     </article>
 
-    <section class="grid-2" style="margin-top:1rem;">
-      <article class="glass" style="padding:1rem;display:grid;gap:.6rem;">
-        <h2 class="section-title" style="font-size:1.2rem">Why Buy From Our Marketplace?</h2>
-        <ul class="small" style="display:grid;gap:.25rem;">
-          <li>Verified Sellers & Ratings</li>
-          <li>100% Buyer Protection</li>
-          <li>Mobile Tickets Instant Delivery</li>
-          <li>Best Price Guarantee</li>
-          <li>No Hidden Fees</li>
-          <li>24/7 Customer Support</li>
-        </ul>
-      </article>
-      <article class="glass" style="padding:1rem;display:grid;gap:.5rem;align-content:start;">
-        <span class="badge">Buy Confidence</span>
-        <h3>Every ticket is verified and protected.</h3>
-        <p class="small">If your ticket is not delivered or invalid, we will make it right.</p>
-      </article>
-    </section>
-
-    <article class="glass" style="padding:1rem;margin-top:1rem;display:grid;gap:.6rem;">
-      <h2 class="section-title" style="font-size:1.2rem">How the Resale Marketplace Works</h2>
-      <div class="grid-3">
-        <div class="panel" style="padding:.75rem;">
-          <p class="small">1. Browse Listings</p>
-          <p>Explore verified tickets from other fans.</p>
-        </div>
-        <div class="panel" style="padding:.75rem;">
-          <p class="small">2. Review Details</p>
-          <p>Check seat, price, and event information.</p>
-        </div>
-        <div class="panel" style="padding:.75rem;">
-          <p class="small">3. Purchase Safely</p>
-          <p>Pay securely with guaranteed delivery.</p>
-        </div>
-      </div>
-    </article>
-
     <section style="margin-top:1rem;">
       <h2 class="section-title">Resale Listings</h2>
       <p v-if="!isLoggedIn" class="small">Login to view seller details and purchase options.</p>
       <div class="grid-3">
-        <article v-for="listing in listings" :key="listing.listing_id" class="glass" style="padding:1rem;display:grid;gap:.4rem;">
-          <span class="badge">Listing {{ listing.listing_id }} · {{ listing.status }}</span>
-          <h3>Seat {{ listing.seat_id }}</h3>
-          <p class="small">Asking price: ${{ listing.asking_price }}</p>
-          <p v-if="listing.created_at" class="small">Listed {{ new Date(listing.created_at).toLocaleString() }}</p>
-          <p v-else class="small">Listing time unavailable.</p>
-          <p v-if="!isLoggedIn" class="small">Login to view seller details and purchase options.</p>
-          <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to view</button></RouterLink>
-          <button v-else class="secondary">Review Listing</button>
+        <article v-for="(listing, i) in listings" :key="listing.listing_id" class="glass listing-card">
+          <img class="listing-img" :src="listing.image || fallbackListings[i % fallbackListings.length].image" :alt="listing.event_name || 'Resale listing'" />
+          <div class="listing-cover"></div>
+          <div class="listing-content">
+            <p class="small">{{ listing.event_date ? new Date(listing.event_date).toLocaleDateString() : 'Date TBA' }}</p>
+            <h3>{{ listing.event_name || 'Event name unavailable' }}</h3>
+            <div class="row" style="gap:.4rem;flex-wrap:wrap;">
+              <span class="badge">Seat {{ listing.seat_id }}</span>
+              <span class="badge">From ${{ listing.asking_price }}</span>
+            </div>
+            <div class="row" style="gap:.5rem;">
+              <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to view</button></RouterLink>
+              <button v-else>View</button>
+            </div>
+          </div>
         </article>
       </div>
     </section>
   </section>
 </template>
+
+<style scoped>
+.listing-card{position:relative;overflow:hidden;min-height:280px;padding:0}
+.listing-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.listing-cover{position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,11,.12),rgba(9,9,11,.9))}
+.listing-content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
+.listing-content h3{color:#fff}
+.listing-content .small{color:#e4e4e7}
+</style>
