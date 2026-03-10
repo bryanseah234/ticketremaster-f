@@ -6,14 +6,60 @@ import { useToast } from '@/composables/useToast'
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 const api = axios.create({ baseURL })
+const apiKey = import.meta.env.VITE_KONG_API_KEY || ''
 
 let isRefreshing = false
 // Queue callbacks for requests waiting on a refreshed access token
 let queued: Array<(token: string | null) => void> = []
+let offlineNotified = false
+;(window as any).__apiOffline = false
 
 const flushQueue = (token: string | null) => {
   queued.forEach((cb) => cb(token))
   queued = []
+}
+
+const resolveUrl = (config: any) => {
+  const url = config?.url || ''
+  if (!url) return baseURL
+  if (url.startsWith('http')) return url
+  const base = config?.baseURL || baseURL
+  return `${String(base).replace(/\/$/, '')}/${String(url).replace(/^\//, '')}`
+}
+
+const emitOffline = (message: string) => {
+  if (offlineNotified) return
+  offlineNotified = true
+  ;(window as any).__apiOffline = true
+  window.dispatchEvent(new CustomEvent('api:offline', { detail: { message } }))
+}
+
+const emitOnline = () => {
+  if (!offlineNotified) return
+  offlineNotified = false
+  ;(window as any).__apiOffline = false
+  window.dispatchEvent(new Event('api:online'))
+}
+
+const logApiError = (error: any) => {
+  const config = error?.config || {}
+  const headers = { ...(config?.headers || {}) }
+  if (headers.Authorization) delete headers.Authorization
+  const status = error?.response?.status
+  const errorCode = error?.response?.data?.error_code
+  const message = error?.response?.data?.message || error?.message
+  const details = {
+    method: String(config?.method || 'GET').toUpperCase(),
+    url: resolveUrl(config),
+    status,
+    errorCode,
+    message,
+    params: config?.params,
+    data: config?.data,
+    headers,
+    response: error?.response?.data,
+  }
+  console.error('API error', details)
 }
 
 api.interceptors.request.use((config) => {
@@ -21,17 +67,28 @@ api.interceptors.request.use((config) => {
   if (auth.state.accessToken) {
     config.headers.Authorization = `Bearer ${auth.state.accessToken}`
   }
+  if (apiKey && !config.headers.apikey) {
+    config.headers.apikey = apiKey
+  }
   return config
 })
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    emitOnline()
+    return response
+  },
   async (error) => {
+    logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
     const errorCode = error?.response?.data?.error_code
     const errorMessage = error?.response?.data?.message
     const original = error.config || {}
+    const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
+    if (isNetworkError || status === 502 || status === 503 || status === 504) {
+      emitOffline('Backend unavailable. Showing limited demo data.')
+    }
 
     // Refresh the access token once, then retry failed requests
     if (status === 401 && !original._retry) {
@@ -70,6 +127,7 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${nextAccessToken}`
         return api.request(original)
       } catch (refreshErr) {
+        logApiError(refreshErr)
         flushQueue(null)
         auth.clearSession()
         window.location.href = '/login'

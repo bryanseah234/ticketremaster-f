@@ -37,6 +37,8 @@ const toggleFavorite = (eventId: string) => {
   }
 }
 
+const buildCacheKey = () => `events_list:${page.value}:${dateFilter.value || 'all'}`
+
 const load = async () => {
   loading.value = true
   usingFallback.value = false
@@ -44,20 +46,23 @@ const load = async () => {
   try {
     const { data } = await api.get('/events', { params: { page: page.value, per_page: 20, date: dateFilter.value || undefined } })
     const items = data?.data || []
-    if (!items.length) {
+    events.value = items
+    totalPages.value = data?.pagination?.total_pages || 1
+    localStorage.setItem(buildCacheKey(), JSON.stringify({ items, totalPages: totalPages.value }))
+  } catch {
+    const cached = localStorage.getItem(buildCacheKey())
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      events.value = parsed.items || []
+      totalPages.value = parsed.totalPages || 1
+      usingFallback.value = true
+      toast.push('Offline mode: showing cached events.', 'info', 3200)
+    } else {
       usingFallback.value = true
       toast.push('Showing curated events while connection is unavailable.', 'info', 3200)
       events.value = mockEvents.slice(0, 20)
       totalPages.value = 1
-    } else {
-      events.value = items
-      totalPages.value = data?.pagination?.total_pages || 1
     }
-  } catch {
-    usingFallback.value = true
-    toast.push('Showing curated events while connection is unavailable.', 'info', 3200)
-    events.value = mockEvents.slice(0, 20)
-    totalPages.value = 1
   } finally {
     loading.value = false
   }

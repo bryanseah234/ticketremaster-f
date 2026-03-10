@@ -10,6 +10,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const balance = ref(0)
 const usingFallback = ref(false)
+const profile = ref<any | null>(null)
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favorite_events') || '[]'))
 const toast = useToast()
 
@@ -24,9 +25,23 @@ const favoriteEvents = computed(() => {
   return favoriteIds.value.map((id) => byId.get(id) || { event_id: id, name: 'Unknown event', event_date: '' })
 })
 
-const displayUser = computed(() => auth.state.user || fallbackUser)
+const displayUser = computed(() => profile.value || auth.state.user || fallbackUser)
+const flaggedStatus = computed(() => {
+  const user = displayUser.value as any
+  return Boolean(user?.is_flagged ?? user?.flagged)
+})
 
-const load = async () => {
+const loadProfile = async () => {
+  if (!auth.state.user?.user_id) return
+  try {
+    const { data } = await api.get(`/users/${auth.state.user.user_id}`)
+    profile.value = data?.data || null
+  } catch {
+    profile.value = null
+  }
+}
+
+const loadBalance = async () => {
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.credit_balance || 0
@@ -48,7 +63,10 @@ const logout = async () => {
   router.push('/login')
 }
 
-onMounted(load)
+onMounted(() => {
+  loadProfile()
+  loadBalance()
+})
 </script>
 
 <template>
@@ -59,7 +77,7 @@ onMounted(load)
       <p class="small">Email: {{ displayUser.email || '—' }}</p>
       <p class="small">Phone: {{ displayUser.phone || '—' }}</p>
       <p class="small">Credit Balance: {{ balance }}</p>
-      <p class="small">Flagged: {{ displayUser.flagged ? 'Yes' : 'No' }}</p>
+      <p class="small">Flagged: {{ flaggedStatus ? 'Yes' : 'No' }}</p>
       <div class="glass" style="padding:.8rem;display:grid;gap:.4rem;">
         <p class="small">Favourited Events</p>
         <ul v-if="favoriteEvents.length" class="small" style="display:grid;gap:.25rem;">

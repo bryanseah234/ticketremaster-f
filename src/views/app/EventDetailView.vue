@@ -27,6 +27,8 @@ const color = (status: Seat['status']) => {
   return 'var(--disabled)'
 }
 
+const cacheKey = () => `event_detail:${route.params.eventId}`
+
 const load = async () => {
   loading.value = true
   notFound.value = false
@@ -34,21 +36,30 @@ const load = async () => {
   try {
     const { data } = await api.get(`/events/${route.params.eventId}`)
     eventData.value = data?.data
+    if (eventData.value) {
+      localStorage.setItem(cacheKey(), JSON.stringify(eventData.value))
+    }
   } catch (e: any) {
     if (e?.response?.status === 404) {
       notFound.value = true
     } else {
-      const fallback = mockEvents.find((event) => event.event_id === route.params.eventId) || mockEvents[0]
-      const seats = Array.from({ length: 80 }).map((_, index) => ({
-        seat_id: `demo-${index + 1}`,
-        row_number: String.fromCharCode(65 + Math.floor(index / 10)),
-        seat_number: (index % 10) + 1,
-        status: index % 9 === 0 ? 'HELD' : index % 7 === 0 ? 'SOLD' : 'AVAILABLE',
-        category: fallback.pricing_tiers[0]?.category || 'GA',
-        price: fallback.pricing_tiers[0]?.price || 59,
-      }))
-      eventData.value = { ...fallback, seats }
-      toast.push('Demo data active for this event.', 'info', 3200)
+      const cached = localStorage.getItem(cacheKey())
+      if (cached) {
+        eventData.value = JSON.parse(cached)
+        toast.push('Offline mode: showing cached event details.', 'info', 3200)
+      } else {
+        const fallback = mockEvents.find((event) => event.event_id === route.params.eventId) || mockEvents[0]
+        const seats = Array.from({ length: 80 }).map((_, index) => ({
+          seat_id: `demo-${index + 1}`,
+          row_number: String.fromCharCode(65 + Math.floor(index / 10)),
+          seat_number: (index % 10) + 1,
+          status: index % 9 === 0 ? 'HELD' : index % 7 === 0 ? 'SOLD' : 'AVAILABLE',
+          category: fallback.pricing_tiers[0]?.category || 'GA',
+          price: fallback.pricing_tiers[0]?.price || 59,
+        }))
+        eventData.value = { ...fallback, seats }
+        toast.push('Demo data active for this event.', 'info', 3200)
+      }
     }
   } finally {
     loading.value = false
