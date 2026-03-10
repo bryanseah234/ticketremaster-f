@@ -1,19 +1,35 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 
 const buyerId = ref('')
 const credits = ref(100)
 const loading = ref(false)
 const message = ref('')
+const isOffline = ref(Boolean((window as any).__apiOffline))
+
+const handleOffline = () => {
+  isOffline.value = true
+}
+
+const handleOnline = () => {
+  isOffline.value = false
+}
 
 const startTransfer = async () => {
+  if (isOffline.value) {
+    message.value = 'Transfers are disabled while the backend is unavailable.'
+    toast.push(message.value, 'error', 3200)
+    return
+  }
   if (!auth.state.user) return
   loading.value = true
   message.value = ''
@@ -39,6 +55,16 @@ const startTransfer = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  window.addEventListener('api:offline', handleOffline)
+  window.addEventListener('api:online', handleOnline)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('api:offline', handleOffline)
+  window.removeEventListener('api:online', handleOnline)
+})
 </script>
 
 <template>
@@ -48,13 +74,13 @@ const startTransfer = async () => {
       <span class="badge">Seat: {{ route.params.seatId }}</span>
       <div>
         <label>Buyer Email / User ID</label>
-        <input v-model="buyerId" placeholder="buyer@email.com or user-id" />
+        <input v-model="buyerId" placeholder="buyer@email.com or user-id" :disabled="isOffline" />
       </div>
       <div>
         <label>Credit Amount</label>
-        <input v-model.number="credits" type="number" min="1" />
+        <input v-model.number="credits" type="number" min="1" :disabled="isOffline" />
       </div>
-      <button :disabled="loading" @click="startTransfer">{{ loading ? 'Starting...' : 'Start Transfer' }}</button>
+      <button :disabled="loading || isOffline" @click="startTransfer">{{ loading ? 'Starting...' : 'Start Transfer' }}</button>
       <p class="small" style="color:#fdba74">{{ message }}</p>
     </article>
   </section>

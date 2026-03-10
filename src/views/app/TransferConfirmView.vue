@@ -1,16 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
+const toast = useToast()
 const sellerOtp = ref('')
 const buyerOtp = ref('')
 const status = ref('PENDING_OTP')
 const message = ref('')
 const loading = ref(false)
+const isOffline = ref(Boolean((window as any).__apiOffline))
+
+const handleOffline = () => {
+  isOffline.value = true
+}
+
+const handleOnline = () => {
+  isOffline.value = false
+}
 
 const confirm = async () => {
+  if (isOffline.value) {
+    message.value = 'Transfer confirmation is disabled while the backend is unavailable.'
+    toast.push(message.value, 'error', 3200)
+    return
+  }
   loading.value = true
   message.value = ''
   try {
@@ -34,6 +50,16 @@ const confirm = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  window.addEventListener('api:offline', handleOffline)
+  window.addEventListener('api:online', handleOnline)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('api:offline', handleOffline)
+  window.removeEventListener('api:online', handleOnline)
+})
 </script>
 
 <template>
@@ -42,10 +68,10 @@ const confirm = async () => {
       <h1 class="section-title">Confirm Transfer</h1>
       <span class="badge">Transfer: {{ route.params.transferId }}</span>
       <div class="grid-2">
-        <div><label>Seller OTP</label><input v-model="sellerOtp" maxlength="6" /></div>
-        <div><label>Buyer OTP</label><input v-model="buyerOtp" maxlength="6" /></div>
+        <div><label>Seller OTP</label><input v-model="sellerOtp" maxlength="6" :disabled="isOffline" /></div>
+        <div><label>Buyer OTP</label><input v-model="buyerOtp" maxlength="6" :disabled="isOffline" /></div>
       </div>
-      <button :disabled="loading" @click="confirm">{{ loading ? 'Confirming...' : 'Confirm Transfer' }}</button>
+      <button :disabled="loading || isOffline" @click="confirm">{{ loading ? 'Confirming...' : 'Confirm Transfer' }}</button>
       <p class="small" style="color:#fdba74">{{ message || status }}</p>
       <RouterLink v-if="status==='COMPLETED'" to="/tickets"><button class="secondary">Back to My Tickets</button></RouterLink>
     </article>

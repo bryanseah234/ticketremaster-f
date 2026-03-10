@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/api/client'
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
+const balance = ref<number | null>(null)
+const balanceLoading = ref(false)
+const balanceError = ref(false)
+let balanceTimer: number | undefined
 
 const items = computed(() => {
   if (auth.isLoggedIn.value) {
     return [
+      { to: '/', label: 'Home', key: 'home' },
       { to: '/events', label: 'Events', key: 'events' },
       { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
+      { to: '/tickets', label: 'My Tickets', key: 'tickets' },
       { to: '/profile', label: 'Profile', key: 'profile' },
     ]
   }
@@ -22,10 +30,55 @@ const items = computed(() => {
   ]
 })
 
+const fetchBalance = async () => {
+  if (!auth.isLoggedIn.value) {
+    balance.value = null
+    balanceError.value = false
+    return
+  }
+  balanceLoading.value = true
+  balanceError.value = false
+  try {
+    const { data } = await api.get('/credits/balance')
+    const value = data?.data?.credit_balance ?? data?.credit_balance
+    balance.value = typeof value === 'number' ? value : null
+  } catch {
+    balanceError.value = true
+  } finally {
+    balanceLoading.value = false
+  }
+}
+
+const scheduleBalance = () => {
+  if (balanceTimer) window.clearTimeout(balanceTimer)
+  balanceTimer = window.setTimeout(fetchBalance, 250)
+}
+
+watch([() => auth.isLoggedIn.value, () => route.fullPath], () => {
+  if (!auth.isLoggedIn.value) {
+    balance.value = null
+    balanceError.value = false
+    return
+  }
+  scheduleBalance()
+}, { immediate: true })
+
+onMounted(() => {
+  if (auth.isLoggedIn.value) scheduleBalance()
+})
+
 const logout = () => {
   auth.clearSession()
   router.push('/login')
 }
+
+const balanceLabel = computed(() => {
+  if (!auth.isLoggedIn.value) return ''
+  if (balanceLoading.value) return 'Credits: ...'
+  if (balanceError.value) return 'Credits: --'
+  if (balance.value === null) return 'Credits: --'
+  return `Credits: $${balance.value}`
+})
 </script>
 
 <template>
@@ -37,6 +90,7 @@ const logout = () => {
       </RouterLink>
 
       <div class="right-cluster">
+        <RouterLink v-if="auth.isLoggedIn.value" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
         <nav>
           <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
           <button v-if="auth.isLoggedIn.value" class="nav-link nav-button nav-logout" @click="logout">Logout</button>
@@ -52,6 +106,7 @@ const logout = () => {
 .brand{display:flex;align-items:center;gap:.45rem;font-weight:800;letter-spacing:-.01em;font-size:.95rem;color:var(--accent)}
 .brand img{width:20px;height:20px}
 .right-cluster{margin-left:auto;display:flex;align-items:center;gap:.4rem}
+.nav-credit{padding:.35rem .6rem;border-radius:.7rem;border:1px solid rgba(251,146,60,.35);color:#fed7aa;font-weight:700}
 nav{display:flex;gap:.28rem;justify-content:flex-end;align-items:center;flex-wrap:wrap}
 .nav-link{padding:.38rem .64rem;border-radius:.7rem;color:var(--muted);font-weight:600}
 .nav-link.router-link-active{background:rgba(249,115,22,.18);color:#ffd4b7}

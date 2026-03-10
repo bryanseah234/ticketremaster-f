@@ -2,7 +2,6 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from '@stripe/stripe-js'
 import api from '@/api/client'
-
 const balance = ref(0)
 const amount = ref(100)
 const loading = ref(false)
@@ -12,6 +11,15 @@ const elements = ref<StripeElements | null>(null)
 const card = ref<StripeCardElement | null>(null)
 const cardMount = ref<HTMLDivElement | null>(null)
 const stripeReady = ref(false)
+const isOffline = ref(Boolean((window as any).__apiOffline))
+
+const handleOffline = () => {
+  isOffline.value = true
+}
+
+const handleOnline = () => {
+  isOffline.value = false
+}
 
 const loadBalance = async () => {
   try {
@@ -42,6 +50,10 @@ const initStripe = async () => {
 }
 
 const createTopUp = async () => {
+  if (isOffline.value) {
+    result.value = 'Top ups are disabled while the backend is unavailable.'
+    return
+  }
   loading.value = true
   result.value = ''
   try {
@@ -76,11 +88,15 @@ const createTopUp = async () => {
 }
 
 onMounted(() => {
+  window.addEventListener('api:offline', handleOffline)
+  window.addEventListener('api:online', handleOnline)
   loadBalance()
   initStripe()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('api:offline', handleOffline)
+  window.removeEventListener('api:online', handleOnline)
   if (card.value) card.value.unmount()
 })
 </script>
@@ -91,19 +107,19 @@ onUnmounted(() => {
       <h1 class="section-title">Credit Top Up</h1>
       <p class="small">Current balance: {{ balance }}</p>
       <div class="row">
-        <button class="secondary" @click="amount=50">$50</button>
-        <button class="secondary" @click="amount=100">$100</button>
-        <button class="secondary" @click="amount=200">$200</button>
+        <button class="secondary" :disabled="isOffline" @click="amount=50">$50</button>
+        <button class="secondary" :disabled="isOffline" @click="amount=100">$100</button>
+        <button class="secondary" :disabled="isOffline" @click="amount=200">$200</button>
       </div>
       <div>
         <label>Custom Amount</label>
-        <input v-model.number="amount" min="1" type="number" />
+        <input v-model.number="amount" min="1" type="number" :disabled="isOffline" />
       </div>
       <div>
         <label>Card Details</label>
         <div ref="cardMount" class="glass" style="padding:.6rem;"></div>
       </div>
-      <button :disabled="loading || !stripeReady" @click="createTopUp">{{ loading ? 'Processing...' : 'Pay with Card' }}</button>
+      <button :disabled="loading || !stripeReady || isOffline" @click="createTopUp">{{ loading ? 'Processing...' : 'Pay with Card' }}</button>
       <p class="small" style="color:#fdba74">{{ result }}</p>
     </article>
   </section>
