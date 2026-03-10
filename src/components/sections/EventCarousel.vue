@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import Card from '@/components/ui/Card.vue'
 import { useOutsideClick } from '@/composables/useOutsideClick'
@@ -16,6 +16,10 @@ interface EventCard {
 }
 
 const cards = ref<EventCard[]>([])
+const railRef = ref<HTMLDivElement | null>(null)
+const autoPaused = ref(false)
+let scrollRaf = 0
+let lastScrollTime = 0
 
 const loadFeatured = async () => {
   try {
@@ -51,7 +55,28 @@ const loadFeatured = async () => {
 const active = ref<EventCard | null>(null)
 const modalRef = ref<HTMLElement | null>(null)
 useOutsideClick(modalRef, () => (active.value = null))
-onMounted(loadFeatured)
+const animateRail = (time: number) => {
+  const rail = railRef.value
+  if (!rail) {
+    scrollRaf = requestAnimationFrame(animateRail)
+    return
+  }
+  if (!lastScrollTime) lastScrollTime = time
+  const delta = Math.min(64, time - lastScrollTime)
+  if (!autoPaused.value) {
+    const nextLeft = rail.scrollLeft + delta * 0.035
+    const maxLeft = rail.scrollWidth - rail.clientWidth - 2
+    rail.scrollLeft = nextLeft >= maxLeft ? 0 : nextLeft
+  }
+  lastScrollTime = time
+  scrollRaf = requestAnimationFrame(animateRail)
+}
+
+onMounted(() => {
+  loadFeatured()
+  scrollRaf = requestAnimationFrame(animateRail)
+})
+onUnmounted(() => cancelAnimationFrame(scrollRaf))
 </script>
 
 <template>
@@ -59,7 +84,7 @@ onMounted(loadFeatured)
     <h2 class="section-title">Featured Events</h2>
     <p class="section-subtitle">Our editor's top picks for you.</p>
 
-    <div class="rail">
+    <div ref="railRef" class="rail" @mouseenter="autoPaused = true" @mouseleave="autoPaused = false">
       <button v-for="c in cards" :key="c.id" class="tile" @click="active = c">
         <Card>
           <img :src="c.image" :alt="c.name" />
