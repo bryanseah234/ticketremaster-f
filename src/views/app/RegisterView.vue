@@ -2,11 +2,12 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const form = ref({ email: '', phone: '', password: '', confirm: '' })
 const loading = ref(false)
-const error = ref('')
+const toast = useToast()
 
 const extractError = (e: any) => {
   const status = e?.response?.status
@@ -25,9 +26,8 @@ const extractError = (e: any) => {
 }
 
 const submit = async () => {
-  error.value = ''
   if (form.value.password !== form.value.confirm) {
-    error.value = 'Passwords do not match.'
+    toast.push('Passwords do not match.', 'error', 3200)
     return
   }
   loading.value = true
@@ -37,7 +37,7 @@ const submit = async () => {
     if (pendingUserId) localStorage.setItem('pending_user_id', pendingUserId)
     router.push('/verify')
   } catch (e: any) {
-    error.value = extractError(e)
+    toast.push(extractError(e), 'error', 3200)
   } finally {
     loading.value = false
   }
@@ -56,7 +56,6 @@ const submit = async () => {
         <div><label>Password</label><input v-model="form.password" type="password" /></div>
         <div><label>Confirm Password</label><input v-model="form.confirm" type="password" /></div>
       </div>
-      <p v-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
       <button :disabled="loading" @click="submit">{{ loading ? 'Creating...' : 'Create Account' }}</button>
       <p class="small">Already have an account? <RouterLink to="/login" style="color:#fdba74">Sign in</RouterLink></p>
     </article>

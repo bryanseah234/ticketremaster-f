@@ -3,20 +3,20 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const auth = useAuthStore()
 const userId = ref(localStorage.getItem('pending_user_id') || '')
 const otp = ref('')
 const loading = ref(false)
-const error = ref('')
+const toast = useToast()
 
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
 
 const submit = async () => {
-  error.value = ''
   if (!userId.value || otp.value.length < 6) {
-    error.value = 'Please enter user ID and a valid 6-digit OTP code.'
+    toast.push('Please enter user ID and a valid 6-digit OTP code.', 'error', 3200)
     return
   }
   loading.value = true
@@ -27,10 +27,10 @@ const submit = async () => {
     router.push('/events')
   } catch (e: any) {
     const code = e?.response?.data?.error_code
-    if (code === 'BAD_REQUEST') error.value = 'Invalid OTP code or no pending verification found.'
-    else if (code === 'NOT_FOUND') error.value = 'User not found.'
-    else if (code === 'VALIDATION_ERROR') error.value = 'Please check the user ID and OTP code.'
-    else error.value = 'Verification failed.'
+    if (code === 'BAD_REQUEST') toast.push('Invalid OTP code or no pending verification found.', 'error', 3200)
+    else if (code === 'NOT_FOUND') toast.push('User not found.', 'error', 3200)
+    else if (code === 'VALIDATION_ERROR') toast.push('Please check the user ID and OTP code.', 'error', 3200)
+    else toast.push('Verification failed.', 'error', 3200)
   } finally {
     loading.value = false
   }
@@ -56,7 +56,6 @@ const submit = async () => {
         <label>OTP code</label>
         <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="123456" />
       </div>
-      <p v-if="error" class="small error-text">{{ error }}</p>
       <button :disabled="loading" @click="submit">{{ loading ? 'Verifying...' : 'Verify & continue' }}</button>
     </article>
   </section>
@@ -67,5 +66,4 @@ const submit = async () => {
 .verify-card{padding:1rem;display:grid;gap:.75rem}
 .otp-preview{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.45rem}
 .cell{display:grid;place-items:center;height:2.4rem;border-radius:.7rem;background:var(--surface-2);border:1px solid var(--border);font-weight:700}
-.error-text{color:#fca5a5}
 </style>

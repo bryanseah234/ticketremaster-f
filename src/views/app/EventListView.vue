@@ -75,6 +75,9 @@ const filteredEvents = computed(() => {
 })
 
 const empty = computed(() => !loading.value && filteredEvents.value.length === 0)
+watch(empty, (value) => {
+  if (value) toast.push('No matching events found.', 'info', 2400)
+})
 onMounted(load)
 </script>
 
@@ -125,8 +128,6 @@ onMounted(load)
         </div>
       </article>
     </div>
-
-    <article v-if="empty" class="glass" style="padding:1rem;">No matching events found.</article>
 
     <div class="row" style="justify-content:flex-end;margin-top:1rem;">
       <button class="secondary" :disabled="page<=1 || usingFallback" @click="page--; load()">Previous</button>

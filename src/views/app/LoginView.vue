@@ -3,14 +3,15 @@ import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const router = useRouter()
+const toast = useToast()
 
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
-const error = ref('')
 
 const extractError = (e: any) => {
   const status = e?.response?.status
@@ -26,16 +27,15 @@ const extractError = (e: any) => {
 
 const submit = async () => {
   loading.value = true
-  error.value = ''
   try {
     const { data } = await api.post('/auth/login', { email: email.value, password: password.value })
     auth.setSession(data.data)
     router.push('/events')
   } catch (e: any) {
     if (!e?.response) {
-      error.value = 'Backend unavailable. Login is disabled in demo mode.'
+      toast.push('Backend unavailable. Login is disabled in demo mode.', 'error', 3200)
     } else {
-      error.value = extractError(e)
+      toast.push(extractError(e), 'error', 3200)
     }
     if (e?.response?.status === 403 || e?.response?.data?.error_code === 'UNVERIFIED_ACCOUNT') {
       router.push('/verify')
@@ -58,7 +58,6 @@ const submit = async () => {
         <label>Password</label>
         <input v-model="password" type="password" placeholder="••••••••" />
       </div>
-      <p v-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
       <button :disabled="loading" @click="submit">{{ loading ? 'Signing in...' : 'Sign In' }}</button>
       <p class="small">New here? <RouterLink to="/register" style="color:#fdba74">Create account</RouterLink></p>
     </article>

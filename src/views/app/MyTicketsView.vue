@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
@@ -28,6 +28,9 @@ const load = async () => {
 }
 
 onMounted(load)
+watch([loading, tickets], ([isLoading, items]) => {
+  if (!isLoading && items.length === 0) toast.push('No tickets yet.', 'info', 2400)
+})
 </script>
 
 <template>
@@ -48,6 +51,5 @@ onMounted(load)
       </article>
     </div>
 
-    <article v-if="!loading && tickets.length===0" class="glass" style="padding:1rem;">No tickets yet.</article>
   </section>
 </template>
