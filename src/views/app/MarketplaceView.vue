@@ -3,49 +3,47 @@ import { computed, onMounted, ref } from 'vue'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { RouterLink } from 'vue-router'
+import { useToast } from '@/composables/useToast'
 
 interface Listing {
   listing_id: string
-  event_name: string
-  event_date: string
-  row_number: string
-  seat_number: string
-  price: number
+  seat_id: string
+  asking_price: number
+  status: string
+  created_at?: string
+  updated_at?: string
 }
 
 const auth = useAuthStore()
 const isLoggedIn = computed(() => auth.isLoggedIn.value)
+const toast = useToast()
 
 const loading = ref(false)
-const error = ref('')
 const listings = ref<Listing[]>([])
-const usingFallback = ref(false)
 
 const fallbackListings: Listing[] = [
-  { listing_id: 'R-1001', event_name: 'Neon Skyline Festival', event_date: '2026-09-14T19:00:00Z', row_number: 'A', seat_number: '12', price: 180 },
-  { listing_id: 'R-1002', event_name: 'Midnight Pulse', event_date: '2026-10-02T20:30:00Z', row_number: 'C', seat_number: '8', price: 120 },
-  { listing_id: 'R-1003', event_name: 'Stadium Anthems World Tour', event_date: '2026-07-09T19:00:00Z', row_number: 'B', seat_number: '20', price: 220 },
+  { listing_id: 'R-1001', seat_id: 'seat-101', asking_price: 180, status: 'ACTIVE', created_at: '2026-02-10T10:25:00Z' },
+  { listing_id: 'R-1002', seat_id: 'seat-204', asking_price: 120, status: 'ACTIVE', created_at: '2026-02-12T08:40:00Z' },
+  { listing_id: 'R-1003', seat_id: 'seat-318', asking_price: 220, status: 'ACTIVE', created_at: '2026-02-15T15:10:00Z' },
 ]
 
 const loadListings = async () => {
   loading.value = true
-  error.value = ''
-  usingFallback.value = false
+  toast.push('Loading listings...', 'info', 1600)
   try {
-    const { data } = await api.get('/marketplace/listings')
+    const { data } = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
     const items = data?.data || []
     listings.value = items.length ? items.map((item: any) => ({
       listing_id: item.listing_id || item.seat_id || item.id,
-      event_name: item.event?.name || item.event_name || 'Ticket Listing',
-      event_date: item.event?.event_date || item.event_date || '',
-      row_number: item.row_number || item.seat?.row_number || '-',
-      seat_number: item.seat_number || item.seat?.seat_number || '-',
-      price: Number(item.price || item.asking_price || 0),
+      seat_id: item.seat_id || item.seat?.seat_id || '-',
+      asking_price: Number(item.asking_price || item.price || 0),
+      status: item.status || 'ACTIVE',
+      created_at: item.created_at,
+      updated_at: item.updated_at,
     })) : fallbackListings
   } catch {
     listings.value = fallbackListings
-    usingFallback.value = true
-    error.value = 'Backend unavailable. Showing demo listings.'
+    toast.push('Demo listings are shown while the backend is unavailable.', 'info', 3200)
   } finally {
     loading.value = false
   }
@@ -100,19 +98,15 @@ onMounted(loadListings)
 
     <section style="margin-top:1rem;">
       <h2 class="section-title">Resale Listings</h2>
-      <p v-if="!isLoggedIn" class="small">Login to view exact seat, price, and seller details.</p>
-      <p v-if="usingFallback" class="small">Demo listings are shown while the backend is unavailable.</p>
-      <p v-if="loading" class="small">Loading listings...</p>
-      <p v-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
+      <p v-if="!isLoggedIn" class="small">Login to view seller details and purchase options.</p>
       <div class="grid-3">
         <article v-for="listing in listings" :key="listing.listing_id" class="glass" style="padding:1rem;display:grid;gap:.4rem;">
-          <span class="badge">Listing {{ listing.listing_id }}</span>
-          <h3>{{ listing.event_name }}</h3>
-          <p class="small">{{ listing.event_date ? new Date(listing.event_date).toLocaleString() : 'Date TBA' }}</p>
-          <p v-if="isLoggedIn" class="small">Row {{ listing.row_number }} · Seat {{ listing.seat_number }}</p>
-          <p v-else class="small">Seat details available after login.</p>
-          <p v-if="isLoggedIn" class="small">Asking price: ${{ listing.price }}</p>
-          <p v-else class="small">Login to view price.</p>
+          <span class="badge">Listing {{ listing.listing_id }} · {{ listing.status }}</span>
+          <h3>Seat {{ listing.seat_id }}</h3>
+          <p class="small">Asking price: ${{ listing.asking_price }}</p>
+          <p v-if="listing.created_at" class="small">Listed {{ new Date(listing.created_at).toLocaleString() }}</p>
+          <p v-else class="small">Listing time unavailable.</p>
+          <p v-if="!isLoggedIn" class="small">Login to view seller details and purchase options.</p>
           <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to view</button></RouterLink>
           <button v-else class="secondary">Review Listing</button>
         </article>

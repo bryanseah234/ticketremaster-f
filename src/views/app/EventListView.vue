@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/api/client'
 import { mockEvents } from '@/data/mockEvents'
+import { useToast } from '@/composables/useToast'
 
 interface EventItem {
   event_id: string
@@ -23,6 +24,7 @@ const search = ref('')
 const dateFilter = ref('')
 const onlyFavorites = ref(false)
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favorite_events') || '[]'))
+const toast = useToast()
 
 const saveFavorites = () => localStorage.setItem('favorite_events', JSON.stringify(favoriteIds.value))
 watch(favoriteIds, saveFavorites, { deep: true })
@@ -38,11 +40,13 @@ const toggleFavorite = (eventId: string) => {
 const load = async () => {
   loading.value = true
   usingFallback.value = false
+  toast.push('Loading events...', 'info', 1600)
   try {
     const { data } = await api.get('/events', { params: { page: page.value, per_page: 20, date: dateFilter.value || undefined } })
     const items = data?.data || []
     if (!items.length) {
       usingFallback.value = true
+      toast.push('Showing curated events while connection is unavailable.', 'info', 3200)
       events.value = mockEvents.slice(0, 20)
       totalPages.value = 1
     } else {
@@ -51,6 +55,7 @@ const load = async () => {
     }
   } catch {
     usingFallback.value = true
+    toast.push('Showing curated events while connection is unavailable.', 'info', 3200)
     events.value = mockEvents.slice(0, 20)
     totalPages.value = 1
   } finally {
@@ -92,9 +97,6 @@ onMounted(load)
       <button @click="page=1; load()">Apply</button>
       <button class="secondary" @click="search=''; dateFilter=''; onlyFavorites=false; page=1; load()">Reset</button>
     </article>
-
-    <p v-if="usingFallback" class="small" style="margin-bottom:.6rem;">Showing curated events while connection is unavailable.</p>
-    <p v-if="loading" class="small">Loading events...</p>
 
     <div class="events-grid">
       <article v-for="event in filteredEvents" :key="event.event_id" class="glass event-card">
@@ -154,10 +156,10 @@ onMounted(load)
 .content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
 h3{color:#fff}
 .small{color:#d4d4d8}
-.heart-icon{width:1.1rem;height:1.1rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease;display:block}
+.heart-icon{width:1.45rem;height:1.45rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease;display:block}
 .heart-action.active .heart-icon{fill:rgba(255,186,126,.95)}
-.actions{justify-content:space-between}
-.heart-action{height:2.6rem;width:2.6rem;border-radius:.75rem;display:grid;place-items:center}
+.actions{justify-content:flex-start;align-items:center;gap:.6rem}
+.heart-action{height:2.9rem;width:2.9rem;border-radius:.8rem;display:grid;place-items:center}
 
 @media (max-width:1100px){
   .events-grid{grid-template-columns:repeat(2,minmax(0,1fr))}

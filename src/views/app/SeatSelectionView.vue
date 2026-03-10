@@ -3,16 +3,17 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 
 const seats = ref<any[]>([])
 const selectedSeat = ref<any | null>(null)
 const holdSeconds = ref(0)
 const orderId = ref('')
-const error = ref('')
 const loading = ref(false)
 const usingFallback = ref(false)
 let timer: number | undefined
@@ -25,8 +26,8 @@ const holdDisplay = computed(() => {
 
 const loadSeats = async () => {
   loading.value = true
-  error.value = ''
   usingFallback.value = false
+  toast.push('Loading seats...', 'info', 1600)
   try {
     const { data } = await api.get(`/events/${route.params.eventId}`)
     seats.value = data?.data?.seats || []
@@ -40,7 +41,7 @@ const loadSeats = async () => {
       price: 59,
     }))
     usingFallback.value = true
-    error.value = 'Backend unavailable. Showing demo seats.'
+    toast.push('Demo seats are shown while the backend is unavailable.', 'info', 3200)
   } finally {
     loading.value = false
   }
@@ -48,11 +49,10 @@ const loadSeats = async () => {
 
 const reserveSeat = async () => {
   if (usingFallback.value) {
-    error.value = 'Reservations are disabled in demo mode.'
+    toast.push('Reservations are disabled in demo mode.', 'error', 3200)
     return
   }
   if (!selectedSeat.value || !auth.state.user) return
-  error.value = ''
   try {
     const { data } = await api.post('/reserve', { seat_id: selectedSeat.value.seat_id, user_id: auth.state.user.user_id })
     holdSeconds.value = data?.data?.ttl_seconds || 300
@@ -76,14 +76,15 @@ const reserveSeat = async () => {
   } catch (e: any) {
     const code = e?.response?.data?.error_code
     const status = e?.response?.status
-    if (code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD') error.value = 'Seat unavailable, please choose another.'
-    else if (code === 'SEAT_NOT_FOUND') error.value = 'Seat not found.'
-    else if (code === 'EVENT_ENDED') error.value = 'Event ended.'
-    else if (code === 'USER_NOT_FOUND') error.value = 'User not found.'
-    else if (code === 'INVALID_UUID') error.value = 'Invalid event or seat ID.'
-    else if (status === 409) error.value = 'Seat unavailable, please choose another.'
-    else if (status === 410) error.value = 'Event ended or hold expired.'
-    else error.value = 'Reserve failed.'
+    const message = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD' ? 'Seat unavailable, please choose another.' :
+      code === 'SEAT_NOT_FOUND' ? 'Seat not found.' :
+        code === 'EVENT_ENDED' ? 'Event ended.' :
+          code === 'USER_NOT_FOUND' ? 'User not found.' :
+            code === 'INVALID_UUID' ? 'Invalid event or seat ID.' :
+              status === 409 ? 'Seat unavailable, please choose another.' :
+                status === 410 ? 'Event ended or hold expired.' :
+                  'Reserve failed.'
+    toast.push(message, 'error', 3200)
   }
 }
 
@@ -97,9 +98,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
     <p class="section-subtitle">Select an AVAILABLE seat to reserve it for 5 minutes.</p>
 
     <article class="glass" style="padding:1rem;">
-      <p v-if="loading" class="small">Loading seats...</p>
-      <p v-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
-
       <div class="grid-4" style="margin-top:.7rem;">
         <button
           v-for="seat in seats.slice(0,120)"

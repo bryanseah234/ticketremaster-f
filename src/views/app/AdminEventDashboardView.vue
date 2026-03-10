@@ -2,10 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/api/client'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const loading = ref(false)
 const data = ref<any>(null)
+const toast = useToast()
 
 const occupancyRate = computed(() => {
   if (!data.value) return 0
@@ -18,6 +20,7 @@ const occupancyRate = computed(() => {
 
 const load = async () => {
   loading.value = true
+  toast.push('Loading dashboard...', 'info', 1600)
   try {
     const res = await api.get(`/admin/events/${route.params.eventId}/dashboard`)
     data.value = res.data?.data
@@ -39,8 +42,6 @@ onMounted(load)
       </div>
       <button class="secondary" @click="load">Refresh</button>
     </div>
-
-    <p v-if="loading" class="small">Loading dashboard...</p>
 
     <div v-if="data" class="grid-4" style="margin:1rem 0;">
       <article class="glass metric"><p class="small">Seats sold</p><h3>{{ data.seats_sold }}</h3></article>
