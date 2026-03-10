@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
 import { mockEvents } from '@/data/mockEvents'
+import { useToast } from '@/composables/useToast'
 
 interface Seat {
   seat_id: string
@@ -16,9 +17,8 @@ interface Seat {
 const route = useRoute()
 const loading = ref(false)
 const notFound = ref(false)
-const error = ref('')
 const eventData = ref<any>(null)
-const usingFallback = ref(false)
+const toast = useToast()
 
 const visibleSeats = computed(() => (eventData.value?.seats || []).slice(0, 80) as Seat[])
 const color = (status: Seat['status']) => {
@@ -30,8 +30,7 @@ const color = (status: Seat['status']) => {
 const load = async () => {
   loading.value = true
   notFound.value = false
-  error.value = ''
-  usingFallback.value = false
+  toast.push('Loading event details...', 'info', 1600)
   try {
     const { data } = await api.get(`/events/${route.params.eventId}`)
     eventData.value = data?.data
@@ -49,8 +48,7 @@ const load = async () => {
         price: fallback.pricing_tiers[0]?.price || 59,
       }))
       eventData.value = { ...fallback, seats }
-      usingFallback.value = true
-      error.value = 'Backend unavailable. Showing demo event details.'
+      toast.push('Demo data active for this event.', 'info', 3200)
     }
   } finally {
     loading.value = false
@@ -62,10 +60,7 @@ onMounted(load)
 
 <template>
   <section class="page">
-    <p v-if="loading" class="small">Loading event details...</p>
-    <p v-if="usingFallback" class="small">Demo data active for this event.</p>
-    <article v-else-if="notFound" class="glass" style="padding:1rem;">Event not found.</article>
-    <p v-else-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
+    <article v-if="notFound" class="glass" style="padding:1rem;">Event not found.</article>
 
     <template v-else-if="eventData">
       <article class="glass" style="padding:1rem;margin-bottom:1rem;display:grid;gap:.5rem;">

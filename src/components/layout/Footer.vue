@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+
+const year = new Date().getFullYear()
 </script>
 
 <template>
@@ -10,7 +12,9 @@ import { RouterLink } from 'vue-router'
           <img src="/logo.svg" alt="TicketRemaster logo" />
           <h3>TicketRemaster</h3>
         </div>
-        <p>Buy smarter. Sell safer. Experience more live moments.</p>
+        <p class="tagline">Buy smarter</p>
+        <p class="tagline">Sell safer</p>
+        <p class="tagline">Experience more live moments</p>
       </section>
 
       <section class="links">
@@ -41,7 +45,7 @@ import { RouterLink } from 'vue-router'
         </div>
       </section>
 
-      <div class="copy">© 2026 TicketRemaster. All rights reserved.</div>
+      <div class="copy">© {{ year }} TicketRemaster. All rights reserved.</div>
     </div>
   </footer>
 </template>
@@ -49,22 +53,23 @@ import { RouterLink } from 'vue-router'
 <style scoped>
 .footer{padding:2.5rem 1rem;background:#0b0b0e;border-top:1px solid var(--border)}
 .inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.3fr 2fr;gap:2rem}
-.brand{display:grid;gap:.6rem}
+.brand{display:grid;gap:.5rem}
 .logo-line{display:flex;align-items:center;gap:.45rem}
 .logo-line img{width:20px;height:20px}
 h3,h4{margin:0 0 .55rem} h3{color:var(--accent)}
 p,a{color:var(--muted)} a{display:block;margin:.25rem 0}
 a:hover{color:#fff}
 .links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem}
-.column{display:grid;gap:1rem}
+.column{display:contents}
 .group{display:grid;gap:.25rem}
 .copy{grid-column:1/-1;text-align:center;margin-top:1.4rem;color:var(--muted)}
 @media (max-width:900px){
   .inner{grid-template-columns:1fr;gap:1.6rem}
-  .links{grid-template-columns:1fr;gap:1.2rem}
-  .column{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .links{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem}
 }
 @media (max-width:640px){
-  .column{grid-template-columns:1fr}
+  .brand{align-items:center;text-align:center}
+  .logo-line{justify-content:center}
+  .links{grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
 }
 </style>

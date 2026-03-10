@@ -4,13 +4,14 @@ import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { mockEvents } from '@/data/mockEvents'
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const router = useRouter()
 const balance = ref(0)
-const message = ref('')
 const usingFallback = ref(false)
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favorite_events') || '[]'))
+const toast = useToast()
 
 const fallbackUser = {
   email: 'demo@ticketremaster.app',
@@ -30,11 +31,10 @@ const load = async () => {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.credit_balance || 0
     usingFallback.value = false
-    message.value = ''
   } catch {
     usingFallback.value = true
     balance.value = 250
-    message.value = 'Backend unavailable. Showing demo profile data.'
+    toast.push('Demo profile data is shown while the backend is unavailable.', 'info', 3200)
   }
 }
 
@@ -70,7 +70,6 @@ onMounted(load)
         <p v-else class="small">No favourites saved yet.</p>
       </div>
       <button class="secondary" @click="logout">Logout</button>
-      <p v-if="message" class="small" style="color:#fca5a5">{{ message }}</p>
     </article>
   </section>
 </template>

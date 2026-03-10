@@ -3,9 +3,11 @@ import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const auth = useAuthStore()
+const toast = useToast()
 
 const balance = ref(0)
 const order = ref<any>(null)
@@ -36,13 +38,15 @@ const loadBalance = async () => {
   } catch {
     balance.value = 250
     usingFallback.value = true
-    statusMessage.value = 'Backend unavailable. Demo mode enabled.'
+    statusMessage.value = 'DEMO_MODE'
+    toast.push('Demo mode enabled while the backend is unavailable.', 'info', 3200)
   }
 }
 
 const pay = async () => {
   if (usingFallback.value) {
-    statusMessage.value = 'Payments are disabled in demo mode.'
+    statusMessage.value = 'DEMO_PAY_DISABLED'
+    toast.push('Payments are disabled in demo mode.', 'error', 3200)
     return
   }
   loading.value = true
@@ -52,24 +56,32 @@ const pay = async () => {
     statusMessage.value = data?.data?.status || 'CONFIRMED'
     otpRequired.value = false
     if (statusMessage.value === 'CONFIRMED') localStorage.removeItem('pending_order')
+    if (statusMessage.value === 'CONFIRMED') toast.push('Payment confirmed. Ticket is ready.', 'success', 3200)
   } catch (e: any) {
     const errorCode = e?.response?.data?.error_code
     const status = e?.response?.status
     if (errorCode === 'OTP_REQUIRED' || status === 428) {
       otpRequired.value = true
       statusMessage.value = 'OTP_REQUIRED'
+      toast.push('OTP required to complete payment.', 'info', 3200)
     } else if (errorCode === 'INSUFFICIENT_CREDITS' || status === 402) {
       statusMessage.value = 'INSUFFICIENT_CREDITS'
+      toast.push('Not enough credits to complete this order.', 'error', 3200)
     } else if (errorCode === 'HOLD_EXPIRED' || status === 410) {
       statusMessage.value = 'HOLD_EXPIRED'
+      toast.push('Seat hold expired. Please reserve again.', 'error', 3200)
     } else if (errorCode === 'ORDER_NOT_FOUND') {
       statusMessage.value = 'ORDER_NOT_FOUND'
+      toast.push('Order not found. Please reserve again.', 'error', 3200)
     } else if (errorCode === 'ORDER_ALREADY_CONFIRMED') {
       statusMessage.value = 'ORDER_ALREADY_CONFIRMED'
+      toast.push('Order already confirmed.', 'info', 3200)
     } else if (errorCode === 'SEAT_NOT_HELD') {
       statusMessage.value = 'SEAT_NOT_HELD'
+      toast.push('Seat is no longer held. Please reserve again.', 'error', 3200)
     } else {
       statusMessage.value = 'PAYMENT_FAILED'
+      toast.push('Payment failed. Please try again.', 'error', 3200)
     }
   } finally {
     loading.value = false
@@ -84,9 +96,16 @@ const verifyOtp = async () => {
     await pay()
   } catch (e: any) {
     const errorCode = e?.response?.data?.error_code
-    if (errorCode === 'OTP_EXPIRED') statusMessage.value = 'OTP_EXPIRED'
-    else if (errorCode === 'OTP_MAX_RETRIES') statusMessage.value = 'OTP_MAX_RETRIES'
-    else statusMessage.value = 'OTP_INVALID'
+    if (errorCode === 'OTP_EXPIRED') {
+      statusMessage.value = 'OTP_EXPIRED'
+      toast.push('OTP expired. Request a new code.', 'error', 3200)
+    } else if (errorCode === 'OTP_MAX_RETRIES') {
+      statusMessage.value = 'OTP_MAX_RETRIES'
+      toast.push('Too many OTP attempts. Please try again later.', 'error', 3200)
+    } else {
+      statusMessage.value = 'OTP_INVALID'
+      toast.push('Invalid OTP. Please try again.', 'error', 3200)
+    }
   }
 }
 
@@ -118,7 +137,6 @@ onMounted(() => {
         <button :disabled="usingFallback" @click="verifyOtp">Verify OTP</button>
       </div>
 
-      <p class="small" style="color:#fdba74">{{ statusMessage }}</p>
       <RouterLink v-if="statusMessage==='CONFIRMED'" to="/tickets"><button>View Tickets</button></RouterLink>
       <RouterLink v-if="statusMessage==='INSUFFICIENT_CREDITS'" to="/credits/topup"><button class="secondary">Top Up Credits</button></RouterLink>
     </article>
