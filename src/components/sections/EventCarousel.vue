@@ -80,7 +80,7 @@ onMounted(loadFeatured)
           <h3>{{ active.name }}</h3>
           <p class="small">{{ active.date }} · {{ active.venue }}</p>
           <p class="price">From {{ active.price }}</p>
-          <RouterLink to="/events"><button>View Tickets</button></RouterLink>
+          <RouterLink to="/events"><button>View</button></RouterLink>
         </article>
       </div>
     </Transition>

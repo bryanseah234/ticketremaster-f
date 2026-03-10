@@ -13,6 +13,7 @@ const statusMessage = ref('')
 const otpRequired = ref(false)
 const otp = ref('')
 const loading = ref(false)
+const usingFallback = ref(false)
 
 const loadOrder = () => {
   const raw = localStorage.getItem('pending_order')
@@ -31,12 +32,19 @@ const loadBalance = async () => {
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.credit_balance || 0
+    usingFallback.value = false
   } catch {
-    statusMessage.value = 'Could not load credit balance.'
+    balance.value = 250
+    usingFallback.value = true
+    statusMessage.value = 'Backend unavailable. Demo mode enabled.'
   }
 }
 
 const pay = async () => {
+  if (usingFallback.value) {
+    statusMessage.value = 'Payments are disabled in demo mode.'
+    return
+  }
   loading.value = true
   statusMessage.value = ''
   try {
@@ -69,6 +77,7 @@ const pay = async () => {
 }
 
 const verifyOtp = async () => {
+  if (usingFallback.value) return
   if (!auth.state.user || otp.value.length < 6) return
   try {
     await api.post('/verify-otp', { user_id: auth.state.user.user_id, otp_code: otp.value, context: 'purchase', reference_id: route.params.orderId })
@@ -101,12 +110,12 @@ onMounted(() => {
         <p v-if="!order" class="small">Seat details available after reserve.</p>
       </article>
       <p class="small">Credits balance: {{ balance }}</p>
-      <button :disabled="loading" @click="pay">{{ loading ? 'Processing...' : 'Pay with Credits' }}</button>
+      <button :disabled="loading || usingFallback" @click="pay">{{ loading ? 'Processing...' : 'Pay with Credits' }}</button>
 
       <div v-if="otpRequired" class="glass" style="padding:.8rem;display:grid;gap:.6rem;">
         <label>OTP Verification</label>
         <input v-model="otp" maxlength="6" placeholder="Enter 6-digit code" />
-        <button @click="verifyOtp">Verify OTP</button>
+        <button :disabled="usingFallback" @click="verifyOtp">Verify OTP</button>
       </div>
 
       <p class="small" style="color:#fdba74">{{ statusMessage }}</p>

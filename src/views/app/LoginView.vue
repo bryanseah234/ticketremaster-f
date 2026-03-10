@@ -32,7 +32,11 @@ const submit = async () => {
     auth.setSession(data.data)
     router.push('/events')
   } catch (e: any) {
-    error.value = extractError(e)
+    if (!e?.response) {
+      error.value = 'Backend unavailable. Login is disabled in demo mode.'
+    } else {
+      error.value = extractError(e)
+    }
     if (e?.response?.status === 403 || e?.response?.data?.error_code === 'UNVERIFIED_ACCOUNT') {
       router.push('/verify')
     }

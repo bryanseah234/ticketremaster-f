@@ -14,6 +14,7 @@ const holdSeconds = ref(0)
 const orderId = ref('')
 const error = ref('')
 const loading = ref(false)
+const usingFallback = ref(false)
 let timer: number | undefined
 
 const holdDisplay = computed(() => {
@@ -25,17 +26,31 @@ const holdDisplay = computed(() => {
 const loadSeats = async () => {
   loading.value = true
   error.value = ''
+  usingFallback.value = false
   try {
     const { data } = await api.get(`/events/${route.params.eventId}`)
     seats.value = data?.data?.seats || []
   } catch {
-    error.value = 'Unable to load seats.'
+    seats.value = Array.from({ length: 120 }).map((_, index) => ({
+      seat_id: `demo-seat-${index + 1}`,
+      row_number: String.fromCharCode(65 + Math.floor(index / 10)),
+      seat_number: (index % 10) + 1,
+      status: index % 8 === 0 ? 'HELD' : index % 6 === 0 ? 'SOLD' : 'AVAILABLE',
+      category: 'GA',
+      price: 59,
+    }))
+    usingFallback.value = true
+    error.value = 'Backend unavailable. Showing demo seats.'
   } finally {
     loading.value = false
   }
 }
 
 const reserveSeat = async () => {
+  if (usingFallback.value) {
+    error.value = 'Reservations are disabled in demo mode.'
+    return
+  }
   if (!selectedSeat.value || !auth.state.user) return
   error.value = ''
   try {
@@ -101,8 +116,8 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div class="row" style="margin-top:1rem;flex-wrap:wrap;gap:.6rem;">
         <span class="badge">Selected: {{ selectedSeat ? `${selectedSeat.row_number}-${selectedSeat.seat_number}` : 'None' }}</span>
         <span v-if="holdSeconds>0" class="badge">Hold: {{ holdDisplay }}</span>
-        <button :disabled="!selectedSeat" @click="reserveSeat">Reserve</button>
-        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>
+        <button :disabled="!selectedSeat || usingFallback" @click="reserveSeat">Reserve</button>
+        <button v-if="orderId" class="secondary" :disabled="usingFallback" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>
       </div>
     </article>
   </section>
