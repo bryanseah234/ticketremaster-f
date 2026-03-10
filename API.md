@@ -14,12 +14,14 @@
 6. [Purchase Flow Endpoints (Scenario 1)](#6-purchase-flow-endpoints-scenario-1)
 7. [Transfer Flow Endpoints (Scenario 2)](#7-transfer-flow-endpoints-scenario-2)
 8. [Verification Endpoint (Scenario 3)](#8-verification-endpoint-scenario-3)
-9. [Credit & Payment Endpoints](#9-credit--payment-endpoints)
-10. [Ticket Endpoints](#10-ticket-endpoints)
-11. [Admin Endpoints](#11-admin-endpoints)
-12. [Health Check Endpoints](#12-health-check-endpoints)
-13. [Internal Service APIs](#13-internal-service-apis)
-14. [Swagger / Flasgger Integration Plan](#14-swagger--flasgger-integration-plan)
+9. [Credit & Payment Endpoints](#9-credit-payment-endpoints)
+10. [User Profile Endpoints](#10-user-profile-endpoints)
+11. [Ticket Endpoints](#11-ticket-endpoints)
+12. [Marketplace Endpoints](#12-marketplace-endpoints)
+13. [Admin Endpoints](#13-admin-endpoints)
+14. [Health Check Endpoints](#14-health-check-endpoints)
+15. [Internal Service APIs (Reference)](#15-internal-service-apis-reference)
+16. [Swagger / Flasgger Integration Plan](#16-swagger-flasgger-integration-plan)
 
 ---
 
@@ -27,10 +29,10 @@
 
 ### Base URL
 
-All public API requests go through **Nginx API Gateway**:
+All public API requests go through the **Kong API Gateway**:
 
 | Environment | Base URL |
-|---|---|
+| --- | --- |
 | Local dev | `http://localhost:8000/api` |
 | Cloudflare Tunnel | `https://ticketremasterapi.hong-yi.me/api` |
 | Production | `https://yourdomain.com/api` |
@@ -39,7 +41,7 @@ All public API requests go through **Nginx API Gateway**:
 
 All endpoints require a valid JWT in the `Authorization` header unless marked **🔓 Public**.
 
-```
+```text
 Authorization: Bearer <access_token>
 ```
 
@@ -92,7 +94,7 @@ All request and response bodies use `application/json`.
 ### Global Errors (any endpoint)
 
 | Error Code | HTTP Status | Description |
-|---|---|---|
+| --- | --- | --- |
 | `UNAUTHORIZED` | 401 | Missing or invalid JWT token |
 | `TOKEN_EXPIRED` | 401 | JWT access token has expired — refresh required |
 | `FORBIDDEN` | 403 | Valid token but insufficient role/permissions |
@@ -104,7 +106,7 @@ All request and response bodies use `application/json`.
 ### Business-Specific Errors
 
 | Error Code | HTTP Status | Used In | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `SEAT_NOT_FOUND` | 404 | Reserve, Verify | Seat ID does not exist |
 | `SEAT_UNAVAILABLE` | 409 | Reserve | Seat is held or sold by another user |
 | `SEAT_ALREADY_SOLD` | 409 | Reserve | Seat has already been purchased |
@@ -115,8 +117,6 @@ All request and response bodies use `application/json`.
 | `ORDER_ALREADY_CONFIRMED` | 409 | Pay | Order has already been confirmed |
 | `OTP_REQUIRED` | 428 | Pay | High-risk user — OTP verification required before payment |
 | `OTP_INVALID` | 401 | Verify OTP, Transfer Confirm | OTP code is incorrect |
-| `OTP_EXPIRED` | 410 | Verify OTP, Transfer Confirm | OTP code has expired |
-| `OTP_MAX_RETRIES` | 429 | Verify OTP, Transfer Confirm | Maximum OTP attempts exceeded |
 | `TRANSFER_NOT_FOUND` | 404 | Transfer Confirm/Dispute/Reverse | Transfer ID does not exist |
 | `TRANSFER_INVALID_STATE` | 409 | Transfer Confirm/Dispute/Reverse | Transfer is not in the expected state |
 | `TRANSFER_IN_PROGRESS` | 409 | Transfer Initiate | A pending transfer already exists for this seat |
@@ -202,7 +202,7 @@ Verify the SMS OTP sent during registration.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP |
-|---|---|---|
+| --- | --- | --- |
 | Invalid OTP or no pending verification | `BAD_REQUEST` | 400 |
 | User not found | `NOT_FOUND` | 404 |
 | Missing user_id or otp_code | `VALIDATION_ERROR` | 400 |
@@ -210,7 +210,7 @@ Verify the SMS OTP sent during registration.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP |
-|---|---|---|
+| --- | --- | --- |
 | Email already registered | `EMAIL_ALREADY_EXISTS` | 409 |
 | Missing required fields | `VALIDATION_ERROR` | 400 |
 | Invalid email format | `VALIDATION_ERROR` | 400 |
@@ -254,7 +254,7 @@ Authenticate and receive JWT tokens.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP |
-|---|---|---|
+| --- | --- | --- |
 | Invalid credentials | `UNAUTHORIZED` | 401 |
 | Missing email or password | `VALIDATION_ERROR` | 400 |
 | Account not verified | `UNVERIFIED_ACCOUNT` | 403 |
@@ -267,7 +267,7 @@ Refresh an expired access token.
 
 **Request Header:**
 
-```
+```text
 Authorization: Bearer <refresh_token>
 ```
 
@@ -286,7 +286,7 @@ Authorization: Bearer <refresh_token>
 **Error Responses:**
 
 | Scenario | Error Code | HTTP |
-|---|---|---|
+| --- | --- | --- |
 | Invalid refresh token | `UNAUTHORIZED` | 401 |
 | Refresh token expired | `TOKEN_EXPIRED` | 401 |
 | Refresh token blocklisted (logged out) | `UNAUTHORIZED` | 401 |
@@ -319,7 +319,7 @@ List all upcoming events.
 **Query Parameters:**
 
 | Param | Type | Required | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `page` | int | No | Page number (default: 1) |
 | `per_page` | int | No | Items per page (default: 20, max: 100) |
 
@@ -367,7 +367,7 @@ Get a single event with seat map / availability.
 **Path Parameters:**
 
 | Param | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `event_id` | UUID | Event identifier |
 
 **Success Response (200):**
@@ -409,7 +409,7 @@ Get a single event with seat map / availability.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP |
-|---|---|---|
+| --- | --- | --- |
 | Event not found | `EVENT_NOT_FOUND` | 404 |
 | Invalid UUID | `INVALID_UUID` | 400 |
 
@@ -426,7 +426,7 @@ Reserve a seat — places a 5-minute pessimistic lock.
 ```json
 {
   "seat_id": "s1s2s3s4-...",
-  "user_id": "f47ac10b-..."
+  "event_id": "a1b2c3d4-..."
 }
 ```
 
@@ -449,12 +449,10 @@ Reserve a seat — places a 5-minute pessimistic lock.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Seat held by another user | `SEAT_UNAVAILABLE` | 409 | `SELECT FOR UPDATE NOWAIT` failed — another transaction holds the lock |
 | Seat already sold | `SEAT_ALREADY_SOLD` | 409 | Seat status is `SOLD` or `CHECKED_IN` |
 | Seat not found | `SEAT_NOT_FOUND` | 404 | seat_id does not exist in seats_db |
-| Event already passed | `EVENT_ENDED` | 410 | Event date is in the past |
-| User not found | `USER_NOT_FOUND` | 404 | user_id does not exist |
 
 ---
 
@@ -489,7 +487,7 @@ Confirm payment — deducts credits, finalises purchase.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Hold TTL expired | `HOLD_EXPIRED` | 410 | Seat was auto-released by DLX. User must re-reserve. |
 | Insufficient credits | `INSUFFICIENT_CREDITS` | 402 | `credit_balance < price`. Redirect to Stripe top-up. |
 | High-risk user needs OTP | `OTP_REQUIRED` | 428 | `user.is_flagged = true`. Client must call `/api/verify-otp` first. |
@@ -507,7 +505,6 @@ Verify OTP for high-risk users during purchase or transfer. Called after receivi
 
 ```json
 {
-  "user_id": "f47ac10b-...",
   "otp_code": "123456",
   "context": "purchase",
   "reference_id": "o1o2o3o4-..."
@@ -521,21 +518,16 @@ Verify OTP for high-risk users during purchase or transfer. Called after receivi
 
 ```json
 {
-  "success": true,
-  "data": {
-    "verified": true,
-    "message": "OTP verified. You may proceed."
-  }
+  "message": "OTP verified successfully"
 }
 ```
 
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Incorrect OTP | `OTP_INVALID` | 401 | Code does not match |
-| OTP expired (>5 min) | `OTP_EXPIRED` | 410 | Request a new OTP |
-| Max retries exceeded (3) | `OTP_MAX_RETRIES` | 429 | Flow cancelled. Must re-initiate. |
+| OTP missing/expired | `VALIDATION_ERROR` | 400 | No pending OTP verification |
 
 ---
 
@@ -575,15 +567,10 @@ Start a P2P ticket transfer. Triggers OTP for both parties.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Seller does not own seat | `NOT_SEAT_OWNER` | 403 | `seat.owner_user_id != seller_user_id` |
-| Buyer insufficient credits | `INSUFFICIENT_CREDITS` | 402 | `buyer.credit_balance < credits_amount` |
-| Transfer already pending for this seat | `TRANSFER_IN_PROGRESS` | 409 | An `INITIATED` or `PENDING_OTP` transfer exists for this seat_id |
-| Self-transfer | `SELF_TRANSFER` | 400 | `seller_user_id == buyer_user_id` |
 | Seat not in SOLD state | `SEAT_UNAVAILABLE` | 409 | Can only transfer tickets with status `SOLD` |
-| Seller not found | `USER_NOT_FOUND` | 404 | seller_user_id does not exist |
-| Buyer not found | `USER_NOT_FOUND` | 404 | buyer_user_id does not exist |
-| Seat not found | `SEAT_NOT_FOUND` | 404 | seat_id does not exist |
+| Inventory check failed | `INTERNAL_ERROR` | 500 | Failed to verify seat ownership |
 
 ---
 
@@ -620,13 +607,12 @@ Confirm transfer with both OTPs. Executes atomic swap (credits + ownership).
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
-| Seller OTP incorrect | `OTP_INVALID` | 401 | Seller OTP does not match |
-| Buyer OTP incorrect | `OTP_INVALID` | 401 | Buyer OTP does not match |
-| Either OTP expired | `OTP_EXPIRED` | 410 | Re-initiate transfer |
-| Max OTP retries exceeded (3) | `OTP_MAX_RETRIES` | 429 | Transfer auto-cancelled → `FAILED` |
+| --- | --- | --- | --- |
+| Seller or buyer OTP incorrect | `OTP_INVALID` | 401 | OTP does not match |
 | Transfer not in PENDING_OTP state | `TRANSFER_INVALID_STATE` | 409 | Transfer already completed/cancelled |
 | Transfer not found | `TRANSFER_NOT_FOUND` | 404 | transfer_id does not exist |
+| Buyer insufficient credits | `INSUFFICIENT_CREDITS` | 402 | `buyer.credit_balance < credits_amount` |
+| Credit transfer or ownership update failed | `INTERNAL_ERROR` | 500 | See error message |
 
 ---
 
@@ -659,10 +645,9 @@ Flag a transfer for fraud/dispute. Credits are frozen.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Transfer not found | `TRANSFER_NOT_FOUND` | 404 | transfer_id does not exist |
 | Transfer not in COMPLETED state | `TRANSFER_INVALID_STATE` | 409 | Can only dispute completed transfers |
-| User not party to transfer | `FORBIDDEN` | 403 | Only seller or buyer can dispute |
 
 ---
 
@@ -697,10 +682,10 @@ Reverse a disputed transfer — return ownership to seller, credits to buyer.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Transfer not found | `TRANSFER_NOT_FOUND` | 404 | transfer_id does not exist |
 | Transfer not in DISPUTED state | `TRANSFER_INVALID_STATE` | 409 | Can only reverse disputed transfers |
-| Buyer no longer has seat (already transferred again) | `SEAT_UNAVAILABLE` | 409 | Seat has changed ownership since dispute |
+| Ownership or credit rollback failed | `INTERNAL_ERROR` | 500 | Manual reconciliation required |
 
 ---
 
@@ -715,8 +700,7 @@ Staff scans QR code to verify ticket at venue entry.
 ```json
 {
   "qr_payload": "base64-encoded-encrypted-payload",
-  "hall_id": "HALL-A",
-  "staff_id": "staff-uuid-..."
+  "hall_id": "HALL-A"
 }
 ```
 
@@ -728,9 +712,6 @@ Staff scans QR code to verify ticket at venue entry.
   "data": {
     "result": "SUCCESS",
     "seat_id": "s1s2s3s4-...",
-    "row_number": "A",
-    "seat_number": 12,
-    "owner_name": "John Doe",
     "message": "✅ Valid ticket. Welcome!"
   }
 }
@@ -751,9 +732,9 @@ All rejection cases return HTTP 200 (the API call succeeded) but with a non-SUCC
 ```
 
 | Result | Trigger | Display Message |
-|---|---|---|
+| --- | --- | --- |
 | `SUCCESS` | `seat.status == SOLD`, no prior check-in | ✅ Valid ticket. Welcome! |
-| `DUPLICATE` | `entry_logs` has `SUCCESS` record for this seat | ⚠️ Already Checked In |
+| `DUPLICATE` | `seat.status == CHECKED_IN` | ⚠️ Already Checked In |
 | `UNPAID` | `seat.status == HELD` | ❌ Incomplete Payment |
 | `NOT_FOUND` | seat_id does not exist | 🚫 Possible Counterfeit |
 | `WRONG_HALL` | QR `hall_id` ≠ `event.hall_id` | 🔄 Wrong Hall — Go to Hall {X} |
@@ -762,7 +743,7 @@ All rejection cases return HTTP 200 (the API call succeeded) but with a non-SUCC
 **Error Responses (actual failures):**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | QR decryption failed | `QR_INVALID` | 400 | Payload tampered or wrong encryption key |
 | Downstream service unavailable | `SERVICE_UNAVAILABLE` | 503 | Retry scan |
 
@@ -817,7 +798,7 @@ Create a Stripe Payment Intent for credit top-up.
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Invalid amount (≤ 0) | `VALIDATION_ERROR` | 400 | Amount must be positive |
 | Stripe API error | `INTERNAL_ERROR` | 500 | Payment intent creation failed |
 
@@ -835,20 +816,20 @@ Stripe webhook — called by Stripe on `payment.succeeded`. Adds credits to user
 
 ```json
 {
-  "received": true
+  "status": "success"
 }
 ```
 
 **Error Responses:**
 
 | Scenario | HTTP | Detail |
-|---|---|---|
+| --- | --- | --- |
 | Invalid webhook signature | 400 | Signature verification failed |
 | Unknown event type | 200 | Acknowledged but ignored |
 
 ---
 
-## 10. Ticket Endpoints
+## 11. Ticket Endpoints
 
 ### `GET /api/tickets`
 
@@ -866,7 +847,11 @@ List all tickets owned by the authenticated user.
         "event_id": "a1b2c3d4-...",
         "name": "Taylor Swift Eras Tour SG",
         "event_date": "2026-06-15T19:00:00Z",
-        "hall_id": "HALL-A"
+        "hall_id": "HALL-A",
+        "venue": {
+           "name": "Singapore Indoor Stadium",
+           "address": "2 Stadium Walk, Singapore 397691"
+        }
       },
       "row_number": "A",
       "seat_number": 12,
@@ -882,14 +867,14 @@ List all tickets owned by the authenticated user.
 
 ### `GET /api/tickets/{seat_id}/qr`
 
-Generate a fresh QR code payload with a new 60-second timestamp for ticket display.
+Generate a fresh QR code payload for ticket display.
 
 > Only the current seat owner can request a QR. The client should poll this every ~50 seconds to keep the QR code fresh.
 
 **Path Parameters:**
 
 | Param | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `seat_id` | UUID | Seat identifier |
 
 **Success Response (200):**
@@ -909,70 +894,143 @@ Generate a fresh QR code payload with a new 60-second timestamp for ticket displ
 **Error Responses:**
 
 | Scenario | Error Code | HTTP | Detail |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Not the seat owner | `NOT_SEAT_OWNER` | 403 | JWT user_id ≠ seat.owner_user_id |
 | Seat not found | `SEAT_NOT_FOUND` | 404 | seat_id does not exist |
 | Seat not in SOLD state | `SEAT_UNAVAILABLE` | 409 | Can only generate QR for owned, sold tickets |
 
 ---
 
-## 11. Health Check Endpoints
+## 12. Marketplace Endpoints
 
-Each microservice exposes a `GET /health` endpoint. These are used by Docker `healthcheck` directives and can be called for operational monitoring.
+### `POST /api/marketplace/list`
 
-### `GET /health`
+List a ticket on the resale marketplace.
+
+**Request Body:**
+
+```json
+{
+  "seat_id": "s1s2s3s4-...",
+  "asking_price": 500.00
+}
+```
 
 **Success Response (200):**
 
 ```json
 {
-  "status": "healthy",
-  "service": "inventory-service",
-  "timestamp": "2026-02-19T18:10:00Z",
-  "checks": {
-    "database": "connected",
-    "rabbitmq": "connected"
+  "success": true,
+  "data": {
+    "listing_id": "L1L2L3L4-...",
+    "status": "ACTIVE",
+    "message": "Ticket listed on marketplace."
   }
 }
 ```
 
-**Unhealthy Response (503):**
+---
+
+### `GET /api/marketplace/listings`
+
+Get all active marketplace listings.
+
+**Query Parameters:**
+
+| Param | Type | Required | Description |
+| --- | --- | --- | --- |
+| `status` | string | No | Filter by listing status (default: `ACTIVE`) |
+
+**Success Response (200):**
+
+```json
+[
+  {
+    "listing_id": "L1L2L3L4-...",
+    "seat_id": "s1s2s3s4-...",
+    "asking_price": 500.00,
+    "status": "ACTIVE",
+    "event": {
+      "event_id": "e1e2e3e4-...",
+      "name": "Taylor Swift SG",
+      "event_date": "2026-06-15T19:00:00Z",
+      "venue": { "name": "Indoor Stadium" },
+      "hall_id": "HALL-A"
+    },
+    "seat": {
+      "seat_id": "s1s2s3s4-...",
+      "row_number": "A",
+      "seat_number": 12,
+      "status": "LISTED"
+    }
+  }
+]
+```
+
+---
+
+### `POST /api/marketplace/buy`
+
+Initiate purchase of a marketplace listing. Deducts buyer credits and holds in escrow.
+
+**Request Body:**
 
 ```json
 {
-  "status": "unhealthy",
-  "service": "inventory-service",
-  "timestamp": "2026-02-19T18:10:00Z",
-  "checks": {
-    "database": "disconnected",
-    "rabbitmq": "connected"
+  "listing_id": "L1L2L3L4-..."
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "listing_id": "L1L2L3L4-...",
+    "status": "PENDING_TRANSFER",
+    "message": "Payment successful. Awaiting seller approval."
   }
 }
 ```
 
-| Service | Health Check Port | Dependencies Checked |
-|---|---|---|
-| Inventory Service | 50051 (gRPC) / 8080 (HTTP) | seats_db, RabbitMQ |
-| User Service | 5000 | users_db |
-| Order Service | 5001 | orders_db |
-| Event Service | 5002 | events_db |
-| Orchestrator | 5003 | All downstream services |
+---
+
+### `POST /api/marketplace/approve`
+
+Seller approves the marketplace sale with an OTP.
+
+**Request Body:**
+
+```json
+{
+  "listing_id": "L1L2L3L4-...",
+  "otp_code": "123456"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "listing_id": "L1L2L3L4-...",
+    "status": "COMPLETED",
+    "message": "Sale approved. Ticket ownership transferred."
+  }
+}
+```
 
 ---
 
-## 12. Internal Service APIs
+## 13. Admin Endpoints
 
-> These endpoints are **not** exposed through Nginx. They are called internally by the Orchestrator or other services.
-
----
-
-## 11. Admin Endpoints
-
-Admin endpoints are located on the Orchestrator Service and require an Admin JWT (`is_admin: true`).
+Admin endpoints require an Admin JWT (`is_admin: true`) and go through `/api/admin`.
 
 ### `POST /api/admin/events`
 
-Create a new event and provision all seats across multiple microservices.
+Create a new event.
 
 **Request Body:**
 
@@ -1011,7 +1069,7 @@ Create a new event and provision all seats across multiple microservices.
 
 ### `GET /api/admin/events/{event_id}/dashboard`
 
-Aggregates stats for an event (seats sold, revenue, signed up users).
+Get dashboard statistics for an event.
 
 **Success Response (200):**
 
@@ -1041,55 +1099,59 @@ Aggregates stats for an event (seats sold, revenue, signed up users).
 
 ---
 
-## 12. Health Check Endpoints
+## 14. Health Check Endpoints
 
-### 12.1 Inventory Service (gRPC)
-
-Defined in `inventory-service/src/proto/inventory.proto`.
-
-| RPC | Request | Response | Description |
-|---|---|---|---|
-| `ReserveSeat` | `{seat_id, user_id}` | `{success, held_until}` | `SELECT FOR UPDATE NOWAIT`. Status → `HELD`. |
-| `ConfirmSeat` | `{seat_id, user_id}` | `{success, qr_code_hash}` | Status → `SOLD`. Sets `owner_user_id`. |
-| `ReleaseSeat` | `{seat_id}` | `{success}` | Status → `AVAILABLE`. Clears hold fields. |
-| `UpdateOwner` | `{seat_id, new_owner_id}` | `{success}` | Transfers ownership for P2P transfer. |
-| `VerifyTicket` | `{seat_id}` | `{status, owner_user_id, event_id}` | Read-only check for verification flow. |
-| `MarkCheckedIn` | `{seat_id}` | `{success}` | Status → `CHECKED_IN`. Writes `entry_log`. |
-| `GetSeatOwner` | `{seat_id}` | `{owner_user_id, status}` | Ownership check for transfer validation. |
-
-### 12.2 User Service (REST — Internal)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/users/{user_id}` | Get user profile |
-| `GET` | `/users/{user_id}/risk` | Returns `{is_flagged: bool}` |
-| `POST` | `/credits/deduct` | Deduct credits: `{user_id, amount}` |
-| `POST` | `/credits/transfer` | Atomic swap: `{from_user_id, to_user_id, amount}` |
-| `POST` | `/otp/send` | Send OTP via SMU API: `{user_id}` |
-| `POST` | `/otp/verify` | Verify OTP: `{user_id, otp_code}` |
-
-### 12.3 Order Service (REST — Internal)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/orders` | Create order: `{user_id, seat_id, event_id, credits_charged}` |
-| `PATCH` | `/orders/{order_id}` | Update status: `{status}` |
-| `GET` | `/orders?seat_id=` | Get order by seat (verification flow) |
-| `POST` | `/transfers` | Create transfer record |
-| `PATCH` | `/transfers/{transfer_id}` | Update transfer status |
-| `POST` | `/transfers/{transfer_id}/dispute` | Set `DISPUTED` + reason |
-| `POST` | `/transfers/{transfer_id}/reverse` | Set `REVERSED` + undo |
-
-### 12.4 Event Service (REST — Internal)
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/events` | List all events |
-| `GET` | `/events/{event_id}` | Get event details including `hall_id` |
+| Service | Endpoint | Port | Dependencies |
+| --- | --- | --- | --- |
+| API Gateway (Kong) | `GET /` | 8000 | - |
+| Orchestrator | `GET /health` | 5003 | All services |
+| Inventory | `GET /health` | 8080 | seats_db, RabbitMQ |
+| User | `GET /health` | 5000 | users_db |
+| Order | `GET /health` | 5001 | orders_db |
+| Event | `GET /health` | 5002 | events_db |
 
 ---
 
-## 13. Swagger / Flasgger Integration Plan
+## 15. Internal Service APIs (Reference)
+
+These are used for service-to-service communication and are NOT exposed via the Gateway.
+
+### User Service (REST)
+
+- `GET /users/{user_id}` (Profile)
+- `GET /users/{user_id}/risk` (Risk status)
+- `POST /credits/topup` (Stripe)
+- `POST /credits/deduct` (Atomic)
+- `POST /credits/transfer` (P2P)
+- `POST /credits/escrow/hold` (Marketplace)
+- `POST /credits/escrow/release` (Marketplace)
+- `POST /otp/send`
+- `POST /otp/verify`
+
+### Order Service (REST)
+
+- `POST /orders` (Creation)
+- `PATCH /orders/{order_id}/status`
+- `POST /transfers` (Start P2P)
+- `PATCH /transfers/{transfer_id}/otp`
+- `POST /marketplace/listings` (Create/Update)
+
+### Inventory Service (gRPC)
+
+- `ReserveSeat`
+- `ConfirmSeat`
+- `ReleaseSeat`
+- `UpdateOwner`
+- `VerifyTicket`
+- `MarkCheckedIn`
+
+### Inventory Service (HTTP Sidecar)
+
+- `GET /internal/seats?event_id={id}`
+
+---
+
+## 14. Swagger / Flasgger Integration Plan
 
 ### Library
 
@@ -1103,7 +1165,7 @@ pip install flasgger
 
 Add to each Flask service's `requirements.txt`:
 
-```
+```text
 flasgger==0.9.7.1
 ```
 
@@ -1219,7 +1281,7 @@ def reserve_seat():
 ### Swagger UI Access
 
 | Service | Swagger UI URL |
-|---|---|
+| --- | --- |
 | Orchestrator | `http://localhost:5003/apidocs/` |
 | User Service | `http://localhost:5000/apidocs/` |
 | Order Service | `http://localhost:5001/apidocs/` |
@@ -1232,3 +1294,5 @@ def reserve_seat():
 - [ ] Write YAML docstrings for every endpoint (can be done incrementally as services are built)
 - [ ] Test Swagger UI loads and all endpoints appear
 - [ ] Add `securityDefinitions` for JWT Bearer token
+
+```

@@ -51,8 +51,9 @@ const loadListings = async () => {
   loading.value = true
   toast.push('Loading listings...', 'info', 1600)
   try {
-    const { data } = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
-    const items = data?.data || []
+    const res = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
+    // Handle both { data: [...] } and raw [...] responses
+    const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
     listings.value = items.length ? items.map((item: any) => ({
       listing_id: item.listing_id || item.seat_id || item.id,
       seat_id: item.seat_id || item.seat?.seat_id || '-',

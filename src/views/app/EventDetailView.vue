@@ -76,9 +76,9 @@ onMounted(load)
     <template v-else-if="eventData">
       <article class="glass" style="padding:1rem;margin-bottom:1rem;display:grid;gap:.5rem;">
         <h1>{{ eventData.name }}</h1>
-        <p class="small">{{ eventData.event_date }} · {{ eventData.venue?.name }} · {{ eventData.venue?.hall_name }}</p>
+        <p class="small">{{ eventData.event_date }} · {{ eventData.venue?.name }} · {{ eventData.hall_id }}</p>
         <div class="row">
-          <span v-for="tier in eventData.pricing_tiers || []" :key="tier.category" class="badge">{{ tier.category }} · ${{ tier.price }}</span>
+          <span v-for="[cat, price] in Object.entries(eventData.pricing_tiers || {})" :key="cat" class="badge">{{ cat }} · ${{ price }}</span>
         </div>
       </article>
 
@@ -96,3 +96,6 @@ onMounted(load)
     </template>
   </section>
 </template>
+
+<style scoped>
+</style>
