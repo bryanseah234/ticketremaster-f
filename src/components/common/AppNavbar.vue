@@ -9,16 +9,16 @@ const router = useRouter()
 const items = computed(() => {
   if (auth.isLoggedIn.value) {
     return [
-      { to: '/events', label: 'Events' },
-      { to: '/marketplace', label: 'Marketplace' },
-      { to: '/profile', label: 'Profile' },
+      { to: '/events', label: 'Events', key: 'events' },
+      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
+      { to: '/profile', label: 'Profile', key: 'profile' },
     ]
   }
   return [
-    { to: '/', label: 'Home' },
-    { to: '/events', label: 'Events' },
-    { to: '/marketplace', label: 'Marketplace' },
-    { to: '/login', label: 'Login' },
+    { to: '/', label: 'Home', key: 'home' },
+    { to: '/events', label: 'Events', key: 'events' },
+    { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
+    { to: '/login', label: 'Login', key: 'login' },
   ]
 })
 
@@ -38,8 +38,8 @@ const logout = () => {
 
       <div class="right-cluster">
         <nav>
-          <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn.value" class="nav-link nav-button" @click="logout">Logout</button>
+          <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
+          <button v-if="auth.isLoggedIn.value" class="nav-link nav-button nav-logout" @click="logout">Logout</button>
         </nav>
       </div>
     </div>
@@ -56,11 +56,25 @@ nav{display:flex;gap:.28rem;justify-content:flex-end;align-items:center;flex-wra
 .nav-link{padding:.38rem .64rem;border-radius:.7rem;color:var(--muted);font-weight:600}
 .nav-link.router-link-active{background:rgba(249,115,22,.18);color:#ffd4b7}
 .nav-button{border:1px solid transparent;background:transparent}
+@media (max-width:1024px){
+  .nav-marketplace{display:none}
+}
+@media (max-width:900px){
+  .nav-events{display:none}
+}
 @media (max-width:760px){
+  .nav-home{display:none}
+  .nav-profile{display:none}
   .brand span{display:none}
 }
 @media (max-width:640px){
   .nav{padding:.5rem .65rem}
   .nav-link{padding:.32rem .5rem;font-size:.85rem}
+}
+@media (max-width:560px){
+  .nav-login{display:none}
+  .nav-logout{display:none}
+  .right-cluster{display:none}
+  .nav{justify-content:center}
 }
 </style>
