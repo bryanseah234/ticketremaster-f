@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
+import { mockEvents } from '@/data/mockEvents'
 
 interface Seat {
   seat_id: string
@@ -17,6 +18,7 @@ const loading = ref(false)
 const notFound = ref(false)
 const error = ref('')
 const eventData = ref<any>(null)
+const usingFallback = ref(false)
 
 const visibleSeats = computed(() => (eventData.value?.seats || []).slice(0, 80) as Seat[])
 const color = (status: Seat['status']) => {
@@ -29,12 +31,27 @@ const load = async () => {
   loading.value = true
   notFound.value = false
   error.value = ''
+  usingFallback.value = false
   try {
     const { data } = await api.get(`/events/${route.params.eventId}`)
     eventData.value = data?.data
   } catch (e: any) {
-    if (e?.response?.status === 404) notFound.value = true
-    else error.value = 'Failed to load event details.'
+    if (e?.response?.status === 404) {
+      notFound.value = true
+    } else {
+      const fallback = mockEvents.find((event) => event.event_id === route.params.eventId) || mockEvents[0]
+      const seats = Array.from({ length: 80 }).map((_, index) => ({
+        seat_id: `demo-${index + 1}`,
+        row_number: String.fromCharCode(65 + Math.floor(index / 10)),
+        seat_number: (index % 10) + 1,
+        status: index % 9 === 0 ? 'HELD' : index % 7 === 0 ? 'SOLD' : 'AVAILABLE',
+        category: fallback.pricing_tiers[0]?.category || 'GA',
+        price: fallback.pricing_tiers[0]?.price || 59,
+      }))
+      eventData.value = { ...fallback, seats }
+      usingFallback.value = true
+      error.value = 'Backend unavailable. Showing demo event details.'
+    }
   } finally {
     loading.value = false
   }
@@ -46,6 +63,7 @@ onMounted(load)
 <template>
   <section class="page">
     <p v-if="loading" class="small">Loading event details...</p>
+    <p v-if="usingFallback" class="small">Demo data active for this event.</p>
     <article v-else-if="notFound" class="glass" style="padding:1rem;">Event not found.</article>
     <p v-else-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
 

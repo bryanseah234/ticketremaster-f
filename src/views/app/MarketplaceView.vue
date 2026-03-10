@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '@/api/client'
+import { useAuthStore } from '@/stores/auth'
+import { RouterLink } from 'vue-router'
 
 interface Listing {
   listing_id: string
@@ -11,9 +13,13 @@ interface Listing {
   price: number
 }
 
+const auth = useAuthStore()
+const isLoggedIn = computed(() => auth.isLoggedIn.value)
+
 const loading = ref(false)
 const error = ref('')
 const listings = ref<Listing[]>([])
+const usingFallback = ref(false)
 
 const fallbackListings: Listing[] = [
   { listing_id: 'R-1001', event_name: 'Neon Skyline Festival', event_date: '2026-09-14T19:00:00Z', row_number: 'A', seat_number: '12', price: 180 },
@@ -24,6 +30,7 @@ const fallbackListings: Listing[] = [
 const loadListings = async () => {
   loading.value = true
   error.value = ''
+  usingFallback.value = false
   try {
     const { data } = await api.get('/marketplace/listings')
     const items = data?.data || []
@@ -37,7 +44,8 @@ const loadListings = async () => {
     })) : fallbackListings
   } catch {
     listings.value = fallbackListings
-    error.value = 'Unable to load marketplace listings.'
+    usingFallback.value = true
+    error.value = 'Backend unavailable. Showing demo listings.'
   } finally {
     loading.value = false
   }
@@ -92,6 +100,8 @@ onMounted(loadListings)
 
     <section style="margin-top:1rem;">
       <h2 class="section-title">Resale Listings</h2>
+      <p v-if="!isLoggedIn" class="small">Login to view exact seat, price, and seller details.</p>
+      <p v-if="usingFallback" class="small">Demo listings are shown while the backend is unavailable.</p>
       <p v-if="loading" class="small">Loading listings...</p>
       <p v-if="error" class="small" style="color:#fca5a5">{{ error }}</p>
       <div class="grid-3">
@@ -99,9 +109,12 @@ onMounted(loadListings)
           <span class="badge">Listing {{ listing.listing_id }}</span>
           <h3>{{ listing.event_name }}</h3>
           <p class="small">{{ listing.event_date ? new Date(listing.event_date).toLocaleString() : 'Date TBA' }}</p>
-          <p class="small">Row {{ listing.row_number }} · Seat {{ listing.seat_number }}</p>
-          <p class="small">Asking price: ${{ listing.price }}</p>
-          <button class="secondary">Review Listing</button>
+          <p v-if="isLoggedIn" class="small">Row {{ listing.row_number }} · Seat {{ listing.seat_number }}</p>
+          <p v-else class="small">Seat details available after login.</p>
+          <p v-if="isLoggedIn" class="small">Asking price: ${{ listing.price }}</p>
+          <p v-else class="small">Login to view price.</p>
+          <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to view</button></RouterLink>
+          <button v-else class="secondary">Review Listing</button>
         </article>
       </div>
     </section>

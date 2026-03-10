@@ -113,7 +113,7 @@ onMounted(load)
           </div>
 
           <div class="row actions">
-            <RouterLink :to="`/events/${event.event_id}`"><button>View Event</button></RouterLink>
+            <RouterLink :to="`/events/${event.event_id}`"><button>View</button></RouterLink>
             <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click="toggleFavorite(event.event_id)">
               <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
@@ -154,7 +154,7 @@ onMounted(load)
 .content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
 h3{color:#fff}
 .small{color:#d4d4d8}
-.heart-icon{width:1.1rem;height:1.1rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease}
+.heart-icon{width:1.1rem;height:1.1rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease;display:block}
 .heart-action.active .heart-icon{fill:rgba(255,186,126,.95)}
 .actions{justify-content:space-between}
 .heart-action{height:2.6rem;width:2.6rem;border-radius:.75rem;display:grid;place-items:center}
