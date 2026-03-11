@@ -19,7 +19,7 @@
     "bootstrap-icons": "^1.11.3",
     "dayjs": "^1.11.13",
     "lucide-vue-next": "^0.542.0",
-    "pinia": "^2.2.9",
+    "pinia": "^3.0.4",
     "qrcode": "^1.5.4",
     "three": "^0.180.0",
     "vue": "^3.5.30",

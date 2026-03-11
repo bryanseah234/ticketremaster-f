@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
+import * as THREE from 'three'
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
+const containerRef = ref<HTMLElement | null>(null)
+let scene: THREE.Scene
+let camera: THREE.PerspectiveCamera
+let renderer: THREE.WebGLRenderer
+let earth: THREE.Mesh
+let atmosphere: THREE.Mesh
+let pointsGroup: THREE.Group
 let raf = 0
-let rotation = 0
-let lastTime = 0
-const rotationSpeed = 12
-const earthTexture = new Image()
-earthTexture.crossOrigin = 'anonymous'
-earthTexture.src = 'https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg'
 
 const locations = [
   { lat: 1.3521, lon: 103.8198 },
@@ -28,148 +29,142 @@ const locations = [
   { lat: 49.2827, lon: -123.1207 },
 ]
 
-const resizeCanvas = () => {
-  const c = canvasRef.value
-  if (!c) return
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  const nextWidth = Math.max(1, Math.floor(c.clientWidth * dpr))
-  const nextHeight = Math.max(1, Math.floor(c.clientHeight * dpr))
-  if (c.width !== nextWidth || c.height !== nextHeight) {
-    c.width = nextWidth
-    c.height = nextHeight
-  }
-}
+const init = () => {
+  if (!containerRef.value) return
 
-const draw = (time: number) => {
-  const c = canvasRef.value
-  if (!c) {
-    raf = requestAnimationFrame(draw)
-    return
-  }
+  // Scene setup
+  scene = new THREE.Scene()
+  camera = new THREE.PerspectiveCamera(45, containerRef.value.clientWidth / containerRef.value.clientHeight, 0.1, 1000)
+  camera.position.z = 2.5
 
-  const ctx = c.getContext('2d')
-  if (!ctx) return
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
+  containerRef.value.appendChild(renderer.domElement)
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+  scene.add(ambientLight)
 
-  const w = c.width / dpr
-  const h = c.height / dpr
-  if (w < 2 || h < 2) {
-    resizeCanvas()
-    raf = requestAnimationFrame(draw)
-    return
-  }
-  const r = Math.min(w, h) * 0.34
-  const cx = w / 2
-  const cy = h / 2
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.2)
+  sunLight.position.set(-2, 1, 5)
+  scene.add(sunLight)
 
-  ctx.clearRect(0, 0, w, h)
+  const loader = new THREE.TextureLoader()
+  loader.setCrossOrigin('anonymous')
 
-  const glow = ctx.createRadialGradient(cx - r * 0.32, cy - r * 0.4, r * 0.2, cx, cy, r * 1.6)
-  glow.addColorStop(0, 'rgba(145, 214, 255, 0.32)')
-  glow.addColorStop(0.5, 'rgba(90, 170, 255, 0.18)')
-  glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = glow
-  ctx.beginPath()
-  ctx.arc(cx, cy, r * 1.2, 0, Math.PI * 2)
-  ctx.fill()
+  // Textures
+  const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
+  const specularMap = loader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg')
+  const normalMap = loader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg')
 
-  ctx.save()
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.closePath()
-  ctx.clip()
+  // Geometry
+  const sphereGeom = new THREE.SphereGeometry(1, 64, 64)
+  const earthMat = new THREE.MeshStandardMaterial({
+    map: earthTexture,
+    specularMap: specularMap,
+    normalMap: normalMap,
+    metalness: 0.1,
+    roughness: 0.7,
+  })
+  earth = new THREE.Mesh(sphereGeom, earthMat)
+  scene.add(earth)
 
-  const patternWidth = r * 2.8
-  const patternHeight = r * 2
-  const offset = (rotation % (patternWidth / 2))
-  if (earthTexture.complete && earthTexture.naturalWidth > 0) {
-    ctx.drawImage(earthTexture, -offset + cx - patternWidth / 2, cy - patternHeight / 2, patternWidth, patternHeight)
-    ctx.drawImage(earthTexture, -offset + cx, cy - patternHeight / 2, patternWidth, patternHeight)
-  } else {
-    const base = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.2, cx, cy, r * 1.1)
-    base.addColorStop(0, 'rgba(120, 190, 255, 0.5)')
-    base.addColorStop(1, 'rgba(14, 30, 46, 0.85)')
-    ctx.fillStyle = base
-    ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
-  }
+  // Atmosphere (Glow effect using a simple shader-like approach)
+  const atmosGeom = new THREE.SphereGeometry(1.03, 64, 64)
+  const atmosMat = new THREE.ShaderMaterial({
+    transparent: true,
+    uniforms: {
+      glowColor: { value: new THREE.Color(0x91d6ff) },
+      viewVector: { value: camera.position }
+    },
+    vertexShader: `
+      uniform vec3 viewVector;
+      varying float intensity;
+      void main() {
+        vec3 vNormal = normalize( normalMatrix * normal );
+        vec3 vNormel = normalize( normalMatrix * viewVector );
+        intensity = pow( 0.7 - dot(vNormal, vNormel), 4.0 );
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 glowColor;
+      varying float intensity;
+      void main() {
+        vec3 glow = glowColor * intensity;
+        gl_FragColor = vec4( glow, intensity );
+      }
+    `,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+  })
+  atmosphere = new THREE.Mesh(atmosGeom, atmosMat)
+  scene.add(atmosphere)
 
-  ctx.globalCompositeOperation = 'multiply'
-  const lightShade = ctx.createRadialGradient(cx - r * 0.6, cy - r * 0.45, r * 0.2, cx + r * 0.45, cy + r * 0.25, r * 1.1)
-  lightShade.addColorStop(0, 'rgba(255,255,255,0.88)')
-  lightShade.addColorStop(0.55, 'rgba(160,160,160,0.82)')
-  lightShade.addColorStop(1, 'rgba(40,40,40,0.75)')
-  ctx.fillStyle = lightShade
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
+  // Markers
+  pointsGroup = new THREE.Group()
+  const pointGeom = new THREE.SphereGeometry(0.012, 16, 16)
+  const pointMat = new THREE.MeshBasicMaterial({ color: 0xffba7e })
 
-  ctx.globalCompositeOperation = 'source-atop'
-  const limb = ctx.createRadialGradient(cx - r * 0.1, cy - r * 0.1, r * 0.68, cx, cy, r)
-  limb.addColorStop(0, 'rgba(0,0,0,0)')
-  limb.addColorStop(1, 'rgba(0,0,0,0.32)')
-  ctx.fillStyle = limb
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
-
-  ctx.globalCompositeOperation = 'screen'
-  const specular = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.34, r * 0.06, cx - r * 0.2, cy - r * 0.2, r * 0.48)
-  specular.addColorStop(0, 'rgba(255,255,255,0.45)')
-  specular.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = specular
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2)
-
-  ctx.globalCompositeOperation = 'source-over'
-  ctx.restore()
-
-  ctx.strokeStyle = 'rgba(255,255,255,.2)'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.stroke()
-
-  const rotationAngle = (-rotation / (patternWidth / 2)) * Math.PI
-  locations.forEach((location) => {
-    const lat = (location.lat * Math.PI) / 180
-    const lon = (location.lon * Math.PI) / 180
+  locations.forEach(loc => {
+    const lat = (loc.lat * Math.PI) / 180
+    const lon = (loc.lon * Math.PI) / 180
+    
+    // Convert lat/lon to 3D Cartesian coords
     const x = Math.cos(lat) * Math.cos(lon)
     const y = Math.sin(lat)
-    const z = Math.cos(lat) * Math.sin(lon)
-    const cosA = Math.cos(rotationAngle)
-    const sinA = Math.sin(rotationAngle)
-    const xr = x * cosA + z * sinA
-    const zr = -x * sinA + z * cosA
-    if (zr < 0) return
-    const px = cx + xr * r
-    const py = cy - y * r
-    const depth = Math.min(1, Math.max(0, (zr + 0.15) / 1.15))
-    const size = 2.2 + depth * 2.2
-    ctx.beginPath()
-    ctx.fillStyle = `rgba(255, 186, 126, ${0.28 + depth * 0.45})`
-    ctx.arc(px, py, size, 0, Math.PI * 2)
-    ctx.fill()
-  })
+    const z = Math.cos(lat) * Math.sin(-lon) // Invert lon for correct mapping
 
-  if (!lastTime) lastTime = time
-  const delta = Math.min(48, time - lastTime)
-  rotation += (delta / 1000) * rotationSpeed
-  lastTime = time
-  raf = requestAnimationFrame(draw)
+    const point = new THREE.Mesh(pointGeom, pointMat)
+    point.position.set(x, y, z)
+    
+    // Add a small pulse/glow to the point
+    const pulseGeom = new THREE.SphereGeometry(0.025, 12, 12)
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffba7e, transparent: true, opacity: 0.3 })
+    const pulse = new THREE.Mesh(pulseGeom, pulseMat)
+    point.add(pulse)
+    
+    pointsGroup.add(point)
+  })
+  earth.add(pointsGroup)
+
+  animate()
+}
+
+const animate = () => {
+  raf = requestAnimationFrame(animate)
+  if (earth) {
+    earth.rotation.y += 0.0012
+  }
+  renderer.render(scene, camera)
+}
+
+const onResize = () => {
+  if (!containerRef.value) return
+  camera.aspect = containerRef.value.clientWidth / containerRef.value.clientHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
 }
 
 onMounted(() => {
-  resizeCanvas()
-  window.addEventListener('resize', resizeCanvas)
-  raf = requestAnimationFrame(draw)
+  init()
+  window.addEventListener('resize', onResize)
 })
+
 onUnmounted(() => {
-  window.removeEventListener('resize', resizeCanvas)
+  window.removeEventListener('resize', onResize)
   cancelAnimationFrame(raf)
+  if (renderer) {
+    renderer.dispose()
+  }
 })
 </script>
 
 <template>
   <section class="page" style="padding-top:.8rem;padding-bottom:4rem;">
     <div class="grid-2">
-      <canvas ref="canvasRef" class="glass globe"></canvas>
+      <div ref="containerRef" class="glass globe-container"></div>
       <article class="glass cta">
         <h2 class="section-title">Host your event with TicketRemaster</h2>
         <p class="section-subtitle">Launch, sell, and manage verified resale with one organizer dashboard trusted across global venues.</p>
@@ -180,8 +175,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.globe{width:100%;height:440px}
+.globe-container { width: 100%; height: 440px; overflow: hidden; position: relative; }
 .cta{padding:1.2rem;display:grid;align-content:center;justify-items:center;gap:.75rem;text-align:center}
 .list-btn{width:auto}
-@media (max-width:920px){.globe{height:320px}}
+@media (max-width:920px){.globe-container{height:320px}}
 </style>

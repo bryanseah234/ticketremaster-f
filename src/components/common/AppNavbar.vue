@@ -13,7 +13,7 @@ const balanceError = ref(false)
 let balanceTimer: number | undefined
 
 const items = computed(() => {
-  if (auth.isLoggedIn.value) {
+  if (auth.isLoggedIn) {
     return [
       { to: '/', label: 'Home', key: 'home' },
       { to: '/events', label: 'Events', key: 'events' },
@@ -31,7 +31,7 @@ const items = computed(() => {
 })
 
 const fetchBalance = async () => {
-  if (!auth.isLoggedIn.value) {
+  if (!auth.isLoggedIn) {
     balance.value = null
     balanceError.value = false
     return
@@ -54,8 +54,8 @@ const scheduleBalance = () => {
   balanceTimer = window.setTimeout(fetchBalance, 250)
 }
 
-watch([() => auth.isLoggedIn.value, () => route.fullPath], () => {
-  if (!auth.isLoggedIn.value) {
+watch([() => auth.isLoggedIn, () => route.fullPath], () => {
+  if (!auth.isLoggedIn) {
     balance.value = null
     balanceError.value = false
     return
@@ -64,7 +64,7 @@ watch([() => auth.isLoggedIn.value, () => route.fullPath], () => {
 }, { immediate: true })
 
 onMounted(() => {
-  if (auth.isLoggedIn.value) scheduleBalance()
+  if (auth.isLoggedIn) scheduleBalance()
 })
 
 const logout = () => {
@@ -73,7 +73,7 @@ const logout = () => {
 }
 
 const balanceLabel = computed(() => {
-  if (!auth.isLoggedIn.value) return ''
+  if (!auth.isLoggedIn) return ''
   if (balanceLoading.value) return 'Credits: ...'
   if (balanceError.value) return 'Credits: --'
   if (balance.value === null) return 'Credits: --'
@@ -82,18 +82,18 @@ const balanceLabel = computed(() => {
 </script>
 
 <template>
-  <header class="nav-wrap">
-    <div class="nav glass">
+  <header class="header glass">
+    <div class="inner">
       <RouterLink to="/" class="brand">
         <img src="/logo.svg" alt="TicketRemaster logo" />
         <span>TicketRemaster</span>
       </RouterLink>
 
       <div class="right-cluster">
-        <RouterLink v-if="auth.isLoggedIn.value" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
+        <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
         <nav>
           <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn.value" class="nav-link nav-button nav-logout" @click="logout">Logout</button>
+          <button v-if="auth.isLoggedIn" class="nav-link nav-button nav-logout" @click="logout">Logout</button>
         </nav>
       </div>
     </div>
@@ -101,16 +101,36 @@ const balanceLabel = computed(() => {
 </template>
 
 <style scoped>
-.nav-wrap{position:sticky;top:0;z-index:80;padding:.8rem 1rem}
-.nav{max-width:820px;margin:0 auto;padding:.55rem .8rem;border-radius:2rem;display:flex;align-items:center;gap:.7rem;width:100%}
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  width: 100%;
+  border-radius: 0;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  padding: 0.6rem 0;
+  background: rgba(11, 11, 14, 0.72);
+  backdrop-filter: blur(20px);
+}
+.inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
 .brand{display:flex;align-items:center;gap:.45rem;font-weight:800;letter-spacing:-.01em;font-size:.95rem;color:var(--accent)}
-.brand img{width:20px;height:20px}
-.right-cluster{margin-left:auto;display:flex;align-items:center;gap:.4rem}
-.nav-credit{padding:.35rem .6rem;border-radius:.7rem;border:1px solid rgba(251,146,60,.35);color:#fed7aa;font-weight:700}
-nav{display:flex;gap:.28rem;justify-content:flex-end;align-items:center;flex-wrap:wrap}
-.nav-link{padding:.38rem .64rem;border-radius:.7rem;color:var(--muted);font-weight:600}
-.nav-link.router-link-active{background:rgba(249,115,22,.18);color:#ffd4b7}
-.nav-button{border:1px solid transparent;background:transparent}
+.brand img{width:24px;height:24px}
+.right-cluster{margin-left:auto;display:flex;align-items:center;gap:.6rem}
+.nav-credit{padding:.35rem .6rem;border-radius:.7rem;border:1px solid rgba(251,146,60,.35);color:#fed7aa;font-weight:700;font-size:0.9rem}
+nav{display:flex;gap:.35rem;justify-content:flex-end;align-items:center}
+.nav-link{padding:.4rem .75rem;border-radius:.7rem;color:var(--muted);font-weight:600;font-size:0.925rem;transition: all 0.2s ease;}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.nav-link.router-link-active{background:rgba(249,115,22,.15);color:#fed7aa}
+.nav-button{border:none;background:transparent;cursor:pointer}
 @media (max-width:1024px){
   .nav-marketplace{display:none}
 }
@@ -123,7 +143,7 @@ nav{display:flex;gap:.28rem;justify-content:flex-end;align-items:center;flex-wra
   .brand span{display:none}
 }
 @media (max-width:640px){
-  .nav{padding:.5rem .65rem}
+  .inner { padding: 0 1rem; }
   .nav-link{padding:.32rem .5rem;font-size:.85rem}
 }
 @media (max-width:560px){
