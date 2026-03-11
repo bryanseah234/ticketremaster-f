@@ -11,7 +11,7 @@
   "dependencies": {
     "@chenfengyuan/vue-qrcode": "^2.0.0",
     "@heroicons/vue": "^2.1.5",
-    "@stripe/stripe-js": "^4.6.0",
+    "@stripe/stripe-js": "^8.9.0",
     "@vueuse/core": "^13.9.0",
     "@vueuse/motion": "^3.0.3",
     "axios": "^1.7.9",
