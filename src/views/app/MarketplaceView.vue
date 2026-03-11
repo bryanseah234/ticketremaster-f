@@ -47,12 +47,22 @@ const seatLabel = (listing: Listing) => {
   return `Seat ${listing.seat_id}`
 }
 
+const search = ref('')
+
+const filteredListings = computed(() => {
+  const needle = search.value.trim().toLowerCase()
+  return listings.value.filter((l) => {
+    const text = `${l.event_name} ${l.listing_id} ${l.seat_id}`.toLowerCase()
+    return !needle || text.includes(needle)
+  })
+})
+
 const loadListings = async () => {
   loading.value = true
+  // ... existing toast push ...
   toast.push('Loading listings...', 'info', 1600)
   try {
     const res = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
-    // Handle both { data: [...] } and raw [...] responses
     const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
     listings.value = items.length ? items.map((item: any) => ({
       listing_id: item.listing_id || item.seat_id || item.id,
@@ -133,50 +143,18 @@ onMounted(loadListings)
 
 <template>
   <section class="page">
-    <article class="glass" style="padding:1.2rem;display:grid;gap:.6rem;">
-      <h1 class="section-title">Marketplace</h1>
+    <header class="marketplace-hero">
+      <h1 class="section-title">Discover Listings</h1>
       <p class="section-subtitle">A trusted resale marketplace for verified tickets.</p>
+    </header>
+
+    <article class="glass filter-bar" style="margin-top:1.5rem;">
+      <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
+      <button @click="loadListings()">Refresh</button>
+      <button class="secondary" @click="search=''">Reset</button>
     </article>
 
-    <section style="margin-top:1rem;display:grid;gap:1rem;">
-      <article class="glass" style="padding:1rem;display:grid;gap:.8rem;">
-        <h2 class="section-title">Why Buy From Our Marketplace</h2>
-        <div class="marketplace-why">
-          <ul class="why-list">
-            <li>Verified Sellers & Ratings</li>
-            <li>100% Buyer Protection</li>
-            <li>Mobile Tickets Instant Delivery</li>
-            <li>Best Price Guarantee</li>
-            <li>No Hidden Fees</li>
-            <li>24/7 Customer Support</li>
-          </ul>
-          <aside class="glass side-panel">
-            <h3>Buy Confidence</h3>
-            <p class="small">Every resale ticket is protected with instant delivery and verified ownership checks.</p>
-          </aside>
-        </div>
-      </article>
-
-      <article class="glass" style="padding:1rem;">
-        <h2 class="section-title">How it Works</h2>
-        <div class="grid-3" style="margin-top:.7rem;">
-          <div class="glass step-card">
-            <h3>Browse Listings</h3>
-            <p class="small">Explore verified resale listings with clear pricing and seat details.</p>
-          </div>
-          <div class="glass step-card">
-            <h3>Review Details</h3>
-            <p class="small">Compare pricing, seat location, and seller status before buying.</p>
-          </div>
-          <div class="glass step-card">
-            <h3>Purchase Safely</h3>
-            <p class="small">Confirm the transfer and receive tickets securely in your account.</p>
-          </div>
-        </div>
-      </article>
-    </section>
-
-    <section v-if="isLoggedIn" class="marketplace-actions">
+    <section v-if="isLoggedIn" class="marketplace-actions" style="margin-top:1.5rem;">
       <article class="glass action-card">
         <h3>List a Ticket</h3>
         <div class="grid-2">
@@ -195,11 +173,14 @@ onMounted(loadListings)
       </article>
     </section>
 
-    <section style="margin-top:1rem;">
-      <h2 class="section-title">Resale Listings</h2>
-      <p v-if="!isLoggedIn" class="small">Login to view seller details and purchase options.</p>
-      <div class="grid-3">
-        <article v-for="(listing, i) in listings" :key="listing.listing_id" class="glass listing-card">
+    <section style="margin-top:2rem;">
+      <p v-if="!isLoggedIn" class="login-prompt">
+        <span class="badge">Notice</span>
+        Login to view seller details and purchase options.
+      </p>
+      
+      <div class="listings-grid">
+        <article v-for="(listing, i) in filteredListings" :key="listing.listing_id" class="glass listing-card">
           <img class="listing-img" :src="listing.image || fallbackListings[i % fallbackListings.length].image" :alt="listing.event_name || 'Resale listing'" />
           <div class="listing-cover"></div>
           <div class="listing-content">
@@ -208,9 +189,9 @@ onMounted(loadListings)
             <div class="row" style="gap:.4rem;flex-wrap:wrap;">
               <span class="badge">{{ seatLabel(listing) }}</span>
               <span class="badge">${{ listing.asking_price }}</span>
-              <span class="badge">{{ listing.status }}</span>
+              <span class="badge" :class="listing.status">{{ listing.status }}</span>
             </div>
-            <div class="row" style="gap:.5rem;">
+            <div class="row actions-row">
               <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to buy</button></RouterLink>
               <button v-else :disabled="listing.status !== 'ACTIVE' || buyLoadingIds[listing.listing_id]" @click="buyListing(listing.listing_id)">
                 {{ buyLoadingIds[listing.listing_id] ? 'Buying...' : 'Buy' }}
@@ -224,20 +205,29 @@ onMounted(loadListings)
 </template>
 
 <style scoped>
-.listing-card{position:relative;overflow:hidden;min-height:280px;padding:0}
-.listing-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.listing-cover{position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,11,.12),rgba(9,9,11,.9))}
-.listing-content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
-.listing-content h3{color:#fff}
-.listing-content .small{color:#e4e4e7}
-.step-card{padding:.9rem;display:grid;gap:.35rem;min-height:120px}
-.marketplace-why{display:grid;grid-template-columns:2fr 1fr;gap:1rem}
-.why-list{list-style:none;margin:0;padding:0;display:grid;gap:.45rem}
-.why-list li{padding:.4rem .6rem;border-radius:.6rem;background:rgba(255,255,255,.06);border:1px solid var(--border);font-weight:600}
-.side-panel{padding:1rem;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35)}
-.marketplace-actions{margin-top:1rem;display:grid;gap:1rem}
-.action-card{padding:1rem;display:grid;gap:.7rem}
-@media (max-width:860px){
-  .marketplace-why{grid-template-columns:1fr}
+.marketplace-hero { padding-bottom: 0.5rem; }
+.filter-bar { padding: .8rem; display: grid; grid-template-columns: 1fr auto auto; gap: .55rem; align-items: center; }
+.search-col { min-width: 0; }
+
+.login-prompt { margin-bottom: 1.2rem; display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: 0.9rem; }
+
+.listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.listing-card { position: relative; overflow: hidden; min-height: 300px; padding: 0; border-radius: 1.2rem; transition: transform 0.2s ease; }
+.listing-card:hover { transform: translateY(-4px); }
+.listing-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.listing-cover { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,9,11,0.1) 0%, rgba(9,9,11,0.95) 90%); }
+.listing-content { position: relative; padding: 1.25rem; display: grid; gap: .6rem; align-content: end; height: 100%; }
+.listing-content h3 { color: #fff; font-size: 1.25rem; margin: 0; }
+.listing-content .small { color: rgba(255,255,255,0.8); }
+
+.badge.ACTIVE { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+
+.actions-row { margin-top: .4rem; }
+.marketplace-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.action-card { padding: 1.2rem; display: grid; gap: .8rem; }
+
+@media (max-width: 860px) {
+  .marketplace-actions { grid-template-columns: 1fr; }
+  .filter-bar { grid-template-columns: 1fr; }
 }
 </style>
