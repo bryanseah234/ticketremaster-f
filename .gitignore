@@ -7,14 +7,20 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node modules
 node_modules
 .DS_Store
+
+# Build results
 dist
 dist-ssr
 coverage
 *.local
+
+# Environment variables
 .env
 .env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -26,8 +32,10 @@ coverage
 *.sln
 *.sw?
 
+# Typescript
 *.tsbuildinfo
 
+# Linter
 .eslintcache
 
 # Cypress
@@ -36,6 +44,12 @@ coverage
 
 # Vitest
 __screenshots__/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Vite
 *.timestamp-*-*.mjs
