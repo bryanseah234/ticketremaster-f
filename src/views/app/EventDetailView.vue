@@ -58,7 +58,7 @@ const load = async () => {
           price: fallback.pricing_tiers[0]?.price || 59,
         }))
         eventData.value = { ...fallback, seats }
-        toast.push('Demo data active for this event.', 'info', 3200)
+        toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
       }
     }
   } finally {

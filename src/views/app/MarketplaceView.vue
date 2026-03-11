@@ -21,7 +21,7 @@ interface Listing {
 }
 
 const auth = useAuthStore()
-const isLoggedIn = computed(() => auth.isLoggedIn.value)
+const isLoggedIn = computed(() => auth.isLoggedIn)
 const toast = useToast()
 
 const loading = ref(false)
@@ -38,6 +38,21 @@ const fallbackListings: Listing[] = [
   { listing_id: 'R-1001', seat_id: 'seat-101', asking_price: 180, status: 'ACTIVE', created_at: '2026-02-10T10:25:00Z', event_name: 'Underground Rap Session', event_date: '2026-03-20T19:30:00Z', row_number: 'B', seat_number: 12, image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=1400' },
   { listing_id: 'R-1002', seat_id: 'seat-204', asking_price: 120, status: 'ACTIVE', created_at: '2026-02-12T08:40:00Z', event_name: 'Midnight Pulse', event_date: '2026-05-08T20:00:00Z', row_number: 'D', seat_number: 6, image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1400' },
   { listing_id: 'R-1003', seat_id: 'seat-318', asking_price: 220, status: 'ACTIVE', created_at: '2026-02-15T15:10:00Z', event_name: 'Neon Skyline Festival', event_date: '2026-04-13T20:00:00Z', row_number: 'A', seat_number: 2, image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1400' },
+  { listing_id: 'R-1004', seat_id: 'seat-401', asking_price: 95, status: 'ACTIVE', created_at: '2026-02-16T09:00:00Z', event_name: 'Acoustic Evenings', event_date: '2026-03-25T18:00:00Z', row_number: 'E', seat_number: 14, image: 'https://images.unsplash.com/photo-1514525253361-bee8d48800d5?q=80&w=1400' },
+  { listing_id: 'R-1005', seat_id: 'seat-522', asking_price: 310, status: 'ACTIVE', created_at: '2026-02-18T11:20:00Z', event_name: 'Global Bass Arena', event_date: '2026-06-01T19:00:00Z', row_number: 'A', seat_number: 1, image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1400' },
+  { listing_id: 'R-1006', seat_id: 'seat-608', asking_price: 145, status: 'ACTIVE', created_at: '2026-02-19T14:45:00Z', event_name: 'Jazz in the Park', event_date: '2026-05-15T17:30:00Z', row_number: 'C', seat_number: 8, image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=1400' },
+  { listing_id: 'R-1007', seat_id: 'seat-711', asking_price: 260, status: 'ACTIVE', created_at: '2026-02-20T16:30:00Z', event_name: 'Indie Rock Shadows', event_date: '2026-04-30T20:30:00Z', row_number: 'B', seat_number: 22, image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1400' },
+  { listing_id: 'R-1008', seat_id: 'seat-805', asking_price: 80, status: 'ACTIVE', created_at: '2026-02-21T10:15:00Z', event_name: 'City Lights Piano', event_date: '2026-03-15T19:00:00Z', row_number: 'F', seat_number: 3, image: 'https://images.unsplash.com/photo-1520527057852-44c0e5c43dc4?q=80&w=1400' },
+  { listing_id: 'R-1009', seat_id: 'seat-920', asking_price: 450, status: 'ACTIVE', created_at: '2026-02-22T12:00:00Z', event_name: 'Platinum Night Out', event_date: '2026-07-20T21:00:00Z', row_number: 'A', seat_number: 10, image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=1400' },
+  { listing_id: 'R-1010', seat_id: 'seat-104', asking_price: 130, status: 'ACTIVE', created_at: '2026-02-23T08:50:00Z', event_name: 'Reggae Roots', event_date: '2026-04-05T16:00:00Z', row_number: 'C', seat_number: 4, image: 'https://images.unsplash.com/photo-1514525253361-bee8d48800d5?q=80&w=1400' },
+  { listing_id: 'R-1011', seat_id: 'seat-215', asking_price: 210, status: 'ACTIVE', created_at: '2026-02-24T14:20:00Z', event_name: 'Drum & Bass Night', event_date: '2026-05-20T22:00:00Z', row_number: 'D', seat_number: 15, image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1400' },
+  { listing_id: 'R-1012', seat_id: 'seat-302', asking_price: 175, status: 'ACTIVE', created_at: '2026-02-25T11:40:00Z', event_name: 'Synthwave Sunset', event_date: '2026-04-10T18:30:00Z', row_number: 'B', seat_number: 5, image: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1400' },
+  { listing_id: 'R-1013', seat_id: 'seat-440', asking_price: 110, status: 'ACTIVE', created_at: '2026-02-26T17:10:00Z', event_name: 'Folk & Harmony', event_date: '2026-03-29T19:00:00Z', row_number: 'G', seat_number: 1, image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=1400' },
+  { listing_id: 'R-1014', seat_id: 'seat-511', asking_price: 280, status: 'ACTIVE', created_at: '2026-02-27T09:30:00Z', event_name: 'Electric Vibes', event_date: '2026-06-15T20:00:00Z', row_number: 'A', seat_number: 3, image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1400' },
+  { listing_id: 'R-1015', seat_id: 'seat-618', asking_price: 90, status: 'ACTIVE', created_at: '2026-02-28T13:50:00Z', event_name: 'Underground Rap Session', event_date: '2026-03-20T19:30:00Z', row_number: 'H', seat_number: 18, image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=1400' },
+  { listing_id: 'R-1016', seat_id: 'seat-725', asking_price: 155, status: 'ACTIVE', created_at: '2026-03-01T15:20:00Z', event_name: 'Summer Melodies', event_date: '2026-07-05T17:00:00Z', row_number: 'C', seat_number: 25, image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1400' },
+  { listing_id: 'R-1017', seat_id: 'seat-830', asking_price: 350, status: 'ACTIVE', created_at: '2026-03-02T10:00:00Z', event_name: 'VIP Opera Night', event_date: '2026-05-25T19:30:00Z', row_number: 'A', seat_number: 8, image: 'https://images.unsplash.com/photo-1520527057852-44c0e5c43dc4?q=80&w=1400' },
+  { listing_id: 'R-1018', seat_id: 'seat-912', asking_price: 125, status: 'ACTIVE', created_at: '2026-03-03T11:15:00Z', event_name: 'Indie Rock Shadows', event_date: '2026-04-30T20:30:00Z', row_number: 'D', seat_number: 12, image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1400' },
 ]
 
 const seatLabel = (listing: Listing) => {
@@ -80,7 +95,7 @@ const loadListings = async () => {
     })) : fallbackListings
   } catch {
     listings.value = fallbackListings
-    toast.push('Demo listings are shown while the backend is unavailable.', 'info', 3200)
+    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
   } finally {
     loading.value = false
   }
@@ -173,12 +188,7 @@ onMounted(loadListings)
       </article>
     </section>
 
-    <section style="margin-top:2rem;">
-      <p v-if="!isLoggedIn" class="login-prompt">
-        <span class="badge">Notice</span>
-        Login to view seller details and purchase options.
-      </p>
-      
+    <section style="margin-top:1rem;">
       <div class="listings-grid">
         <article v-for="(listing, i) in filteredListings" :key="listing.listing_id" class="glass listing-card">
           <img class="listing-img" :src="listing.image || fallbackListings[i % fallbackListings.length].image" :alt="listing.event_name || 'Resale listing'" />

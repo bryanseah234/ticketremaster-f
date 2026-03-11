@@ -39,7 +39,7 @@ const loadBalance = async () => {
     balance.value = 250
     usingFallback.value = true
     statusMessage.value = 'DEMO_MODE'
-    toast.push('Demo mode enabled while the backend is unavailable.', 'info', 3200)
+    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
   }
 }
 

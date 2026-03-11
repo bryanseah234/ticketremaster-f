@@ -26,7 +26,7 @@ const load = async () => {
     tickets.value = data?.data || []
   } catch {
     tickets.value = fallbackTickets
-    toast.push('Demo mode enabled for ticket data.', 'info', 3200)
+    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
   } finally {
     loading.value = false
   }
