@@ -40,6 +40,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.status-banner{position:sticky;top:0;z-index:90;padding:.6rem 1rem;background:rgba(251,146,60,.18);border-bottom:1px solid rgba(251,146,60,.45);display:flex;justify-content:center;gap:.75rem;align-items:center;color:#fed7aa;font-weight:600}
+.status-banner{position:fixed;bottom:0;left:0;right:0;z-index:150;padding:.5rem 1rem;background:rgba(251,146,60,0.95);backdrop-filter:blur(8px);border-top:1px solid rgba(255,255,255,0.1);display:flex;justify-content:center;gap:.75rem;align-items:center;color:#fff;font-size:0.85rem;font-weight:600;box-shadow:0 -4px 12px rgba(0,0,0,0.2)}
 .status-banner .small{font-weight:500;color:#ffedd5}
 </style>

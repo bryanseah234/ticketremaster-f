@@ -35,7 +35,7 @@ const init = () => {
   // Scene setup
   scene = new THREE.Scene()
   camera = new THREE.PerspectiveCamera(45, containerRef.value.clientWidth / containerRef.value.clientHeight, 0.1, 1000)
-  camera.position.z = 2.5
+  camera.position.z = 2.8
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(window.devicePixelRatio)
@@ -62,7 +62,6 @@ const init = () => {
   const sphereGeom = new THREE.SphereGeometry(1, 64, 64)
   const earthMat = new THREE.MeshStandardMaterial({
     map: earthTexture,
-    specularMap: specularMap,
     normalMap: normalMap,
     metalness: 0.1,
     roughness: 0.7,
@@ -105,7 +104,7 @@ const init = () => {
   // Markers
   pointsGroup = new THREE.Group()
   const pointGeom = new THREE.SphereGeometry(0.012, 16, 16)
-  const pointMat = new THREE.MeshBasicMaterial({ color: 0xffba7e })
+  const pointMat = new THREE.MeshBasicMaterial({ color: 0xffa500 }) // Brighter orange
 
   locations.forEach(loc => {
     const lat = (loc.lat * Math.PI) / 180
@@ -121,7 +120,7 @@ const init = () => {
     
     // Add a small pulse/glow to the point
     const pulseGeom = new THREE.SphereGeometry(0.025, 12, 12)
-    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffba7e, transparent: true, opacity: 0.3 })
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.6 }) // More opaque
     const pulse = new THREE.Mesh(pulseGeom, pulseMat)
     point.add(pulse)
     

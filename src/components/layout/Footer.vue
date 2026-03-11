@@ -12,9 +12,8 @@ const year = new Date().getFullYear()
           <img src="/logo.svg" alt="TicketRemaster logo" />
           <h3>TicketRemaster</h3>
         </div>
-        <p class="tagline">Buy smarter</p>
-        <p class="tagline">Sell safer</p>
-        <p class="tagline">Experience more live moments</p>
+        <p class="tagline">Buy smarter, Sell safer, Experience more live moments</p>
+        <div class="copy">© {{ year }} TicketRemaster. All rights reserved.</div>
       </section>
 
       <section class="links">
@@ -44,8 +43,6 @@ const year = new Date().getFullYear()
           </div>
         </div>
       </section>
-
-      <div class="copy">© {{ year }} TicketRemaster. All rights reserved.</div>
     </div>
   </footer>
 </template>
@@ -53,17 +50,17 @@ const year = new Date().getFullYear()
 <style scoped>
 .footer{padding:3rem 2rem;background:#0b0b0e;border-top:1px solid var(--border)}
 .inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}
-.brand{display:grid;gap:.5rem}
+.brand{display:flex;flex-direction:column;gap:.5rem}
 .logo-line{display:flex;align-items:center;gap:.45rem}
-.logo-line img{width:24px;height:24px}
-h3,h4{margin:0 0 .75rem} h3{font-size:1.25rem;color:var(--accent)}
+.logo-line img{width:28px;height:28px}
+h3,h4{margin:0} h3{font-size:1.5rem;color:var(--accent);font-weight:800}
 h4{color:#fff;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;font-size:0.875rem}
 p,a{color:var(--muted);font-size:0.925rem} a{display:block;margin:.5rem 0;text-decoration:none;transition:color 0.2s}
 a:hover{color:#fff}
 .links{display:contents}
 .column{display:grid;gap:2rem}
 .group{display:grid;gap:.25rem}
-.copy{grid-column:1/-1;text-align:center;margin-top:1.4rem;color:var(--muted)}
+.copy{text-align:left;margin-top:0.5rem;color:var(--muted);font-size:0.85rem}
 @media (max-width:900px){
   .inner{grid-template-columns:1fr;gap:1.6rem}
   .links{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem}
