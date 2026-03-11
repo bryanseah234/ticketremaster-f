@@ -595,6 +595,7 @@ If the Cloudflare Tunnel or backend is down, the frontend should stay semi-funct
 | Framework | **Vue 3** (Composition API + `<script setup>`) | Team choice. Use Composition API — it's cleaner than Options API for new projects |
 | Build Tool | **Vite** | Default for Vue 3. Near-instant hot-reload (<100ms). `npm create vue@latest` uses Vite |
 | Router | **Vue Router 4** | SPA navigation, route guards for auth-protected pages |
+| Styling | **Vanilla CSS + Theme Tokens** | Centralized `src/config/theme.ts` map to CSS variables |
 | State | **Pinia** | Official Vue 3 store. Simple API for auth state, credit balance, ticket lists |
 | HTTP | **Axios** | Request interceptors to auto-attach JWT and auto-refresh on 401 |
 | Language | **JavaScript** (not TypeScript) | Simpler for the team. Can upgrade later if needed |
@@ -623,7 +624,7 @@ npm create vue@latest ticketremaster-frontend
 
 cd ticketremaster-frontend
 npm install
-npm install axios vue-toastification @chenfengyuan/vue-qrcode @heroicons/vue @vueuse/core dayjs @stripe/stripe-js
+npm install axios vue-toastification @chenfengyuan/vue-qrcode @heroicons/vue @vueuse/core dayjs @stripe/stripe-js three
 ```
 
 ---

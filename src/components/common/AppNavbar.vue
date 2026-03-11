@@ -82,7 +82,7 @@ const balanceLabel = computed(() => {
 </script>
 
 <template>
-  <header class="header glass">
+  <header class="header">
     <div class="inner">
       <RouterLink to="/" class="brand">
         <img src="/logo.svg" alt="TicketRemaster logo" />

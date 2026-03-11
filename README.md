@@ -1,59 +1,42 @@
 # TicketRemaster Frontend
 
-Vue 3 SPA for event ticketing, talking to backend via the API Gateway at `http://localhost:8000/api` in local development.
+Vue 3 SPA for event ticketing. This application is designed to be highly resilient, featuring a premium glassmorphic UI and an automatic "Offline Mode" when the backend is unreachable.
+
+## Deployment
+
+- **Production URL**: [https://ticketremaster.hong-yi.me](https://ticketremaster.hong-yi.me)
+- **Production API**: `https://ticketremasterapi.hong-yi.me/api`
+- **Local Development API**: `http://localhost:8000/api`
 
 ## Features
 
-- Landing page with hero, featured events, and CTA sections
-- Event discovery with search, date filter, and favourites
-- Event detail with seat availability preview and seat reserve flow
-- Checkout with OTP flow for flagged users and credit balance display
-- Tickets list and QR display with auto-refresh
-- Ticket transfer initiate and confirm flows
-- Credit top-up with Stripe Elements
-- Marketplace page with required sections and listings
-- Admin event creation and dashboard
+- **Resilient UI**: Automatically detects backend connection issues and switches to "Offline Mode" with a bottom banner and mock data.
+- **Dynamic Hero**: Parallax landing page with a dynamic number of floating photos based on screen size.
+- **Interactive Globe**: 3D globe visualization of event locations using Three.js.
+- **Event Discovery**: Search, date filters, and local "Favourites" (stored in `localStorage`).
+- **Checkout & Marketplace**: Secure checkout with OTP support and a dedicated P2P resale marketplace.
+- **Admin Dashboard**: Real-time inventory and sales tracking for event organizers.
 
 ## Routes
 
-- `/` Landing
-- `/events` Event listing
-- `/events/:eventId` Event detail
-- `/events/:eventId/seats` Seat selection
-- `/login` Login
-- `/register` Register
-- `/verify` Verify registration
-- `/checkout/:orderId` Checkout
-- `/tickets` My tickets
-- `/tickets/:seatId` Ticket QR
-- `/tickets/:seatId/transfer` Transfer initiate
-- `/transfer/:transferId` Transfer confirm
-- `/credits/topup` Credit top-up
-- `/profile` Profile + favourites
-- `/marketplace` Marketplace
-- `/admin/events/new` Admin event create
-- `/admin/events/:eventId/dashboard` Admin event dashboard
+- `/` Landing with Hero & Globe
+- `/events` Event listing & search
+...
+- `/marketplace` P2P Resale Marketplace
+...
 
 ## Tech Stack
 
-- Vue 3 + Vite 7
-- TypeScript
-- Vue Router 4
-- Pinia 2
-- Axios
-- Stripe.js
-- @chenfengyuan/vue-qrcode + qrcode
-- @vueuse/core
-- dayjs
+- **Framework**: Vue 3 (Composition API) + Vite 7
+- **State & Routing**: Pinia 2, Vue Router 4
+- **Styling**: Vanilla CSS with a centralized `theme.ts` token system (Glassmorphism).
+- **Visualization**: Three.js (Interactive Globe).
+...
 
 ## Environment
-
-Create a `.env` file (use `.env.example` as a template):
-
-```bash
-VITE_API_BASE_URL=http://localhost:8000/api
-VITE_STRIPE_PUBLIC_KEY=pk_test_replace_me
-```
+...
+VITE_API_BASE_URL=https://ticketremasterapi.hong-yi.me/api
+...
 
 ## Setup & Development
 

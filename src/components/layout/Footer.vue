@@ -49,16 +49,16 @@ const year = new Date().getFullYear()
 
 <style scoped>
 .footer{padding:3rem 2rem;background:#0b0b0e;border-top:1px solid var(--border)}
-.inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}
-.brand{display:flex;flex-direction:column;gap:.5rem}
+.inner{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 2fr;gap:4rem;justify-content:center}
+.brand{display:flex;flex-direction:column;gap:.5rem;min-width:280px}
 .logo-line{display:flex;align-items:center;gap:.45rem}
 .logo-line img{width:28px;height:28px}
 h3,h4{margin:0} h3{font-size:1.5rem;color:var(--accent);font-weight:800}
 h4{color:#fff;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;font-size:0.875rem}
 p,a{color:var(--muted);font-size:0.925rem} a{display:block;margin:.5rem 0;text-decoration:none;transition:color 0.2s}
 a:hover{color:#fff}
-.links{display:contents}
-.column{display:grid;gap:2rem}
+.links{display:flex;gap:4rem;justify-content:flex-start}
+.column{display:grid;gap:2rem;min-width:140px}
 .group{display:grid;gap:.25rem}
 .copy{text-align:left;margin-top:0.5rem;color:var(--muted);font-size:0.85rem}
 @media (max-width:900px){
