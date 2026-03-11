@@ -37,7 +37,7 @@ a { color: inherit; text-decoration: none; }
 img, svg, canvas { max-width: 100%; display: block; }
 #app { overflow-x: hidden; }
 
-.page { max-width: 1180px; margin: 0 auto; padding: 1.65rem 1rem 4rem; }
+.page { max-width: 1180px; margin: 0 auto; padding: 6.5rem 1rem 4rem; }
 .section-title { font-size: clamp(1.4rem, 2vw, 2rem); margin-bottom: .72rem; letter-spacing: -.02em; }
 .section-subtitle { color: var(--muted); margin-bottom: 1rem; }
 

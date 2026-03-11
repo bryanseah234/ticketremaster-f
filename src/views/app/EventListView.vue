@@ -59,7 +59,7 @@ const load = async () => {
       toast.push('Offline mode: showing cached events.', 'info', 3200)
     } else {
       usingFallback.value = true
-      toast.push('Showing curated events while connection is unavailable.', 'info', 3200)
+      toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
       events.value = mockEvents.slice(0, 20)
       totalPages.value = 1
     }

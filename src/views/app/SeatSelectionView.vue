@@ -41,7 +41,7 @@ const loadSeats = async () => {
       price: 59,
     }))
     usingFallback.value = true
-    toast.push('Demo seats are shown while the backend is unavailable.', 'info', 3200)
+    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
   } finally {
     loading.value = false
   }
@@ -63,6 +63,10 @@ const reserveSeat = async () => {
       const pending = {
         order_id: orderId.value,
         event_id: route.params.eventId,
+        event: {
+          name: loading.value ? 'Loading...' : 'Taylor Swift SG', // Fallback name if needed
+          event_date: '2025-12-12T20:00:00Z'
+        },
         seat: {
           seat_id: selectedSeat.value.seat_id,
           row_number: selectedSeat.value.row_number,

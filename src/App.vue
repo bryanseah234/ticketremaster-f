@@ -31,8 +31,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="offlineVisible" class="status-banner">
-    <span>{{ offlineMessage }}</span>
-    <span class="small">Demo data only. Actions are limited.</span>
+    <span>Backend unavailable. Showing limited demo data. Actions are limited.</span>
   </div>
   <AppNavbar />
   <RouterView />
