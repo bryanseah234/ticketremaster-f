@@ -1,0 +1,71 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "TicketRemaster logo TicketRemaster" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "TicketRemaster logo" [ref=e6]
+          - generic [ref=e7]: TicketRemaster
+        - navigation [ref=e9]:
+          - link "Home" [ref=e10] [cursor=pointer]:
+            - /url: /
+          - link "Events" [ref=e11] [cursor=pointer]:
+            - /url: /events
+          - link "Marketplace" [ref=e12] [cursor=pointer]:
+            - /url: /marketplace
+          - link "Login" [ref=e13] [cursor=pointer]:
+            - /url: /login
+    - article [ref=e15]: Event not found.
+    - contentinfo [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - img "TicketRemaster logo" [ref=e20]
+            - heading "TicketRemaster" [level=3] [ref=e21]
+          - paragraph [ref=e22]: Buy smarter
+          - paragraph [ref=e23]: Sell safer
+          - paragraph [ref=e24]: Experience more live moments
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - heading "Company" [level=4] [ref=e28]
+              - link "About Us" [ref=e29] [cursor=pointer]:
+                - /url: /about
+              - link "Careers" [ref=e30] [cursor=pointer]:
+                - /url: /careers
+            - generic [ref=e31]:
+              - heading "Legal" [level=4] [ref=e32]
+              - link "Terms" [ref=e33] [cursor=pointer]:
+                - /url: /terms
+              - link "Privacy" [ref=e34] [cursor=pointer]:
+                - /url: /privacy
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - heading "Product" [level=4] [ref=e37]
+              - link "Buy Tickets" [ref=e38] [cursor=pointer]:
+                - /url: /events
+              - link "Sell Tickets" [ref=e39] [cursor=pointer]:
+                - /url: /marketplace
+              - link "Venues" [ref=e40] [cursor=pointer]:
+                - /url: /venues
+            - generic [ref=e41]:
+              - heading "Resources" [level=4] [ref=e42]
+              - link "Help Center" [ref=e43] [cursor=pointer]:
+                - /url: /help
+              - link "Resale Guarantees" [ref=e44] [cursor=pointer]:
+                - /url: /resale-guarantees
+        - generic [ref=e45]: © 2026 TicketRemaster. All rights reserved.
+    - complementary [ref=e46]:
+      - article [ref=e47] [cursor=pointer]:
+        - paragraph [ref=e48]: Loading event details...
+      - article [ref=e49] [cursor=pointer]:
+        - paragraph [ref=e50]: Event not found
+  - generic [ref=e51]:
+    - generic "Toggle devtools panel" [ref=e52] [cursor=pointer]:
+      - img [ref=e53]
+    - generic "Toggle Component Inspector" [ref=e58] [cursor=pointer]:
+      - img [ref=e59]
+```
