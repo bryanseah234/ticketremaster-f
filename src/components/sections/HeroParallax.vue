@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import SearchBar from '@/components/ui/SearchBar.vue'
 import { useMousePosition } from '@/composables/useMousePosition'
 
@@ -26,8 +26,26 @@ const animate = () => {
   })
   raf = requestAnimationFrame(animate)
 }
-onMounted(() => (raf = requestAnimationFrame(animate)))
-onUnmounted(() => cancelAnimationFrame(raf))
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
+
+const onResize = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+  raf = requestAnimationFrame(animate)
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
+  cancelAnimationFrame(raf)
+})
+
+const filteredLayers = computed(() => {
+  if (windowWidth.value > 1400) return layers
+  if (windowWidth.value > 1100) return layers.slice(0, 4)
+  return layers.slice(0, 3)
+})
 </script>
 
 <template>
@@ -35,13 +53,14 @@ onUnmounted(() => cancelAnimationFrame(raf))
     <div class="noise"></div>
 
     <div
-      v-for="(layer, i) in layers"
+      v-for="(layer, i) in filteredLayers"
       :key="layer.src"
       class="floating"
       :style="{ top: layer.top, left: layer.left, width: layer.width, transform: `translate3d(${pos[i].x}px, ${pos[i].y}px, 0)` }"
     >
       <img :src="layer.src" alt="live event" />
     </div>
+
 
     <div class="center">
       <h1 class="headline">

@@ -103,7 +103,7 @@ const balanceLabel = computed(() => {
 <style scoped>
 .header {
   position: fixed;
-  top: 1.25rem;
+  top: 0.75rem;
   left: 0;
   right: 0;
   z-index: 100;
@@ -114,9 +114,10 @@ const balanceLabel = computed(() => {
 }
 .inner {
   pointer-events: auto;
-  max-width: 1080px;
+  max-width: 860px;
+
   margin: 0 auto;
-  padding: 0.5rem 1.25rem;
+  padding: 0.35rem 1.25rem;
   display: flex;
   align-items: center;
   gap: 1rem;
