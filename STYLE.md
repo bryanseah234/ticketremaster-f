@@ -69,14 +69,15 @@ Theme tokens live in `src/config/theme.ts`.
   - `.panel`
   - `.badge`
   - `.small`
-- Footer brand block uses stacked tagline lines on desktop and centered layout on mobile.
+- Footer brand block uses a left-aligned layout with Logo/Title, Subtitle tagline, and Copyright in a single vertical stack.
 
 ## Components
 
 - Navbar: translucent glass capsule, centered within max width, orange accent brand.
 - Footer: two-column layout on desktop, 2x2 link grid on mobile with centered brand.
 - Cards: use `.glass` or `.card` with full-bleed imagery and overlay gradients.
-- Toasts: bottom-right stack, click to dismiss, short-lived info states.
+- Toasts: bottom-right stack, shifted up to avoid bottom banner.
+- Offline Banner: Fixed at the bottom of the screen, spans full width, orange accent.
 
 ## Motion & Interaction
 

@@ -317,7 +317,7 @@ if (result.paymentIntent.status === 'succeeded') {
 | Router | **Vue Router 4** | SPA navigation, route guards for auth-protected pages |
 | State | **Pinia** | Official Vue 3 store. Simple API for auth state, credit balance, ticket lists |
 | HTTP | **Axios** | Request interceptors to auto-attach JWT and auto-refresh on 401 |
-| Styling | **Tailwind CSS v3** | Utility-first CSS — style directly in templates. Massive speed-up vs writing custom CSS |
+| Styling | **Vanilla CSS + Theme Tokens** | Theme tokens in `src/config/theme.ts` mapped to CSS variables |
 | Language | **JavaScript** (not TypeScript) | Simpler for the team. Can upgrade later if needed |
 
 ### Recommended Libraries
@@ -344,26 +344,7 @@ npm create vue@latest ticketremaster-frontend
 
 cd ticketremaster-frontend
 npm install
-npm install -D tailwindcss @tailwindcss/vite
-npm install axios vue-toastification @chenfengyuan/vue-qrcode @heroicons/vue @vueuse/core dayjs @stripe/stripe-js
-```
-
-### Tailwind CSS Setup (after scaffold)
-
-Add the Tailwind Vite plugin in `vite.config.js`:
-
-```js
-import tailwindcss from '@tailwindcss/vite'
-
-export default defineConfig({
-  plugins: [vue(), tailwindcss()],
-})
-```
-
-Add to your main CSS file (e.g. `src/assets/main.css`):
-
-```css
-@import "tailwindcss";
+npm install axios vue-toastification @chenfengyuan/vue-qrcode @heroicons/vue @vueuse/core dayjs @stripe/stripe-js three @vueuse/motion
 ```
 
 ---
