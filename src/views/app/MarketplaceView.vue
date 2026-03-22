@@ -63,12 +63,15 @@ const seatLabel = (listing: Listing) => {
 }
 
 const search = ref('')
+const dateFilter = ref('')
 
 const filteredListings = computed(() => {
   const needle = search.value.trim().toLowerCase()
   return listings.value.filter((l) => {
     const text = `${l.event_name} ${l.listing_id} ${l.seat_id}`.toLowerCase()
-    return !needle || text.includes(needle)
+    const matched = !needle || text.includes(needle)
+    const dateMatched = !dateFilter.value || (l.event_date && l.event_date.slice(0, 10) === dateFilter.value)
+    return matched && dateMatched
   })
 })
 
@@ -165,8 +168,9 @@ onMounted(loadListings)
 
     <article class="glass filter-bar" style="margin-top:1.5rem;">
       <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
+      <input v-model="dateFilter" type="date" class="date-col" />
       <button @click="loadListings()">Refresh</button>
-      <button class="secondary" @click="search=''">Reset</button>
+      <button class="secondary" @click="search=''; dateFilter=''">Reset</button>
     </article>
 
     <section v-if="isLoggedIn" class="marketplace-actions" style="margin-top:1.5rem;">
@@ -216,8 +220,9 @@ onMounted(loadListings)
 
 <style scoped>
 .marketplace-hero { padding-bottom: 0.5rem; }
-.filter-bar { padding: .8rem; display: grid; grid-template-columns: 1fr auto auto; gap: .55rem; align-items: center; }
+.filter-bar { padding: .8rem; display: grid; grid-template-columns: 2fr 1fr auto auto auto; gap: .55rem; align-items: center; }
 .search-col { min-width: 0; }
+.date-col { min-width: 0; color-scheme: dark; }
 
 .login-prompt { margin-bottom: 1.2rem; display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: 0.9rem; }
 
