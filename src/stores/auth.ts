@@ -7,6 +7,7 @@ export interface AuthUser {
   phone?: string
   flagged?: boolean
   is_admin?: boolean
+  role?: 'user' | 'admin' | 'staff'
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -18,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => Boolean(state.accessToken))
   const isAdmin = computed(() => Boolean(state.user?.is_admin))
+  const isStaff = computed(() => state.user?.role === 'staff')
 
   const setSession = (payload: { access_token: string; refresh_token: string; user: AuthUser }) => {
     state.accessToken = payload.access_token
@@ -37,5 +39,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
   }
 
-  return { state, isLoggedIn, isAdmin, setSession, clearSession }
+  return { state, isLoggedIn, isAdmin, isStaff, setSession, clearSession }
 })

@@ -119,9 +119,12 @@ onMounted(load)
           <p class="small">{{ new Date(event.event_date).toLocaleDateString() }}</p>
 
           <div class="row" style="gap:.35rem;">
-            <span v-for="tier in (event.pricing_tiers || []).slice(0, 2)" :key="tier.category" class="badge">
-              {{ tier.category }} ${{ tier.price }}
-            </span>
+            <template v-if="Array.isArray(event.pricing_tiers)">
+              <span v-for="tier in event.pricing_tiers.slice(0, 2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
+            </template>
+            <template v-else>
+              <span v-for="[cat, price] in Object.entries(event.pricing_tiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
+            </template>
           </div>
 
           <div class="row actions">
