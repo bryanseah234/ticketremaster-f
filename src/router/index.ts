@@ -21,6 +21,7 @@ import NotFoundView from '@/views/app/NotFoundView.vue'
 import InfoPageView from '@/views/app/InfoPageView.vue'
 import ResaleGuaranteesView from '@/views/app/ResaleGuaranteesView.vue'
 import VenuesView from '@/views/app/VenuesView.vue'
+import StaffScannerView from '@/views/app/StaffScannerView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -47,6 +48,7 @@ const routes = [
   { path: '/credits/topup', component: CreditTopupView, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfileView, meta: { requiresAuth: true } },
   { path: '/marketplace', component: MarketplaceView },
+  { path: '/staff/scan', component: StaffScannerView, meta: { requiresAuth: true, requiresStaff: true } },
   { path: '/admin/events/new', component: AdminEventCreateView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/events/:eventId/dashboard', component: AdminEventDashboardView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', component: NotFoundView },
@@ -57,8 +59,9 @@ const router = createRouter({ history: createWebHistory(), routes })
 // Enforce auth and admin access rules before navigation
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (to.meta.requiresAuth && !auth.isLoggedIn.value) return '/login'
-  if (to.meta.requiresAdmin && !auth.isAdmin.value) return '/events'
+  if (to.meta.requiresAuth && !auth.isLoggedIn) return '/login'
+  if (to.meta.requiresAdmin && !auth.isAdmin) return '/events'
+  if (to.meta.requiresStaff && !auth.isStaff) return '/events'
   return true
 })
 

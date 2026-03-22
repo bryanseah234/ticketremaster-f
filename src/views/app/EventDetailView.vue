@@ -1,31 +1,45 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { mockEvents } from '@/data/mockEvents'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import EventDatePicker from '@/components/EventDatePicker/EventDatePicker.vue'
 
-interface Seat {
-  seat_id: string
-  row_number: string
-  seat_number: string
-  status: 'AVAILABLE' | 'HELD' | 'SOLD' | 'CHECKED_IN'
-  category: string
-  price: number
-}
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
 const loading = ref(false)
 const notFound = ref(false)
 const eventData = ref<any>(null)
 const toast = useToast()
 
-const visibleSeats = computed(() => (eventData.value?.seats || []).slice(0, 80) as Seat[])
-const color = (status: Seat['status']) => {
-  if (status === 'AVAILABLE') return 'var(--success)'
-  if (status === 'HELD') return 'var(--warning)'
-  return 'var(--disabled)'
-}
+const pickerEvent = computed(() => {
+  if (!eventData.value) return null
+  const firstPrice = Object.values(eventData.value.pricing_tiers || {})[0] as number || 0
+  // Build available dates: use event date if present, otherwise generate next 10 days as demo
+  const eventDateStr = eventData.value.event_date?.slice(0, 10)
+  const isFuture = eventDateStr && eventDateStr > new Date().toISOString().slice(0, 10)
+  const availableDates = isFuture
+    ? [eventDateStr]
+    : Array.from({ length: 10 }, (_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() + i + 1)
+        return d.toISOString().slice(0, 10)
+      })
+  return {
+    eventId: eventData.value.event_id || String(route.params.eventId),
+    name: eventData.value.name,
+    venue: eventData.value.venue?.name || 'Venue TBA',
+    venueAddress: eventData.value.venue?.address || '',
+    type: eventData.value.type || 'Event',
+    price: firstPrice,
+    availableDates,
+  }
+})
+
 
 const cacheKey = () => `event_detail:${route.params.eventId}`
 
@@ -66,6 +80,29 @@ const load = async () => {
   }
 }
 
+const handlePurchase = async (seatId: string, date: string) => {
+  try {
+    const { data } = await api.post('/reserve', { seat_id: seatId, user_id: auth.state.user?.user_id })
+    const orderId = data?.data?.order_id || ''
+    if (orderId) {
+      localStorage.setItem('pending_order', JSON.stringify({
+        order_id: orderId,
+        event_id: route.params.eventId,
+        event: { name: eventData.value?.name, event_date: date },
+        seat: { seat_id: seatId },
+      }))
+      router.push(`/checkout/${orderId}`)
+    }
+  } catch (e: any) {
+    const code = e?.response?.data?.error_code
+    const msg = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD' ? 'Seat unavailable, please choose another.'
+      : code === 'SEAT_NOT_FOUND' ? 'Seat not found.'
+      : code === 'EVENT_ENDED' ? 'Event ended.'
+      : 'Reserve failed.'
+    toast.push(msg, 'error', 3200)
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -82,17 +119,12 @@ onMounted(load)
         </div>
       </article>
 
-      <article class="glass" style="padding:1rem;">
-        <h2 class="section-title" style="font-size:1.2rem">Seat Availability Preview</h2>
-        <p class="section-subtitle">Green = available · Yellow = held · Grey = sold/checked-in</p>
-        <div class="grid-4">
-          <div v-for="seat in visibleSeats" :key="seat.seat_id" class="glass" :style="{ padding:'.55rem', borderColor: color(seat.status) }">
-            <strong>{{ seat.row_number }}-{{ seat.seat_number }}</strong>
-            <p class="small">{{ seat.status }} · {{ seat.category }}</p>
-          </div>
-        </div>
-        <RouterLink :to="`/events/${route.params.eventId}/seats`"><button style="margin-top:1rem;">Select Seats</button></RouterLink>
-      </article>
+      <EventDatePicker
+        v-if="pickerEvent"
+        :event="pickerEvent"
+        @seat-selected="(seatId, date) => console.log('seat selected', seatId, date)"
+        @purchase="handlePurchase"
+      />
     </template>
   </section>
 </template>
