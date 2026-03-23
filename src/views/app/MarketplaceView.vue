@@ -29,6 +29,7 @@ const listLoading = ref(false)
 const showListForm = ref(false)
 const buyLoadingIds = ref<Record<string, boolean>>({})
 const search = ref('')
+const dateFilter = ref('')
 const priceSort = ref<'asc' | 'desc' | null>(null)
 
 const fallbackListings: Listing[] = [
@@ -52,16 +53,20 @@ const fallbackListings: Listing[] = [
   { listing_id: 'R-1018', seat_id: 'seat-912', asking_price: 125, status: 'ACTIVE', created_at: '2026-03-03T11:15:00Z', event_name: 'Indie Rock Shadows', event_date: '2026-04-30T20:30:00Z', row_number: 'D', seat_number: 12, image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1400' },
 ]
 
-const seatLabel = (listing: Listing) =>
-  listing.row_number && listing.seat_number
-    ? `Row ${listing.row_number} · Seat ${listing.seat_number}`
-    : `Seat ${listing.seat_id}`
+const seatLabel = (listing: Listing) => {
+  if (listing.row_number && listing.seat_number) {
+    return `Row ${listing.row_number} · Seat ${listing.seat_number}`
+  }
+  return `Seat ${listing.seat_id}`
+}
 
 const filteredListings = computed(() => {
   const needle = search.value.trim().toLowerCase()
   let result = listings.value.filter((l) => {
-    const text = `${l.event_name} ${l.listing_id}`.toLowerCase()
-    return !needle || text.includes(needle)
+    const text = `${l.event_name} ${l.listing_id} ${l.seat_id}`.toLowerCase()
+    const matched = !needle || text.includes(needle)
+    const dateMatched = !dateFilter.value || (l.event_date && l.event_date.slice(0, 10) === dateFilter.value)
+    return matched && dateMatched
   })
   if (priceSort.value === 'asc') result = [...result].sort((a, b) => a.asking_price - b.asking_price)
   if (priceSort.value === 'desc') result = [...result].sort((a, b) => b.asking_price - a.asking_price)
@@ -146,16 +151,10 @@ onMounted(loadListings)
 
 <template>
   <section class="page">
-    <!-- Hero -->
-    <div class="hero">
-      <div>
-        <h1 class="section-title">Resale Marketplace</h1>
-        <p class="section-subtitle">Verified tickets from real fans. Secure transfers with OTP protection.</p>
-      </div>
-      <button class="secondary" @click="showListForm = !showListForm">
-        {{ showListForm ? 'Cancel' : '+ List a Ticket' }}
-      </button>
-    </div>
+    <header class="marketplace-hero">
+      <h1 class="section-title">Discover Listings</h1>
+      <p class="section-subtitle">A trusted resale marketplace for verified tickets.</p>
+    </header>
 
     <!-- List ticket form (collapsible) -->
     <transition name="slide">
@@ -170,18 +169,19 @@ onMounted(loadListings)
     </transition>
 
     <!-- Filter bar -->
-    <div class="filter-bar glass">
-      <input v-model="search" placeholder="Search by event name..." class="search-input" />
+    <article class="glass filter-bar" style="margin-top:1.5rem;">
+      <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
+      <input v-model="dateFilter" type="date" class="date-col" />
       <button class="filter-btn" :class="{ active: priceSort }" @click="togglePriceSort">
         Price
         <span v-if="priceSort === 'asc'">↑</span>
         <span v-else-if="priceSort === 'desc'">↓</span>
       </button>
-      <button class="secondary" @click="search = ''; priceSort = null">Reset</button>
+      <button class="secondary" @click="search = ''; dateFilter = ''; priceSort = null">Reset</button>
       <button class="secondary icon-btn" :disabled="loading" @click="loadListings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
-    </div>
+    </article>
 
     <!-- Count -->
     <p class="count-label small">{{ filteredListings.length }} listing{{ filteredListings.length !== 1 ? 's' : '' }}</p>
@@ -226,23 +226,12 @@ onMounted(loadListings)
 </template>
 
 <style scoped>
-.hero { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+.marketplace-hero { padding-bottom: 0.5rem; }
+.filter-bar { padding: .8rem; display: grid; grid-template-columns: 2fr 1fr auto auto auto auto; gap: .55rem; align-items: center; }
+.search-col { min-width: 0; }
+.date-col { min-width: 0; color-scheme: dark; }
 
-.list-form { padding: 1.2rem; display: grid; gap: .9rem; margin-bottom: 1.2rem; }
-.list-form h3 { font-size: 1rem; font-weight: 600; }
-
-.slide-enter-active, .slide-leave-active { transition: all .25s ease; }
-.slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-8px); }
-
-.filter-bar { display: flex; align-items: center; gap: .6rem; padding: .6rem .8rem; margin-bottom: .75rem; flex-wrap: wrap; }
-.search-input { flex: 1; min-width: 160px; }
-.filter-btn { padding: .45rem .85rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: .85rem; cursor: pointer; display: flex; align-items: center; gap: .3rem; }
-.filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(249,115,22,.1); }
-.icon-btn { padding: .45rem .7rem; display: grid; place-items: center; }
-.icon-btn svg { width: 1rem; height: 1rem; }
-
-.count-label { color: var(--muted); margin-bottom: .75rem; }
-.empty-state { color: var(--muted); padding: 3rem; text-align: center; }
+.login-prompt { margin-bottom: 1.2rem; display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: 0.9rem; }
 
 .listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
 
