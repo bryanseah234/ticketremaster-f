@@ -107,36 +107,40 @@ onMounted(load)
     </article>
 
     <div class="events-grid">
-      <article v-for="event in filteredEvents" :key="event.event_id" class="glass event-card">
-        <img class="cover-img" :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1200'" :alt="event.name" />
-        <div class="cover"></div>
-        <div class="content">
-          <div class="row" style="justify-content:space-between;align-items:flex-start;">
-            <span class="badge">{{ event.venue?.name || 'Venue TBA' }}</span>
-          </div>
-
-          <h3>{{ event.name }}</h3>
-          <p class="small">{{ new Date(event.event_date).toLocaleDateString() }}</p>
-
-          <div class="row" style="gap:.35rem;">
-            <template v-if="Array.isArray(event.pricing_tiers)">
-              <span v-for="tier in event.pricing_tiers.slice(0, 2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
-            </template>
-            <template v-else>
-              <span v-for="[cat, price] in Object.entries(event.pricing_tiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
-            </template>
-          </div>
-
-          <div class="row actions">
-            <RouterLink :to="`/events/${event.event_id}`"><button>View</button></RouterLink>
-            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click="toggleFavorite(event.event_id)">
+      <RouterLink v-for="event in filteredEvents" :key="event.event_id" :to="`/events/${event.event_id}`" class="event-card-link">
+        <article class="glass event-card">
+          <img class="cover-img" :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1200'" :alt="event.name" />
+          <div class="cover"></div>
+          <div class="content">
+            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click.prevent="toggleFavorite(event.event_id)">
               <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
               </svg>
             </button>
+
+            <div class="venue-badge">
+              <svg class="location-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <span>{{ event.venue?.name || 'Venue TBA' }}</span>
+            </div>
+
+            <div class="event-info">
+              <h3>{{ event.name }}</h3>
+              <p class="small">{{ new Date(event.event_date).toLocaleDateString() }}</p>
+
+              <div class="row" style="gap:.35rem;">
+                <template v-if="Array.isArray(event.pricing_tiers)">
+                  <span v-for="tier in event.pricing_tiers.slice(0, 2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
+                </template>
+                <template v-else>
+                  <span v-for="[cat, price] in Object.entries(event.pricing_tiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
+                </template>
+              </div>
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
+      </RouterLink>
     </div>
 
     <div class="row" style="justify-content:flex-end;margin-top:1rem;">
@@ -161,10 +165,20 @@ onMounted(load)
 .toggle.active .toggle-icon{opacity:1}
 
 .events-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}
-.event-card{position:relative;overflow:hidden;min-height:280px}
+.event-card{position:relative;overflow:hidden;min-height:280px;transition:transform .2s ease,box-shadow .2s ease}
+.event-card-link:hover .event-card{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.4); filter: brightness(1.9);}
 .cover-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cover{position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,11,.15),rgba(9,9,11,.88))}
-.content{position:relative;padding:1rem;display:grid;gap:.55rem;align-content:end;height:100%}
+.content{position:relative;padding:1rem;display:flex;flex-direction:column;gap:.55rem;height:100%}
+.event-info{position:absolute;top:11rem;left:1rem;display:grid;gap:.55rem}
+.venue-badge{position:absolute;top:.8rem;left:.8rem;display:flex;align-items:center;gap:.35rem;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);padding:.35rem .6rem;border-radius:999px}
+.venue-badge span{color:#fff;font-size:.8rem}
+.location-icon{width:1rem;height:1rem;fill:#fff;opacity:.9}
+.event-card-link{text-decoration:none;color:inherit;display:block}
+.heart-action{position:absolute;top:.8rem;right:.8rem;height:2.9rem;width:2.9rem;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1)}
+.heart-icon{width:1.45rem;height:1.45rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease;display:block}
+.heart-action.active .heart-icon{fill:rgba(255,186,126,.95)}
+.heart-action:hover{background:rgba(0,0,0,.6)}
 h3{color:#fff}
 .small{color:#d4d4d8}
 .heart-icon{width:1.45rem;height:1.45rem;fill:rgba(255,255,255,.7);transition:transform .18s ease, fill .18s ease;display:block}
