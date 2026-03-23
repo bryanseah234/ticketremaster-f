@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
-import { RouterLink } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 
 interface Listing {
@@ -12,7 +11,6 @@ interface Listing {
   status: string
   seller_user_id?: string
   created_at?: string
-  updated_at?: string
   event_name?: string
   event_date?: string
   row_number?: string
@@ -20,8 +18,7 @@ interface Listing {
   image?: string
 }
 
-const auth = useAuthStore()
-const isLoggedIn = computed(() => auth.isLoggedIn)
+const router = useRouter()
 const toast = useToast()
 
 const loading = ref(false)
@@ -29,10 +26,10 @@ const listings = ref<Listing[]>([])
 const listSeatId = ref('')
 const listPrice = ref(120)
 const listLoading = ref(false)
-const approveListingId = ref('')
-const approveOtp = ref('')
-const approveLoading = ref(false)
+const showListForm = ref(false)
 const buyLoadingIds = ref<Record<string, boolean>>({})
+const search = ref('')
+const priceSort = ref<'asc' | 'desc' | null>(null)
 
 const fallbackListings: Listing[] = [
   { listing_id: 'R-1001', seat_id: 'seat-101', asking_price: 180, status: 'ACTIVE', created_at: '2026-02-10T10:25:00Z', event_name: 'Underground Rap Session', event_date: '2026-03-20T19:30:00Z', row_number: 'B', seat_number: 12, image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?q=80&w=1400' },
@@ -55,27 +52,30 @@ const fallbackListings: Listing[] = [
   { listing_id: 'R-1018', seat_id: 'seat-912', asking_price: 125, status: 'ACTIVE', created_at: '2026-03-03T11:15:00Z', event_name: 'Indie Rock Shadows', event_date: '2026-04-30T20:30:00Z', row_number: 'D', seat_number: 12, image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1400' },
 ]
 
-const seatLabel = (listing: Listing) => {
-  if (listing.row_number && listing.seat_number) {
-    return `Row ${listing.row_number} · Seat ${listing.seat_number}`
-  }
-  return `Seat ${listing.seat_id}`
-}
-
-const search = ref('')
+const seatLabel = (listing: Listing) =>
+  listing.row_number && listing.seat_number
+    ? `Row ${listing.row_number} · Seat ${listing.seat_number}`
+    : `Seat ${listing.seat_id}`
 
 const filteredListings = computed(() => {
   const needle = search.value.trim().toLowerCase()
-  return listings.value.filter((l) => {
-    const text = `${l.event_name} ${l.listing_id} ${l.seat_id}`.toLowerCase()
+  let result = listings.value.filter((l) => {
+    const text = `${l.event_name} ${l.listing_id}`.toLowerCase()
     return !needle || text.includes(needle)
   })
+  if (priceSort.value === 'asc') result = [...result].sort((a, b) => a.asking_price - b.asking_price)
+  if (priceSort.value === 'desc') result = [...result].sort((a, b) => b.asking_price - a.asking_price)
+  return result
 })
+
+const togglePriceSort = () => {
+  if (!priceSort.value) priceSort.value = 'asc'
+  else if (priceSort.value === 'asc') priceSort.value = 'desc'
+  else priceSort.value = null
+}
 
 const loadListings = async () => {
   loading.value = true
-  // ... existing toast push ...
-  toast.push('Loading listings...', 'info', 1600)
   try {
     const res = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
     const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
@@ -86,7 +86,6 @@ const loadListings = async () => {
       status: item.status || 'ACTIVE',
       seller_user_id: item.seller_user_id,
       created_at: item.created_at,
-      updated_at: item.updated_at,
       event_name: item.event?.name || item.event_name,
       event_date: item.event?.event_date || item.event_date,
       row_number: item.row_number || item.seat?.row_number,
@@ -95,7 +94,7 @@ const loadListings = async () => {
     })) : fallbackListings
   } catch {
     listings.value = fallbackListings
-    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
+    toast.push('Showing demo listings.', 'info', 2400)
   } finally {
     loading.value = false
   }
@@ -112,6 +111,7 @@ const listTicket = async () => {
     toast.push(data?.data?.message || 'Listing created.', 'success', 3200)
     listSeatId.value = ''
     listPrice.value = 120
+    showListForm.value = false
     loadListings()
   } catch (e: any) {
     toast.push(e?.response?.data?.message || 'Unable to list ticket.', 'error', 3200)
@@ -125,31 +125,19 @@ const buyListing = async (listingId: string) => {
   buyLoadingIds.value = { ...buyLoadingIds.value, [listingId]: true }
   try {
     const { data } = await api.post('/marketplace/buy', { listing_id: listingId })
-    toast.push(data?.data?.message || 'Purchase initiated.', 'success', 3200)
-    listings.value = listings.value.map((listing) => listing.listing_id === listingId ? { ...listing, status: data?.data?.status || 'PENDING_TRANSFER' } : listing)
+    const transferId = data?.data?.transfer_id
+    toast.push('Purchase initiated.', 'success', 3200)
+    if (transferId) {
+      router.push(`/transfer/${transferId}`)
+    } else {
+      listings.value = listings.value.map((l) =>
+        l.listing_id === listingId ? { ...l, status: 'PENDING_TRANSFER' } : l
+      )
+    }
   } catch (e: any) {
     toast.push(e?.response?.data?.message || 'Unable to buy listing.', 'error', 3200)
   } finally {
     buyLoadingIds.value = { ...buyLoadingIds.value, [listingId]: false }
-  }
-}
-
-const approveSale = async () => {
-  if (!approveListingId.value || approveOtp.value.length < 6) {
-    toast.push('Enter a listing ID and 6-digit OTP.', 'error', 3200)
-    return
-  }
-  approveLoading.value = true
-  try {
-    const { data } = await api.post('/marketplace/approve', { listing_id: approveListingId.value, otp_code: approveOtp.value })
-    toast.push(data?.data?.message || 'Sale approved.', 'success', 3200)
-    approveListingId.value = ''
-    approveOtp.value = ''
-    loadListings()
-  } catch (e: any) {
-    toast.push(e?.response?.data?.message || 'Unable to approve sale.', 'error', 3200)
-  } finally {
-    approveLoading.value = false
   }
 }
 
@@ -158,86 +146,133 @@ onMounted(loadListings)
 
 <template>
   <section class="page">
-    <header class="marketplace-hero">
-      <h1 class="section-title">Discover Listings</h1>
-      <p class="section-subtitle">A trusted resale marketplace for verified tickets.</p>
-    </header>
-
-    <article class="glass filter-bar" style="margin-top:1.5rem;">
-      <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
-      <button @click="loadListings()">Refresh</button>
-      <button class="secondary" @click="search=''">Reset</button>
-    </article>
-
-    <section v-if="isLoggedIn" class="marketplace-actions" style="margin-top:1.5rem;">
-      <article class="glass action-card">
-        <h3>List a Ticket</h3>
-        <div class="grid-2">
-          <div><label>Seat ID</label><input v-model="listSeatId" placeholder="seat-id" /></div>
-          <div><label>Asking Price</label><input v-model.number="listPrice" type="number" min="1" /></div>
-        </div>
-        <button :disabled="listLoading" @click="listTicket">{{ listLoading ? 'Listing...' : 'Create Listing' }}</button>
-      </article>
-      <article class="glass action-card">
-        <h3>Approve Sale</h3>
-        <div class="grid-2">
-          <div><label>Listing ID</label><input v-model="approveListingId" placeholder="listing-id" /></div>
-          <div><label>OTP Code</label><input v-model="approveOtp" maxlength="6" placeholder="123456" /></div>
-        </div>
-        <button :disabled="approveLoading" @click="approveSale">{{ approveLoading ? 'Approving...' : 'Approve Sale' }}</button>
-      </article>
-    </section>
-
-    <section style="margin-top:1rem;">
-      <div class="listings-grid">
-        <article v-for="(listing, i) in filteredListings" :key="listing.listing_id" class="glass listing-card">
-          <img class="listing-img" :src="listing.image || fallbackListings[i % fallbackListings.length].image" :alt="listing.event_name || 'Resale listing'" />
-          <div class="listing-cover"></div>
-          <div class="listing-content">
-            <p class="small">{{ listing.event_date ? new Date(listing.event_date).toLocaleDateString() : 'Date TBA' }}</p>
-            <h3>{{ listing.event_name || 'Event name unavailable' }}</h3>
-            <div class="row" style="gap:.4rem;flex-wrap:wrap;">
-              <span class="badge">{{ seatLabel(listing) }}</span>
-              <span class="badge">${{ listing.asking_price }}</span>
-              <span class="badge" :class="listing.status">{{ listing.status }}</span>
-            </div>
-            <div class="row actions-row">
-              <RouterLink v-if="!isLoggedIn" to="/login"><button class="secondary">Login to buy</button></RouterLink>
-              <button v-else :disabled="listing.status !== 'ACTIVE' || buyLoadingIds[listing.listing_id]" @click="buyListing(listing.listing_id)">
-                {{ buyLoadingIds[listing.listing_id] ? 'Buying...' : 'Buy' }}
-              </button>
-            </div>
-          </div>
-        </article>
+    <!-- Hero -->
+    <div class="hero">
+      <div>
+        <h1 class="section-title">Resale Marketplace</h1>
+        <p class="section-subtitle">Verified tickets from real fans. Secure transfers with OTP protection.</p>
       </div>
-    </section>
+      <button class="secondary" @click="showListForm = !showListForm">
+        {{ showListForm ? 'Cancel' : '+ List a Ticket' }}
+      </button>
+    </div>
+
+    <!-- List ticket form (collapsible) -->
+    <transition name="slide">
+      <article v-if="showListForm" class="glass list-form">
+        <h3>List your ticket</h3>
+        <div class="grid-2">
+          <div><label>Seat ID</label><input v-model="listSeatId" placeholder="e.g. seat-101" /></div>
+          <div><label>Asking Price ($)</label><input v-model.number="listPrice" type="number" min="1" /></div>
+        </div>
+        <button :disabled="listLoading" @click="listTicket">{{ listLoading ? 'Creating...' : 'Create Listing' }}</button>
+      </article>
+    </transition>
+
+    <!-- Filter bar -->
+    <div class="filter-bar glass">
+      <input v-model="search" placeholder="Search by event name..." class="search-input" />
+      <button class="filter-btn" :class="{ active: priceSort }" @click="togglePriceSort">
+        Price
+        <span v-if="priceSort === 'asc'">↑</span>
+        <span v-else-if="priceSort === 'desc'">↓</span>
+      </button>
+      <button class="secondary" @click="search = ''; priceSort = null">Reset</button>
+      <button class="secondary icon-btn" :disabled="loading" @click="loadListings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </button>
+    </div>
+
+    <!-- Count -->
+    <p class="count-label small">{{ filteredListings.length }} listing{{ filteredListings.length !== 1 ? 's' : '' }}</p>
+
+    <!-- Grid -->
+    <div v-if="loading" class="empty-state">Loading listings...</div>
+    <div v-else-if="filteredListings.length === 0" class="empty-state">No listings found.</div>
+    <div v-else class="listings-grid">
+      <article
+        v-for="(listing, i) in filteredListings"
+        :key="listing.listing_id"
+        class="listing-card glass"
+      >
+        <div class="card-img-wrap">
+          <img
+            class="card-img"
+            :src="listing.image || fallbackListings[i % fallbackListings.length].image"
+            :alt="listing.event_name || 'Event'"
+          />
+          <div class="img-overlay" />
+          <span class="price-pill">${{ listing.asking_price }}</span>
+        </div>
+        <div class="card-body">
+          <p class="event-date small">{{ listing.event_date ? new Date(listing.event_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBA' }}</p>
+          <h3 class="event-name">{{ listing.event_name || 'Event' }}</h3>
+          <p class="seat-label small">{{ seatLabel(listing) }}</p>
+          <div class="card-footer">
+            <span :class="['status-dot', listing.status === 'ACTIVE' ? 'active' : 'inactive']" />
+            <span class="small status-text">{{ listing.status }}</span>
+            <button
+              class="buy-btn"
+              :disabled="listing.status !== 'ACTIVE' || buyLoadingIds[listing.listing_id]"
+              @click="buyListing(listing.listing_id)"
+            >
+              {{ buyLoadingIds[listing.listing_id] ? 'Buying...' : 'Buy Now' }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.marketplace-hero { padding-bottom: 0.5rem; }
-.filter-bar { padding: .8rem; display: grid; grid-template-columns: 1fr auto auto; gap: .55rem; align-items: center; }
-.search-col { min-width: 0; }
+.hero { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 
-.login-prompt { margin-bottom: 1.2rem; display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: 0.9rem; }
+.list-form { padding: 1.2rem; display: grid; gap: .9rem; margin-bottom: 1.2rem; }
+.list-form h3 { font-size: 1rem; font-weight: 600; }
 
-.listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
-.listing-card { position: relative; overflow: hidden; min-height: 300px; padding: 0; border-radius: 1.2rem; transition: transform 0.2s ease; }
-.listing-card:hover { transform: translateY(-4px); }
-.listing-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.listing-cover { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,9,11,0.1) 0%, rgba(9,9,11,0.95) 90%); }
-.listing-content { position: relative; padding: 1.25rem; display: grid; gap: .6rem; align-content: end; height: 100%; }
-.listing-content h3 { color: #fff; font-size: 1.25rem; margin: 0; }
-.listing-content .small { color: rgba(255,255,255,0.8); }
+.slide-enter-active, .slide-leave-active { transition: all .25s ease; }
+.slide-enter-from, .slide-leave-to { opacity: 0; transform: translateY(-8px); }
 
-.badge.ACTIVE { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.filter-bar { display: flex; align-items: center; gap: .6rem; padding: .6rem .8rem; margin-bottom: .75rem; flex-wrap: wrap; }
+.search-input { flex: 1; min-width: 160px; }
+.filter-btn { padding: .45rem .85rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: .85rem; cursor: pointer; display: flex; align-items: center; gap: .3rem; }
+.filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(249,115,22,.1); }
+.icon-btn { padding: .45rem .7rem; display: grid; place-items: center; }
+.icon-btn svg { width: 1rem; height: 1rem; }
 
-.actions-row { margin-top: .4rem; }
-.marketplace-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-.action-card { padding: 1.2rem; display: grid; gap: .8rem; }
+.count-label { color: var(--muted); margin-bottom: .75rem; }
+.empty-state { color: var(--muted); padding: 3rem; text-align: center; }
 
-@media (max-width: 860px) {
-  .marketplace-actions { grid-template-columns: 1fr; }
-  .filter-bar { grid-template-columns: 1fr; }
+.listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+
+.listing-card { overflow: hidden; padding: 0; border-radius: 1.2rem; transition: transform .2s ease, box-shadow .2s ease; }
+.listing-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(0,0,0,.5); }
+
+.card-img-wrap { position: relative; height: 160px; }
+.card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.img-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,9,11,0) 40%, rgba(9,9,11,.7) 100%); }
+.price-pill { position: absolute; top: .75rem; right: .75rem; background: var(--accent); color: #fff; font-weight: 700; font-size: .85rem; padding: .25rem .65rem; border-radius: 999px; }
+
+.card-body { padding: 1rem; display: grid; gap: .4rem; }
+.event-date { color: var(--muted); }
+.event-name { font-size: 1rem; font-weight: 700; line-height: 1.3; }
+.seat-label { color: var(--muted); }
+
+.card-footer { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; }
+.status-dot { width: .5rem; height: .5rem; border-radius: 50%; flex-shrink: 0; }
+.status-dot.active { background: var(--success); }
+.status-dot.inactive { background: var(--disabled); }
+.status-text { color: var(--muted); flex: 1; }
+.buy-btn { padding: .4rem 1rem; border-radius: 999px; background: var(--accent); color: #fff; border: none; font-weight: 600; font-size: .85rem; cursor: pointer; transition: opacity .15s; }
+.buy-btn:disabled { opacity: .4; cursor: not-allowed; }
+.buy-btn:not(:disabled):hover { opacity: .85; }
+
+@media (max-width: 640px) {
+  .listings-grid { grid-template-columns: 1fr 1fr; gap: .8rem; }
+  .hero { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 420px) {
+  .listings-grid { grid-template-columns: 1fr; }
 }
 </style>
