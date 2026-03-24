@@ -50,15 +50,11 @@ const initStripe = async () => {
 }
 
 const createTopUp = async () => {
-  if (isOffline.value) {
-    result.value = 'Top ups are disabled while the backend is unavailable.'
-    return
-  }
   loading.value = true
   result.value = ''
   try {
-    const { data } = await api.post('/credits/topup', { amount: amount.value })
-    const clientSecret = data?.data?.client_secret
+    const { data } = await api.post('/credits/topup/initiate', { amount: amount.value })
+    const clientSecret = data?.data?.clientSecret
     if (!clientSecret) {
       result.value = 'No client secret returned.'
       return
@@ -107,19 +103,19 @@ onUnmounted(() => {
       <h1 class="section-title">Credit Top Up</h1>
       <p class="small">Current balance: {{ balance }}</p>
       <div class="row">
-        <button class="secondary" :disabled="isOffline" @click="amount=50">$50</button>
-        <button class="secondary" :disabled="isOffline" @click="amount=100">$100</button>
-        <button class="secondary" :disabled="isOffline" @click="amount=200">$200</button>
+        <button class="secondary" @click="amount=50">$50</button>
+        <button class="secondary" @click="amount=100">$100</button>
+        <button class="secondary" @click="amount=200">$200</button>
       </div>
       <div>
         <label>Custom Amount</label>
-        <input v-model.number="amount" min="1" type="number" :disabled="isOffline" />
+        <input v-model.number="amount" min="1" type="number" />
       </div>
       <div>
         <label>Card Details</label>
-        <div ref="cardMount" class="glass" style="padding:.6rem;"></div>
+        <div ref="cardMount" style="padding:.6rem;border:1px solid var(--border);border-radius:.75rem;background:var(--surface-2);"></div>
       </div>
-      <button :disabled="loading || !stripeReady || isOffline" @click="createTopUp">{{ loading ? 'Processing...' : 'Pay with Card' }}</button>
+      <button :disabled="loading || !stripeReady" @click="createTopUp">{{ loading ? 'Processing...' : 'Pay with Card' }}</button>
       <p class="small" style="color:#fdba74">{{ result }}</p>
     </article>
   </section>

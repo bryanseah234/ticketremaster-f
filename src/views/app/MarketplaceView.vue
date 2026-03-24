@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 
 interface Listing {
   listing_id: string
@@ -20,13 +21,15 @@ interface Listing {
 
 const router = useRouter()
 const toast = useToast()
+const auth = useAuthStore()
 
 const loading = ref(false)
 const listings = ref<Listing[]>([])
-const listSeatId = ref('')
+const listTicketId = ref('')
 const listPrice = ref(120)
 const listLoading = ref(false)
 const showListForm = ref(false)
+const myTickets = ref<{ ticketId: string; label: string }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
 const search = ref('')
 const dateFilter = ref('')
@@ -82,17 +85,17 @@ const togglePriceSort = () => {
 const loadListings = async () => {
   loading.value = true
   try {
-    const res = await api.get('/marketplace/listings', { params: { status: 'ACTIVE' } })
-    const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
+    const res = await api.get('/marketplace')
+    const items = res.data?.data?.listings || res.data?.data || (Array.isArray(res.data) ? res.data : [])
     listings.value = items.length ? items.map((item: any) => ({
-      listing_id: item.listing_id || item.seat_id || item.id,
-      seat_id: item.seat_id || item.seat?.seat_id || '-',
-      asking_price: Number(item.asking_price || item.price || 0),
+      listing_id: item.listingId || item.listing_id || item.id,
+      seat_id: item.ticketId || item.ticket_id || '-',
+      asking_price: Number(item.price || item.asking_price || 0),
       status: item.status || 'ACTIVE',
-      seller_user_id: item.seller_user_id,
-      created_at: item.created_at,
+      seller_user_id: item.sellerId || item.seller_id,
+      created_at: item.createdAt || item.created_at,
       event_name: item.event?.name || item.event_name,
-      event_date: item.event?.event_date || item.event_date,
+      event_date: item.event?.date || item.event?.event_date || item.event_date,
       row_number: item.row_number || item.seat?.row_number,
       seat_number: item.seat_number || item.seat?.seat_number,
       image: item.event?.image || item.image,
@@ -105,16 +108,31 @@ const loadListings = async () => {
   }
 }
 
+const loadMyTickets = async () => {
+  try {
+    const { data } = await api.get('/tickets')
+    myTickets.value = (data?.data || [])
+      .filter((t: any) => t.status === 'active')
+      .map((t: any) => ({
+        ticketId: t.ticketId,
+        label: `${t.event?.name || 'Ticket'} — ${t.ticketId.slice(0, 8)}`,
+      }))
+    if (myTickets.value.length) listTicketId.value = myTickets.value[0].ticketId
+  } catch {
+    myTickets.value = []
+  }
+}
+
 const listTicket = async () => {
-  if (!listSeatId.value || listPrice.value <= 0) {
-    toast.push('Enter a seat ID and a valid price.', 'error', 3200)
+  if (!listTicketId.value || listPrice.value <= 0) {
+    toast.push('Enter a ticket ID and a valid price.', 'error', 3200)
     return
   }
   listLoading.value = true
   try {
-    const { data } = await api.post('/marketplace/list', { seat_id: listSeatId.value, asking_price: listPrice.value })
+    const { data } = await api.post('/marketplace/list', { ticketId: listTicketId.value })
     toast.push(data?.data?.message || 'Listing created.', 'success', 3200)
-    listSeatId.value = ''
+    listTicketId.value = ''
     listPrice.value = 120
     showListForm.value = false
     loadListings()
@@ -129,8 +147,8 @@ const buyListing = async (listingId: string) => {
   if (!listingId) return
   buyLoadingIds.value = { ...buyLoadingIds.value, [listingId]: true }
   try {
-    const { data } = await api.post('/marketplace/buy', { listing_id: listingId })
-    const transferId = data?.data?.transfer_id
+    const { data } = await api.post('/transfer/initiate', { listingId })
+    const transferId = data?.data?.transferId || data?.data?.transfer_id || data?.transferId
     toast.push('Purchase initiated.', 'success', 3200)
     if (transferId) {
       router.push(`/transfer/${transferId}`)
@@ -156,12 +174,26 @@ onMounted(loadListings)
       <p class="section-subtitle">A trusted resale marketplace for verified tickets.</p>
     </header>
 
+    <!-- List a ticket button -->
+    <div style="margin-top:1.5rem;">
+      <button v-if="auth.state.accessToken" class="secondary" @click="showListForm = !showListForm; if (showListForm) loadMyTickets()">
+        {{ showListForm ? 'Cancel' : '+ List a Ticket' }}
+      </button>
+      <p v-else class="small muted"><RouterLink to="/login" style="color:var(--accent)">Log in</RouterLink> to list a ticket for resale.</p>
+    </div>
+
     <!-- List ticket form (collapsible) -->
     <transition name="slide">
       <article v-if="showListForm" class="glass list-form">
         <h3>List your ticket</h3>
         <div class="grid-2">
-          <div><label>Seat ID</label><input v-model="listSeatId" placeholder="e.g. seat-101" /></div>
+          <div>
+            <label>Ticket</label>
+            <select v-if="myTickets.length" v-model="listTicketId">
+              <option v-for="t in myTickets" :key="t.ticketId" :value="t.ticketId">{{ t.label }}</option>
+            </select>
+            <p v-else class="small">No active tickets to list.</p>
+          </div>
           <div><label>Asking Price ($)</label><input v-model.number="listPrice" type="number" min="1" /></div>
         </div>
         <button :disabled="listLoading" @click="listTicket">{{ listLoading ? 'Creating...' : 'Create Listing' }}</button>

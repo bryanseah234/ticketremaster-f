@@ -29,7 +29,16 @@ const submit = async () => {
   loading.value = true
   try {
     const { data } = await api.post('/auth/login', { email: email.value, password: password.value })
-    auth.setSession(data.data)
+    const d = data.data
+    auth.setSession({
+      access_token: d.token,
+      refresh_token: d.token, // backend issues single token
+      user: {
+        user_id: d.user.userId,
+        email: d.user.email,
+        role: d.user.role,
+      },
+    })
     router.push('/events')
   } catch (e: any) {
     if (!e?.response) {
