@@ -41,7 +41,7 @@ const fetchBalance = async () => {
   balanceError.value = false
   try {
     const { data } = await api.get('/credits/balance')
-    const value = data?.data?.credit_balance ?? data?.credit_balance
+    const value = data?.data?.creditBalance ?? data?.creditBalance
     balance.value = typeof value === 'number' ? value : null
   } catch {
     balanceError.value = true

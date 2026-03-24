@@ -23,8 +23,8 @@ let lastScrollTime = 0
 
 const loadFeatured = async () => {
   try {
-    const { data } = await api.get('/events', { params: { per_page: 8, featured: true } })
-    const items = (data?.data || []).slice(0, 8).map((event: any) => ({
+    const { data } = await api.get('/events', { params: { limit: 8 } })
+    const items = (data?.data?.events || data?.data || []).slice(0, 8).map((event: any) => ({
       id: event.event_id,
       name: event.name,
       date: new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),

@@ -42,8 +42,8 @@ const load = async () => {
   loading.value = true
   toast.push('Loading venues...', 'info', 1600)
   try {
-    const { data } = await api.get('/events', { params: { per_page: 50 } })
-    buildVenues(data?.data || [])
+    const { data } = await api.get('/events', { params: { limit: 50 } })
+    buildVenues(data?.data?.events || data?.data || [])
   } catch {
     buildVenues(mockEvents)
     toast.push('Showing demo venues while the backend is unavailable.', 'info', 3200)
