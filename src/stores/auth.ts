@@ -2,11 +2,11 @@ import { computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
 
 export interface AuthUser {
-  user_id: string
+  userId: string
   email: string
   phone?: string
-  flagged?: boolean
-  is_admin?: boolean
+  isFlagged?: boolean
+  isAdmin?: boolean
   role?: 'user' | 'admin' | 'staff'
 }
 
@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const isLoggedIn = computed(() => Boolean(state.accessToken))
-  const isAdmin = computed(() => Boolean(state.user?.is_admin))
+  const isAdmin = computed(() => Boolean(state.user?.isAdmin))
   const isStaff = computed(() => state.user?.role === 'staff')
 
   const setSession = (payload: { access_token: string; refresh_token: string; user: AuthUser }) => {

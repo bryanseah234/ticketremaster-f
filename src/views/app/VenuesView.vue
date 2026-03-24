@@ -21,7 +21,7 @@ const buildVenues = (events: any[]) => {
   events.forEach((event) => {
     const venue = event?.venue
     if (!venue?.name) return
-    const id = venue.venue_id || `${venue.name}-${venue.address || venue.city || ''}`.toLowerCase()
+    const id = venue.venueId || venue.venue_id || `${venue.name}-${venue.address || venue.city || ''}`.toLowerCase()
     const current = map.get(id)
     if (current) {
       current.events += 1

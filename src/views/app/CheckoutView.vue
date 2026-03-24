@@ -25,13 +25,13 @@ const holdDisplay = computed(() => {
 })
 
 const loadOrder = () => {
-  const raw = localStorage.getItem('pending_order')
+  const raw = localStorage.getItem('pendingOrder')
   if (!raw) return
   try {
     const parsed = JSON.parse(raw)
-    if (parsed?.order_id === route.params.orderId) {
+    if (parsed?.orderId === route.params.orderId) {
       order.value = parsed
-      const heldUntil = parsed?.held_until || parsed?.heldUntil
+      const heldUntil = parsed?.heldUntil
       if (heldUntil) {
         holdSeconds.value = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
         holdTimer = window.setInterval(() => {
@@ -56,12 +56,12 @@ const loadBalance = async () => {
 const pay = async () => {
   loading.value = true
   try {
-    const inventoryId = order.value?.inventory_id || route.params.orderId
+    const inventoryId = order.value?.inventoryId || route.params.orderId
     const { data } = await api.post(`/purchase/confirm/${inventoryId}`, {
-      holdToken: order.value?.hold_token || '',
-      eventId: order.value?.event_id || '',
+      holdToken: order.value?.holdToken || '',
+      eventId: order.value?.eventId || '',
     })
-    localStorage.removeItem('pending_order')
+    localStorage.removeItem('pendingOrder')
     if (holdTimer) clearInterval(holdTimer)
     ticket.value = data?.data
   } catch (e: any) {
@@ -72,11 +72,11 @@ const pay = async () => {
       router.push('/credits/topup')
     } else if (errorCode === 'PAYMENT_HOLD_EXPIRED' || status === 410) {
       toast.push('Seat hold expired. Please select a seat again.', 'error', 3200)
-      localStorage.removeItem('pending_order')
-      router.push(`/events/${order.value?.event_id}`)
+      localStorage.removeItem('pendingOrder')
+      router.push(`/events/${order.value?.eventId}`)
     } else if (errorCode === 'SEAT_UNAVAILABLE' || status === 409) {
       toast.push('Seat no longer available. Please select another.', 'error', 3200)
-      router.push(`/events/${order.value?.event_id}`)
+      router.push(`/events/${order.value?.eventId}`)
     } else if (errorCode === 'VALIDATION_ERROR' || status === 400) {
       toast.push('Invalid request. Please try again.', 'error', 3200)
     } else {
@@ -106,8 +106,8 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
         <article class="panel" style="padding:1rem;display:grid;gap:.55rem;">
           <p class="small" style="opacity:.6;">Ticket Details</p>
           <p><strong>{{ order?.event?.name || 'Your Event' }}</strong></p>
-          <p v-if="order?.event?.event_date" class="small">{{ new Date(order.event.event_date).toLocaleString() }}</p>
-          <p v-if="order?.seat" class="small">Seat {{ order.seat.row_number }}-{{ order.seat.seat_number }}</p>
+          <p v-if="order?.event?.eventDate" class="small">{{ new Date(order.event.eventDate).toLocaleString() }}</p>
+          <p v-if="order?.seat" class="small">Seat {{ order.seat.rowNumber }}-{{ order.seat.seatNumber }}</p>
           <p class="small">Price paid: <strong>${{ ticket.price ?? order?.seat?.price }}</strong></p>
           <p class="small">Ticket ID: <span style="opacity:.5;font-size:.75rem;">{{ ticket.ticketId }}</span></p>
           <span class="badge" style="width:fit-content;">{{ ticket.status?.toUpperCase() || 'ACTIVE' }}</span>
@@ -125,8 +125,8 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
         <article class="panel" style="padding:.8rem;display:grid;gap:.45rem;">
           <p class="small">Order Summary</p>
           <p v-if="order?.event?.name">{{ order.event.name }}</p>
-          <p v-if="order?.event?.event_date" class="small">{{ new Date(order.event.event_date).toLocaleString() }}</p>
-          <p v-if="order?.seat" class="small">Seat {{ order.seat.row_number }}-{{ order.seat.seat_number }}</p>
+          <p v-if="order?.event?.eventDate" class="small">{{ new Date(order.event.eventDate).toLocaleString() }}</p>
+          <p v-if="order?.seat" class="small">Seat {{ order.seat.rowNumber }}-{{ order.seat.seatNumber }}</p>
           <p v-if="order?.seat?.price" class="small">Price: ${{ order.seat.price }}</p>
           <p v-if="!order" class="small">Order details unavailable.</p>
         </article>

@@ -68,23 +68,23 @@ const onSeatChange = async (seat: SeatItem) => {
 
   try {
     const { data } = await api.post(`/purchase/hold/${seat.inventoryId}`)
-    const heldUntil = data?.data?.heldUntil || data?.data?.held_until
-    const inventoryId = data?.data?.inventoryId || data?.data?.inventory_id || seat.inventoryId
+    const heldUntil = data?.data?.heldUntil
+    const inventoryId = data?.data?.inventoryId || seat.inventoryId
     selectedInventoryId.value = inventoryId
     holdSeconds.value = heldUntil
       ? Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
       : 300
 
     // store pending order for checkout
-    localStorage.setItem('pending_order', JSON.stringify({
-      order_id: inventoryId,
-      inventory_id: inventoryId,
-      hold_token: data?.data?.holdToken || data?.data?.hold_token || '',
-      held_until: data?.data?.heldUntil || data?.data?.held_until,
-      event_id: props.event.eventId,
+    localStorage.setItem('pendingOrder', JSON.stringify({
+      orderId: inventoryId,
+      inventoryId: inventoryId,
+      holdToken: data?.data?.holdToken || '',
+      heldUntil: data?.data?.heldUntil,
+      eventId: props.event.eventId,
       seat: {
-        row_number: seat.rowNumber,
-        seat_number: seat.seatNumber,
+        rowNumber: seat.rowNumber,
+        seatNumber: seat.seatNumber,
         price: seat.price,
       },
     }))

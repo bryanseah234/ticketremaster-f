@@ -32,21 +32,21 @@ const loadSeats = async () => {
     const { data } = await api.get(`/events/${route.params.eventId}/seats`)
     const raw = data?.data?.seats || []
     seats.value = raw.map((s: any) => ({
-      inventory_id: s.inventoryId || s.inventory_id,
-      seat_id: s.seatId || s.seat_id,
-      row_number: s.rowNumber || s.row_number,
-      seat_number: s.seatNumber || s.seat_number,
+      inventoryId: s.inventoryId || s.inventory_id,
+      seatId: s.seatId || s.seat_id,
+      rowNumber: s.rowNumber || s.row_number,
+      seatNumber: s.seatNumber || s.seat_number,
       status: (s.status || 'available').toUpperCase(),
       category: s.category || 'GA',
       price: s.price || 0,
-      held_until: s.heldUntil || s.held_until,
+      heldUntil: s.heldUntil || s.held_until,
     }))
   } catch {
     seats.value = Array.from({ length: 120 }).map((_, index) => ({
-      inventory_id: `demo-inv-${index + 1}`,
-      seat_id: `demo-seat-${index + 1}`,
-      row_number: String.fromCharCode(65 + Math.floor(index / 10)),
-      seat_number: (index % 10) + 1,
+      inventoryId: `demo-inv-${index + 1}`,
+      seatId: `demo-seat-${index + 1}`,
+      rowNumber: String.fromCharCode(65 + Math.floor(index / 10)),
+      seatNumber: (index % 10) + 1,
       status: index % 8 === 0 ? 'HELD' : index % 6 === 0 ? 'SOLD' : 'AVAILABLE',
       category: 'GA',
       price: 59,
@@ -65,7 +65,7 @@ const reserveSeat = async () => {
   }
   if (!selectedSeat.value || !auth.state.user) return
   try {
-    const inventoryId = selectedSeat.value.inventory_id
+    const inventoryId = selectedSeat.value.inventoryId
     const { data } = await api.post(`/purchase/hold/${inventoryId}`)
     const heldUntil = data?.data?.heldUntil || data?.data?.held_until
     holdSeconds.value = heldUntil
@@ -75,19 +75,19 @@ const reserveSeat = async () => {
     timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
     orderId.value = data?.data?.inventoryId || data?.data?.inventory_id || inventoryId
     const pending = {
-      order_id: orderId.value,
-      inventory_id: orderId.value,
-      hold_token: data?.data?.holdToken || data?.data?.hold_token || '',
-      event_id: route.params.eventId,
+      orderId: orderId.value,
+      inventoryId: orderId.value,
+      holdToken: data?.data?.holdToken || data?.data?.hold_token || '',
+      eventId: route.params.eventId,
       seat: {
-        seat_id: selectedSeat.value.seat_id,
-        row_number: selectedSeat.value.row_number,
-        seat_number: selectedSeat.value.seat_number,
+        seatId: selectedSeat.value.seatId,
+        rowNumber: selectedSeat.value.rowNumber,
+        seatNumber: selectedSeat.value.seatNumber,
         category: selectedSeat.value.category,
         price: selectedSeat.value.price,
       },
     }
-    localStorage.setItem('pending_order', JSON.stringify(pending))
+    localStorage.setItem('pendingOrder', JSON.stringify(pending))
     toast.push('Seat held for 5 minutes.', 'success', 3200)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
@@ -115,18 +115,18 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       <div class="grid-4" style="margin-top:.7rem;">
         <button
           v-for="seat in seats.slice(0,120)"
-          :key="seat.seat_id"
+          :key="seat.seatId"
           class="secondary"
           :disabled="seat.status !== 'AVAILABLE'"
           :style="{ borderColor: seat.status === 'AVAILABLE' ? 'var(--success)' : seat.status === 'HELD' ? 'var(--warning)' : 'var(--disabled)' }"
           @click="selectedSeat = seat"
         >
-          {{ seat.row_number }}-{{ seat.seat_number }}
+          {{ seat.rowNumber }}-{{ seat.seatNumber }}
         </button>
       </div>
 
       <div class="row" style="margin-top:1rem;flex-wrap:wrap;gap:.6rem;">
-        <span class="badge">Selected: {{ selectedSeat ? `${selectedSeat.row_number}-${selectedSeat.seat_number}` : 'None' }}</span>
+        <span class="badge">Selected: {{ selectedSeat ? `${selectedSeat.rowNumber}-${selectedSeat.seatNumber}` : 'None' }}</span>
         <span v-if="holdSeconds>0" class="badge">Hold: {{ holdDisplay }}</span>
         <button :disabled="!selectedSeat || usingFallback" @click="reserveSeat">Reserve</button>
         <button v-if="orderId" class="secondary" :disabled="usingFallback" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>

@@ -33,8 +33,8 @@ const submit = async () => {
   loading.value = true
   try {
     const { data } = await api.post('/auth/register', { email: form.value.email, phone: form.value.phone, password: form.value.password })
-    const pendingUserId = data?.data?.user_id
-    if (pendingUserId) localStorage.setItem('pending_user_id', pendingUserId)
+    const pendingUserId = data?.data?.userId || data?.data?.user_id
+    if (pendingUserId) localStorage.setItem('pendingUserId', pendingUserId)
     router.push('/verify')
   } catch (e: any) {
     toast.push(extractError(e), 'error', 3200)

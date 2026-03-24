@@ -25,28 +25,28 @@ const loadFeatured = async () => {
   try {
     const { data } = await api.get('/events', { params: { limit: 8 } })
     const items = (data?.data?.events || data?.data || []).slice(0, 8).map((event: any) => ({
-      id: event.event_id,
+      id: event.eventId || event.event_id,
       name: event.name,
-      date: new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      date: new Date(event.eventDate || event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       venue: event?.venue?.name || 'Venue TBA',
-      price: `$${event?.pricing_tiers?.[0]?.price ?? 59}`,
+      price: `$${event?.pricingTiers?.[0]?.price ?? event?.pricing_tiers?.[0]?.price ?? 59}`,
       image: event?.image || featuredFallback[0].image,
     }))
     cards.value = items.length ? items : featuredFallback.map((event) => ({
-      id: event.event_id,
+      id: event.eventId,
       name: event.name,
-      date: new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      date: new Date(event.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       venue: event.venue.name,
-      price: `$${event.pricing_tiers[0].price}`,
+      price: `$${event.pricingTiers[0].price}`,
       image: event.image,
     }))
   } catch {
     cards.value = featuredFallback.map((event) => ({
-      id: event.event_id,
+      id: event.eventId,
       name: event.name,
-      date: new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      date: new Date(event.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       venue: event.venue.name,
-      price: `$${event.pricing_tiers[0].price}`,
+      price: `$${event.pricingTiers[0].price}`,
       image: event.image,
     }))
   }

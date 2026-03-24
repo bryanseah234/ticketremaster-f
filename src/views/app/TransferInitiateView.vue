@@ -35,12 +35,12 @@ const startTransfer = async () => {
   message.value = ''
   try {
     const { data } = await api.post('/transfer/initiate', {
-      seat_id: route.params.seatId,
-      seller_user_id: auth.state.user.user_id,
-      buyer_user_id: buyerId.value,
-      credits_amount: credits.value,
+      ticketId: route.params.ticketId,
+      sellerId: auth.state.user.userId,
+      buyerId: buyerId.value,
+      creditAmount: credits.value,
     })
-    router.push(`/transfer/${data?.data?.transfer_id}`)
+    router.push(`/transfer/${data?.data?.transferId}`)
   } catch (e: any) {
     const code = e?.response?.data?.error_code
     if (code === 'NOT_SEAT_OWNER') message.value = "You don't own this ticket."

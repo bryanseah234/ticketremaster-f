@@ -21,7 +21,7 @@ const status = computed(() => transfer.value?.status || 'pending_buyer_otp')
 // Determine role — fallback to buyer for demo; override available for testing
 const isSeller = computed(() => {
   if (roleOverride.value) return roleOverride.value === 'seller'
-  return auth.state.user ? transfer.value?.seller_id === auth.state.user.user_id : false
+  return auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false
 })
 const role = computed(() => isSeller.value ? 'seller' : 'buyer')
 
@@ -53,28 +53,28 @@ const loadTransfer = async () => {
       transfer.value = {
         ...raw,
         status: raw.status,
-        seller_id: raw.sellerId || raw.seller_id,
-        buyer_id: raw.buyerId || raw.buyer_id,
-        credit_amount: raw.creditAmount || raw.credit_amount,
-        completed_at: raw.completedAt || raw.completed_at,
-        event_name: raw.eventName || raw.event_name,
-        event_date: raw.eventDate || raw.event_date,
-        venue_name: raw.venueName || raw.venue_name,
-        seat_row: raw.seatRow || raw.seat_row,
-        seat_number: raw.seatNumber || raw.seat_number,
+        sellerId: raw.sellerId || raw.seller_id,
+        buyerId: raw.buyerId || raw.buyer_id,
+        creditAmount: raw.creditAmount || raw.credit_amount,
+        completedAt: raw.completedAt || raw.completed_at,
+        eventName: raw.eventName || raw.event_name,
+        eventDate: raw.eventDate || raw.event_date,
+        venueName: raw.venueName || raw.venue_name,
+        seatRow: raw.seatRow || raw.seat_row,
+        seatNumber: raw.seatNumber || raw.seat_number,
       }
     }
   } catch {
     if (!transfer.value) {
       transfer.value = {
         status: 'pending_buyer_otp',
-        transfer_id: route.params.transferId,
-        credit_amount: 180,
-        event_name: 'Neon Skyline Festival',
-        event_date: '2026-04-13T20:00:00Z',
-        seat_row: 'A',
-        seat_number: 2,
-        venue_name: 'Singapore Indoor Stadium',
+        transferId: route.params.transferId,
+        creditAmount: 180,
+        eventName: 'Neon Skyline Festival',
+        eventDate: '2026-04-13T20:00:00Z',
+        seatRow: 'A',
+        seatNumber: 2,
+        venueName: 'Singapore Indoor Stadium',
       }
     }
   }
@@ -114,12 +114,12 @@ const submitSellerOtp = async () => {
   loading.value = true
   try {
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-verify`, { otp: otp.value })
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completed_at: data?.data?.completedAt || new Date().toISOString() }
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
   } catch {
-    transfer.value = { ...transfer.value, status: 'completed', completed_at: new Date().toISOString() }
+    transfer.value = { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
     otp.value = ''
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
@@ -259,28 +259,28 @@ onUnmounted(() => clearInterval(pollTimer))
           <div class="summary-card">
             <div class="summary-header">
               <span class="badge success-badge">Completed</span>
-              <span v-if="transfer?.completed_at" class="small muted">{{ new Date(transfer.completed_at).toLocaleString() }}</span>
+              <span v-if="transfer?.completedAt" class="small muted">{{ new Date(transfer.completedAt).toLocaleString() }}</span>
             </div>
             <div class="summary-grid">
               <div class="summary-item">
                 <span class="summary-label">Event</span>
-                <span>{{ transfer?.event_name || 'Event' }}</span>
+                <span>{{ transfer?.eventName || 'Event' }}</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">Date</span>
-                <span>{{ transfer?.event_date ? new Date(transfer.event_date).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' }}</span>
+                <span>{{ transfer?.eventDate ? new Date(transfer.eventDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' }}</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">Venue</span>
-                <span>{{ transfer?.venue_name || '—' }}</span>
+                <span>{{ transfer?.venueName || '—' }}</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">Seat</span>
-                <span>{{ transfer?.seat_row && transfer?.seat_number ? `Row ${transfer.seat_row} · Seat ${transfer.seat_number}` : '—' }}</span>
+                <span>{{ transfer?.seatRow && transfer?.seatNumber ? `Row ${transfer.seatRow} · Seat ${transfer.seatNumber}` : '—' }}</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">{{ isSeller ? 'Credits received' : 'Credits paid' }}</span>
-                <span :class="isSeller ? 'positive' : 'negative'">${{ transfer?.credit_amount ?? '—' }}</span>
+                <span :class="isSeller ? 'positive' : 'negative'">${{ transfer?.creditAmount ?? '—' }}</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">Transfer ID</span>
