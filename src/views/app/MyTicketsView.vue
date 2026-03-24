@@ -9,8 +9,8 @@ const loading = ref(false)
 const toast = useToast()
 
 const fallbackTickets = [
-  { seat_id: 'demo-101', status: 'SOLD', event: { name: 'Neon Skyline Festival', event_date: '2026-04-12T20:00:00Z' }, row_number: 'B', seat_number: 18, price_paid: 120, purchased_at: '2026-03-02T19:30:00Z' },
-  { seat_id: 'demo-102', status: 'SOLD', event: { name: 'Midnight Bass District', event_date: '2026-05-03T19:30:00Z' }, row_number: 'D', seat_number: 9, price_paid: 85, purchased_at: '2026-02-18T14:20:00Z' },
+  { ticketId: 'demo-101', status: 'SOLD', event: { name: 'Neon Skyline Festival', eventDate: '2026-04-12T20:00:00Z' }, rowNumber: 'B', seatNumber: 18, price: 120, createdAt: '2026-03-02T19:30:00Z' },
+  { ticketId: 'demo-102', status: 'SOLD', event: { name: 'Midnight Bass District', eventDate: '2026-05-03T19:30:00Z' }, rowNumber: 'D', seatNumber: 9, price: 85, createdAt: '2026-02-18T14:20:00Z' },
 ]
 
 const formatDate = (value?: string) => {
@@ -47,7 +47,7 @@ watch([loading, tickets], ([isLoading, items]) => {
       <article v-for="t in tickets" :key="t.ticketId" class="glass" style="padding:1rem;display:grid;gap:.45rem;">
         <span class="badge">{{ t.status || 'ACTIVE' }}</span>
         <h3>{{ t.event?.name }}</h3>
-        <p class="small">{{ t.event?.event_date ? new Date(t.event.event_date).toLocaleString() : 'Date TBA' }}</p>
+        <p class="small">{{ t.event?.eventDate ? new Date(t.event.eventDate).toLocaleString() : 'Date TBA' }}</p>
         <p class="small">Paid ${{ t.price ?? '—' }} · Purchased {{ formatDate(t.createdAt) }}</p>
         <div class="row">
           <RouterLink :to="`/tickets/${t.ticketId}`"><button>Show QR</button></RouterLink>

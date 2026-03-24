@@ -6,11 +6,11 @@ import { mockEvents } from '@/data/mockEvents'
 import { useToast } from '@/composables/useToast'
 
 interface EventItem {
-  event_id: string
+  eventId: string
   name: string
-  event_date: string
+  eventDate: string
   venue?: { name?: string; city?: string }
-  pricing_tiers?: { category: string; price: number }[]
+  pricingTiers?: { category: string; price: number }[]
   image?: string
 }
 
@@ -23,10 +23,10 @@ const usingFallback = ref(false)
 const search = ref('')
 const dateFilter = ref('')
 const onlyFavorites = ref(false)
-const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favorite_events') || '[]'))
+const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
 const toast = useToast()
 
-const saveFavorites = () => localStorage.setItem('favorite_events', JSON.stringify(favoriteIds.value))
+const saveFavorites = () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value))
 watch(favoriteIds, saveFavorites, { deep: true })
 
 const toggleFavorite = (eventId: string) => {
@@ -47,12 +47,12 @@ const load = async () => {
     const { data } = await api.get('/events', { params: { page: page.value, limit: 20, date: dateFilter.value || undefined } })
     const raw = data?.data?.events || data?.data || []
     const items = raw.map((e: any) => ({
-      event_id: e.eventId || e.event_id,
+      eventId: e.eventId || e.event_id,
       name: e.name,
-      event_date: e.date || e.event_date || e.eventDate,
+      eventDate: e.date || e.eventDate || e.event_date,
       image: e.image,
       venue: e.venue ? { name: e.venue.name, city: e.venue.city || e.venue.address } : undefined,
-      pricing_tiers: e.pricingTiers || e.pricing_tiers || (e.price != null ? [{ category: 'GA', price: e.price }] : []),
+      pricingTiers: e.pricingTiers || e.pricing_tiers || (e.price != null ? [{ category: 'GA', price: e.price }] : []),
     }))
     events.value = items
     const pagination = data?.data?.pagination || data?.pagination || {}
@@ -82,8 +82,8 @@ const filteredEvents = computed(() => {
   return events.value.filter((event) => {
     const text = `${event.name} ${event.venue?.name || ''} ${event.venue?.city || ''}`.toLowerCase()
     const matched = !needle || text.includes(needle)
-    const dateMatched = !dateFilter.value || event.event_date.slice(0, 10) === dateFilter.value
-    const favMatched = !onlyFavorites.value || favoriteIds.value.includes(event.event_id)
+    const dateMatched = !dateFilter.value || event.eventDate.slice(0, 10) === dateFilter.value
+    const favMatched = !onlyFavorites.value || favoriteIds.value.includes(event.eventId)
     return matched && dateMatched && favMatched
   })
 })
@@ -116,12 +116,12 @@ onMounted(load)
     </article>
 
     <div class="events-grid">
-      <RouterLink v-for="event in filteredEvents" :key="event.event_id" :to="`/events/${event.event_id}`" class="event-card-link">
+      <RouterLink v-for="event in filteredEvents" :key="event.eventId" :to="`/events/${event.eventId}`" class="event-card-link">
         <article class="glass event-card">
           <img class="cover-img" :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1200'" :alt="event.name" />
           <div class="cover"></div>
           <div class="content">
-            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.event_id) }" :aria-label="`toggle favorite ${event.name}`" @click.prevent="toggleFavorite(event.event_id)">
+            <button class="ghost heart-action" :class="{ active: favoriteIds.includes(event.eventId) }" :aria-label="`toggle favorite ${event.name}`" @click.prevent="toggleFavorite(event.eventId)">
               <svg class="heart-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"></path>
               </svg>
@@ -136,14 +136,14 @@ onMounted(load)
 
             <div class="event-info">
               <h3>{{ event.name }}</h3>
-              <p class="small">{{ new Date(event.event_date).toLocaleDateString() }}</p>
+              <p class="small">{{ new Date(event.eventDate).toLocaleDateString() }}</p>
 
               <div class="row" style="gap:.35rem;">
-                <template v-if="Array.isArray(event.pricing_tiers)">
-                  <span v-for="tier in event.pricing_tiers.slice(0, 2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
+                <template v-if="Array.isArray(event.pricingTiers)">
+                  <span v-for="tier in event.pricingTiers.slice(0, 2)" :key="tier.category" class="badge">{{ tier.category }} ${{ tier.price }}</span>
                 </template>
                 <template v-else>
-                  <span v-for="[cat, price] in Object.entries(event.pricing_tiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
+                  <span v-for="[cat, price] in Object.entries(event.pricingTiers || {}).slice(0, 2)" :key="cat" class="badge">{{ cat }} ${{ price }}</span>
                 </template>
               </div>
             </div>

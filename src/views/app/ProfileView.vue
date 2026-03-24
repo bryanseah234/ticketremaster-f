@@ -13,10 +13,10 @@ const transactions = ref<any[]>([])
 const loadingProfile = ref(false)
 const loadingTxns = ref(false)
 
-const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favorite_events') || '[]'))
+const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
 const favoriteEvents = computed(() => {
-  const byId = new Map(mockEvents.map((e) => [e.event_id, e]))
-  return favoriteIds.value.map((id) => byId.get(id) || { event_id: id, name: 'Unknown event', event_date: '' })
+  const byId = new Map(mockEvents.map((e) => [e.eventId, e]))
+  return favoriteIds.value.map((id) => byId.get(id) || { eventId: id, name: 'Unknown event', eventDate: '' })
 })
 
 const displayUser = computed(() => profile.value || auth.state.user)
@@ -29,16 +29,16 @@ const roleLabel = computed(() => {
 })
 
 const memberSince = computed(() => {
-  const date = profile.value?.created_at
+  const date = profile.value?.createdAt
   if (!date) return null
   return new Date(date).toLocaleDateString('en-SG', { year: 'numeric', month: 'long' })
 })
 
 const loadProfile = async () => {
-  if (!auth.state.user?.user_id) return
+  if (!auth.state.user?.userId) return
   loadingProfile.value = true
   try {
-    const { data } = await api.get(`/users/${auth.state.user.user_id}`)
+    const { data } = await api.get(`/users/${auth.state.user.userId}`)
     profile.value = data?.data || data || null
   } catch {
     // fall back to auth store user
@@ -103,7 +103,7 @@ onMounted(() => {
         <div class="row" style="gap:.5rem;">
           <span class="badge">{{ roleLabel }}</span>
           <span v-if="memberSince" class="small muted">Member since {{ memberSince }}</span>
-          <span v-if="displayUser?.is_flagged || displayUser?.flagged" class="badge flagged">Flagged</span>
+          <span v-if="displayUser?.isFlagged" class="badge flagged">Flagged</span>
         </div>
       </div>
     </div>
@@ -120,7 +120,7 @@ onMounted(() => {
           </div>
           <div class="field">
             <span class="field-label">Phone</span>
-            <span>{{ displayUser?.phone || displayUser?.phone_number || '—' }}</span>
+            <span>{{ displayUser?.phone || displayUser?.phoneNumber || '—' }}</span>
           </div>
           <div class="field">
             <span class="field-label">Role</span>
@@ -163,12 +163,12 @@ onMounted(() => {
           <h2 class="card-title">Favourite Events</h2>
           <div v-if="favoriteEvents.length === 0" class="muted small">No favourites saved yet.</div>
           <div v-else class="txn-list">
-            <div v-for="event in favoriteEvents" :key="event.event_id" class="txn-row">
+            <div v-for="event in favoriteEvents" :key="event.eventId" class="txn-row">
               <div>
                 <p class="txn-label">{{ event.name }}</p>
-                <p v-if="event.event_date" class="small muted">{{ new Date(event.event_date).toLocaleDateString() }}</p>
+                <p v-if="event.eventDate" class="small muted">{{ new Date(event.eventDate).toLocaleDateString() }}</p>
               </div>
-              <RouterLink :to="`/events/${event.event_id}`"><button class="secondary" style="padding:.3rem .8rem;font-size:.82rem;">View</button></RouterLink>
+              <RouterLink :to="`/events/${event.eventId}`"><button class="secondary" style="padding:.3rem .8rem;font-size:.82rem;">View</button></RouterLink>
             </div>
           </div>
         </article>
@@ -178,10 +178,10 @@ onMounted(() => {
           <div v-if="loadingTxns" class="muted small">Loading...</div>
           <div v-else-if="transactions.length === 0" class="muted small">No transactions yet.</div>
           <div v-else class="txn-list">
-            <div v-for="txn in transactions" :key="txn.txn_id || txn.id" class="txn-row">
+            <div v-for="txn in transactions" :key="txn.txnId || txn.id" class="txn-row">
               <div>
                 <p class="txn-label">{{ txnLabel(txn.reason) }}</p>
-                <p class="small muted">{{ txn.created_at ? new Date(txn.created_at).toLocaleDateString() : '—' }}</p>
+                <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleDateString() : '—' }}</p>
               </div>
               <span :class="['txn-amount', txn.delta > 0 ? 'positive' : 'negative']">
                 {{ txn.delta > 0 ? '+' : '' }}${{ Math.abs(txn.delta) }}

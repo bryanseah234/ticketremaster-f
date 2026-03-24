@@ -34,7 +34,7 @@ const submit = async () => {
       access_token: d.token,
       refresh_token: d.token, // backend issues single token
       user: {
-        user_id: d.user.userId,
+        userId: d.user.userId,
         email: d.user.email,
         role: d.user.role,
       },

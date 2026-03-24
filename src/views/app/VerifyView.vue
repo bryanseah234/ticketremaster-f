@@ -7,7 +7,7 @@ import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const auth = useAuthStore()
-const userId = ref(localStorage.getItem('pending_user_id') || '')
+const userId = ref(localStorage.getItem('pendingUserId') || '')
 const otp = ref('')
 const loading = ref(false)
 const toast = useToast()
@@ -21,9 +21,9 @@ const submit = async () => {
   }
   loading.value = true
   try {
-    const { data } = await api.post('/auth/verify-registration', { user_id: userId.value, otp_code: otp.value })
+    const { data } = await api.post('/auth/verify-registration', { userId: userId.value, otpCode: otp.value })
     auth.setSession(data.data)
-    localStorage.removeItem('pending_user_id')
+    localStorage.removeItem('pendingUserId')
     router.push('/events')
   } catch (e: any) {
     const code = e?.response?.data?.error_code

@@ -30,7 +30,7 @@ const submit = async () => {
       pricing_tiers: { CAT1: Number(form.cat1Price) },
     }
     const { data } = await api.post('/admin/events', payload)
-    created.value = { eventId: data?.data?.event_id, seatsCreated: data?.data?.seats_created }
+    created.value = { eventId: data?.data?.eventId || data?.data?.event_id, seatsCreated: data?.data?.seatsCreated ?? data?.data?.seats_created }
   } finally {
     loading.value = false
   }
