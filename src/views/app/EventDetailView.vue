@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import api from '@/api/client'
 import { mockEvents } from '@/data/mockEvents'
 import { useToast } from '@/composables/useToast'
-import { useAuthStore } from '@/stores/auth'
 import EventDatePicker from '@/components/EventDatePicker/EventDatePicker.vue'
 
 
 const route = useRoute()
-const router = useRouter()
-const auth = useAuthStore()
 const loading = ref(false)
 const notFound = ref(false)
 const eventData = ref<any>(null)
@@ -80,11 +77,6 @@ const load = async () => {
   }
 }
 
-const handlePurchase = async (seatId: string, date: string) => {
-  // Redirect to seat selection page — proper flow for picking and holding a seat
-  router.push(`/events/${route.params.eventId}/seats`)
-}
-
 onMounted(load)
 </script>
 
@@ -104,8 +96,6 @@ onMounted(load)
       <EventDatePicker
         v-if="pickerEvent"
         :event="pickerEvent"
-        @seat-selected="(seatId, date) => console.log('seat selected', seatId, date)"
-        @purchase="handlePurchase"
       />
     </template>
   </section>

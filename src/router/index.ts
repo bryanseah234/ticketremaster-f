@@ -42,8 +42,8 @@ const routes = [
   { path: '/events/:eventId/seats', component: SeatSelectionView, meta: { requiresAuth: true } },
   { path: '/checkout/:orderId', component: CheckoutView, meta: { requiresAuth: true } },
   { path: '/tickets', component: MyTicketsView, meta: { requiresAuth: true } },
-  { path: '/tickets/:seatId', component: TicketDetailView, meta: { requiresAuth: true } },
-  { path: '/tickets/:seatId/transfer', component: TransferInitiateView, meta: { requiresAuth: true } },
+  { path: '/tickets/:ticketId', component: TicketDetailView, meta: { requiresAuth: true } },
+  { path: '/tickets/:ticketId/transfer', component: TransferInitiateView, meta: { requiresAuth: true } },
   { path: '/transfer/:transferId', component: TransferConfirmView }, // meta: { requiresAuth: true }
   { path: '/credits/topup', component: CreditTopupView, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfileView, meta: { requiresAuth: true } },

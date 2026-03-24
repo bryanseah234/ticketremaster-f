@@ -24,7 +24,7 @@ const handleOnline = () => {
 const loadBalance = async () => {
   try {
     const { data } = await api.get('/credits/balance')
-    balance.value = data?.data?.credit_balance || 0
+    balance.value = data?.data?.creditBalance || 0
   } catch {
     result.value = 'Could not load credit balance.'
   }
@@ -55,6 +55,7 @@ const createTopUp = async () => {
   try {
     const { data } = await api.post('/credits/topup/initiate', { amount: amount.value })
     const clientSecret = data?.data?.clientSecret
+    const paymentIntentId = data?.data?.paymentIntentId
     if (!clientSecret) {
       result.value = 'No client secret returned.'
       return
@@ -69,8 +70,9 @@ const createTopUp = async () => {
       return
     }
     if (confirmation.paymentIntent?.status === 'succeeded') {
+      await api.post('/credits/topup/confirm', { paymentIntentId })
       result.value = 'Top up succeeded.'
-      setTimeout(loadBalance, 2000)
+      await loadBalance()
     } else {
       result.value = `Payment status: ${confirmation.paymentIntent?.status || 'unknown'}`
     }

@@ -50,7 +50,7 @@ const loadProfile = async () => {
 const loadBalance = async () => {
   try {
     const { data } = await api.get('/credits/balance')
-    balance.value = data?.data?.credit_balance ?? data?.credit_balance ?? 0
+    balance.value = data?.data?.creditBalance ?? data?.creditBalance ?? 0
   } catch {
     balance.value = null
   }

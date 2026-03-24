@@ -22,8 +22,8 @@ const load = async () => {
   loading.value = true
   toast.push('Loading tickets...', 'info', 1600)
   try {
-    const { data } = await api.get('/tickets')
-    tickets.value = data?.data || []
+    const { data } = await api.get('/qr/tickets')
+    tickets.value = data?.data?.tickets || data?.data || []
   } catch {
     tickets.value = fallbackTickets
     toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
