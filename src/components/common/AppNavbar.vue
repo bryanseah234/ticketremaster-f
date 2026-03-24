@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 
 const auth = useAuthStore()
 const route = useRoute()
-const router = useRouter()
 const balance = ref<number | null>(null)
 const balanceLoading = ref(false)
 const balanceError = ref(false)
@@ -69,11 +68,6 @@ onMounted(() => {
   if (auth.isLoggedIn) scheduleBalance()
 })
 
-const logout = () => {
-  mobileMenuOpen.value = false
-  auth.clearSession()
-  router.push('/login')
-}
 
 const balanceLabel = computed(() => {
   if (!auth.isLoggedIn) return ''
@@ -97,7 +91,6 @@ const balanceLabel = computed(() => {
         <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
         <nav>
           <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn" class="nav-link nav-button nav-logout" @click="logout">Logout</button>
         </nav>
       </div>
 
@@ -118,7 +111,6 @@ const balanceLabel = computed(() => {
     <nav v-if="mobileMenuOpen" class="mobile-menu">
       <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-nav-link">{{ item.label }}</RouterLink>
       <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
-      <button v-if="auth.isLoggedIn" class="mobile-nav-link mobile-logout" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
@@ -340,9 +332,6 @@ nav {
   color: #fed7aa;
 }
 
-.mobile-logout {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
 
 /* Desktop breakpoint - 1025px and above */
 @media (min-width: 1025px) {

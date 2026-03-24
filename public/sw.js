@@ -6,5 +6,11 @@ self.addEventListener('install', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)))
+  if (event.request.method !== 'GET') return
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached
+      return fetch(event.request).catch(() => new Response('', { status: 408 }))
+    })
+  )
 })

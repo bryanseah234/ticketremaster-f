@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '@/api/client'
 
 export interface SeatItem {
   inventoryId: string
   rowNumber: string
-  seatNumber: number
+  seatNumber: number | string
   status: 'AVAILABLE' | 'HELD' | 'SOLD'
   price: number
 }
@@ -13,7 +13,7 @@ export interface SeatItem {
 const props = defineProps<{
   eventId: string
   date: string
-  modelValue: string | null   // selected inventoryId
+  modelValue: string | null
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +22,24 @@ const emit = defineEmits<{
 
 const seats = ref<SeatItem[]>([])
 const loading = ref(false)
+const hovered = ref<{ seat: SeatItem; x: number; y: number } | null>(null)
+
+const seatsByRow = computed(() => {
+  const map = new Map<string, SeatItem[]>()
+  for (const seat of seats.value) {
+    const row = String(seat.rowNumber)
+    if (!map.has(row)) map.set(row, [])
+    map.get(row)!.push(seat)
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([row, rowSeats]) => ({
+      row,
+      seats: rowSeats.sort((a, b) =>
+        String(a.seatNumber).localeCompare(String(b.seatNumber), undefined, { numeric: true })
+      ),
+    }))
+})
 
 const load = async () => {
   loading.value = true
@@ -36,8 +54,7 @@ const load = async () => {
       price: s.price || 0,
     }))
   } catch {
-    // fallback mock
-    const rows = ['A', 'B', 'C', 'D', 'E']
+    const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     const pattern: SeatItem['status'][] = [
       'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'HELD',
       'AVAILABLE', 'SOLD', 'AVAILABLE', 'AVAILABLE', 'HELD', 'AVAILABLE',
@@ -61,12 +78,17 @@ const select = (seat: SeatItem) => {
   emit('update:modelValue', seat)
 }
 
-const cellClass = (seat: SeatItem) => ({
-  available: seat.status === 'AVAILABLE',
-  held: seat.status === 'HELD',
-  sold: seat.status === 'SOLD',
-  picked: props.modelValue === seat.inventoryId,
+const dotClass = (seat: SeatItem) => ({
+  'dot-available': seat.status === 'AVAILABLE' && props.modelValue !== seat.inventoryId,
+  'dot-held': seat.status === 'HELD',
+  'dot-sold': seat.status === 'SOLD',
+  'dot-picked': props.modelValue === seat.inventoryId,
 })
+
+const onMouseEnter = (seat: SeatItem, e: MouseEvent) => {
+  const rect = (e.target as HTMLElement).getBoundingClientRect()
+  hovered.value = { seat, x: rect.left + rect.width / 2, y: rect.top - 8 }
+}
 
 onMounted(load)
 </script>
@@ -75,32 +97,53 @@ onMounted(load)
   <div class="seat-section">
     <div class="stage-bar">STAGE</div>
 
-    <div v-if="loading" style="text-align:center;opacity:.5;padding:1rem;">Loading seats...</div>
+    <div v-if="loading" class="loading-msg">Loading seats...</div>
 
-    <div v-else class="seat-grid">
-      <div
-        v-for="seat in seats"
-        :key="seat.inventoryId"
-        class="seat-card"
-        :class="cellClass(seat)"
-        @click="select(seat)"
-      >
-        <span class="seat-id">{{ seat.rowNumber }}-{{ seat.seatNumber }}</span>
-        <span class="seat-status">{{ seat.status === 'AVAILABLE' ? 'Open' : seat.status === 'HELD' ? 'Held' : 'Sold' }}</span>
+    <div v-else class="venue-wrap">
+      <div v-for="{ row, seats: rowSeats } in seatsByRow" :key="row" class="seat-row">
+        <span class="row-label">{{ row }}</span>
+        <div class="dots-wrap">
+          <div
+            v-for="seat in rowSeats"
+            :key="seat.inventoryId"
+            class="dot"
+            :class="dotClass(seat)"
+            @click="select(seat)"
+            @mouseenter="onMouseEnter(seat, $event)"
+            @mouseleave="hovered = null"
+          />
+        </div>
+        <span class="row-label">{{ row }}</span>
       </div>
     </div>
 
     <div class="legend">
-      <span class="legend-item available-l"><span class="dot" />Available</span>
-      <span class="legend-item held-l"><span class="dot" />Held</span>
-      <span class="legend-item sold-l"><span class="dot" />Sold</span>
-      <span class="legend-item picked-l"><span class="dot" />Your pick</span>
+      <span class="legend-item"><span class="dot-legend available-l" />Available</span>
+      <span class="legend-item"><span class="dot-legend held-l" />Held</span>
+      <span class="legend-item"><span class="dot-legend sold-l" />Sold</span>
+      <span class="legend-item"><span class="dot-legend picked-l" />Your pick</span>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="hovered"
+        class="seat-tooltip"
+        :style="{ left: hovered.x + 'px', top: hovered.y + 'px' }"
+      >
+        <strong>Row {{ hovered.seat.rowNumber }} · Seat {{ hovered.seat.seatNumber }}</strong>
+        <span class="tooltip-price">${{ hovered.seat.price }}</span>
+        <span class="tooltip-status">{{ hovered.seat.status === 'AVAILABLE' ? 'Available' : hovered.seat.status === 'HELD' ? 'Held' : 'Sold' }}</span>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
-.seat-section { display: grid; gap: .75rem; }
+.seat-section {
+  display: grid;
+  gap: .75rem;
+  user-select: none;
+}
 
 .stage-bar {
   text-align: center;
@@ -113,83 +156,122 @@ onMounted(load)
   opacity: .5;
 }
 
-.seat-grid {
+.loading-msg {
+  text-align: center;
+  opacity: .5;
+  padding: 1rem;
+  font-size: .85rem;
+}
+
+.venue-wrap {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
+  overflow-x: auto;
+  padding: .25rem 0;
 }
 
-@media (max-width: 480px) {
-  .seat-grid { grid-template-columns: repeat(4, 1fr); }
-}
-
-.seat-card {
+.seat-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: .45rem .3rem;
-  border-radius: .35rem;
-  border: 1.5px solid rgba(255,255,255,.1);
+  gap: 8px;
+}
+
+.row-label {
+  font-size: .7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,.35);
+  width: 1.4rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dots-wrap {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
   cursor: default;
-  transition: border-color .15s, background .15s;
+  transition: transform .1s, opacity .1s;
 }
 
-.seat-id {
-  font-size: .78rem;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.seat-status {
-  font-size: .62rem;
-  opacity: .6;
-}
-
-.seat-card.available {
-  border-color: #22c55e;
+.dot-available {
+  background: #3b82f6;
   cursor: pointer;
 }
-.seat-card.available:hover { background: rgba(34,197,94,.12); }
-.seat-card.available .seat-status { color: #86efac; }
-
-.seat-card.held {
-  border-color: #eab308;
-  opacity: .7;
-}
-.seat-card.held .seat-status { color: #fde047; }
-
-.seat-card.sold {
-  border-color: rgba(255,255,255,.08);
-  opacity: .35;
+.dot-available:hover {
+  transform: scale(1.3);
+  background: #60a5fa;
 }
 
-.seat-card.picked {
-  border-color: #2563eb;
-  background: rgba(37,99,235,.25);
+.dot-held {
+  background: #eab308;
+  opacity: .8;
 }
-.seat-card.picked .seat-id { color: #93c5fd; }
+
+.dot-sold {
+  background: rgba(255,255,255,.15);
+  opacity: .4;
+}
+
+.dot-picked {
+  background: #22c55e;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(34,197,94,.4);
+  transform: scale(1.2);
+}
 
 .legend {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
   font-size: .75rem;
-  opacity: .7;
+  opacity: .65;
 }
 
-.legend-item { display: flex; align-items: center; gap: .35rem; }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
 
-.dot {
+.dot-legend {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
-  border: 1.5px solid;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
+.available-l { background: #3b82f6; }
+.held-l { background: #eab308; }
+.sold-l { background: rgba(255,255,255,.2); }
+.picked-l { background: #22c55e; }
+</style>
 
-.available-l .dot { border-color: #22c55e; }
-.held-l .dot { border-color: #eab308; }
-.sold-l .dot { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.05); }
-.picked-l .dot { border-color: #2563eb; background: rgba(37,99,235,.3); }
+<style>
+.seat-tooltip {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  background: #fff;
+  color: #111;
+  border-radius: .5rem;
+  padding: .5rem .75rem;
+  font-size: .8rem;
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  white-space: nowrap;
+}
+.seat-tooltip strong { font-size: .85rem; }
+.seat-tooltip .tooltip-price { font-weight: 700; color: #2563eb; }
+.seat-tooltip .tooltip-status { font-size: .72rem; color: #6b7280; }
 </style>
