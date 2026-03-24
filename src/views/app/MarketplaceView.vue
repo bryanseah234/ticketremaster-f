@@ -91,7 +91,7 @@ const loadListings = async () => {
       listingId: item.listingId || item.listing_id || item.id,
       seatId: item.ticketId || item.ticket_id || '-',
       price: Number(item.price || 0),
-      status: item.status || 'ACTIVE',
+      status: (item.status || 'ACTIVE').toUpperCase(),
       sellerId: item.sellerId || item.seller_id,
       createdAt: item.createdAt || item.created_at,
       eventName: item.event?.name || item.eventName,
@@ -130,7 +130,7 @@ const listTicket = async () => {
   }
   listLoading.value = true
   try {
-    const { data } = await api.post('/marketplace/list', { ticketId: listTicketId.value })
+    const { data } = await api.post('/marketplace/list', { ticketId: listTicketId.value, price: listPrice.value })
     toast.push(data?.data?.message || 'Listing created.', 'success', 3200)
     listTicketId.value = ''
     listPrice.value = 120

@@ -68,12 +68,7 @@ const loadTransactions = async () => {
   }
 }
 
-const logout = async () => {
-  try {
-    await api.post('/auth/logout')
-  } catch {
-    // no-op
-  }
+const logout = () => {
   auth.clearSession()
   router.push('/login')
 }
