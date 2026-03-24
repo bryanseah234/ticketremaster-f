@@ -44,10 +44,19 @@ const load = async () => {
   usingFallback.value = false
   toast.push('Loading events...', 'info', 1600)
   try {
-    const { data } = await api.get('/events', { params: { page: page.value, per_page: 20, date: dateFilter.value || undefined } })
-    const items = data?.data || []
+    const { data } = await api.get('/events', { params: { page: page.value, limit: 20, date: dateFilter.value || undefined } })
+    const raw = data?.data?.events || data?.data || []
+    const items = raw.map((e: any) => ({
+      event_id: e.eventId || e.event_id,
+      name: e.name,
+      event_date: e.date || e.event_date || e.eventDate,
+      image: e.image,
+      venue: e.venue ? { name: e.venue.name, city: e.venue.city || e.venue.address } : undefined,
+      pricing_tiers: e.pricingTiers || e.pricing_tiers || (e.price != null ? [{ category: 'GA', price: e.price }] : []),
+    }))
     events.value = items
-    totalPages.value = data?.pagination?.total_pages || 1
+    const pagination = data?.data?.pagination || data?.pagination || {}
+    totalPages.value = pagination.totalPages || pagination.total_pages || 1
     localStorage.setItem(buildCacheKey(), JSON.stringify({ items, totalPages: totalPages.value }))
   } catch {
     const cached = localStorage.getItem(buildCacheKey())

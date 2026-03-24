@@ -44,15 +44,14 @@ watch([loading, tickets], ([isLoading, items]) => {
     <p class="section-subtitle">Manage ownership, QR entry pass, and transfer actions.</p>
 
     <div class="grid-3">
-      <article v-for="t in tickets" :key="t.seat_id" class="glass" style="padding:1rem;display:grid;gap:.45rem;">
+      <article v-for="t in tickets" :key="t.ticketId" class="glass" style="padding:1rem;display:grid;gap:.45rem;">
         <span class="badge">{{ t.status || 'ACTIVE' }}</span>
         <h3>{{ t.event?.name }}</h3>
         <p class="small">{{ t.event?.event_date ? new Date(t.event.event_date).toLocaleString() : 'Date TBA' }}</p>
-        <p class="small">Row {{ t.row_number }} · Seat {{ t.seat_number }}</p>
-        <p class="small">Paid ${{ t.price_paid ?? '—' }} · Purchased {{ formatDate(t.purchased_at) }}</p>
+        <p class="small">Paid ${{ t.price ?? '—' }} · Purchased {{ formatDate(t.createdAt) }}</p>
         <div class="row">
-          <RouterLink :to="`/tickets/${t.seat_id}`"><button>Show QR</button></RouterLink>
-          <RouterLink :to="`/tickets/${t.seat_id}/transfer`"><button class="secondary">Transfer</button></RouterLink>
+          <RouterLink :to="`/tickets/${t.ticketId}`"><button>Show QR</button></RouterLink>
+          <RouterLink :to="`/tickets/${t.ticketId}/transfer`"><button class="secondary">Transfer</button></RouterLink>
         </div>
       </article>
     </div>

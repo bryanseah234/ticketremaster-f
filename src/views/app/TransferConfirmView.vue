@@ -28,12 +28,12 @@ const role = computed(() => isSeller.value ? 'seller' : 'buyer')
 // Steps differ by role
 const buyerSteps = [
   { key: 'pending_buyer_otp', label: 'Your verification' },
-  { key: 'pending_acceptance', label: 'Pending Seller Acceptance' },
+  { key: 'pending_seller_acceptance', label: 'Pending Seller Acceptance' },
   { key: 'pending_seller_otp', label: 'Pending Seller Verification' },
   { key: 'completed', label: 'Transaction Completed' },
 ]
 const sellerSteps = [
-  { key: 'pending_acceptance', label: 'Accept request' },
+  { key: 'pending_seller_acceptance', label: 'Accept request' },
   { key: 'pending_seller_otp', label: 'Your verification' },
   { key: 'completed', label: 'Transaction Completed' },
 ]
@@ -47,7 +47,23 @@ const stepIndex = computed(() => {
 const loadTransfer = async () => {
   try {
     const { data } = await api.get(`/transfer/${route.params.transferId}`)
-    transfer.value = data?.data || data || null
+    const raw = data?.data || data || null
+    if (raw) {
+      // Normalise camelCase from backend to what the template expects
+      transfer.value = {
+        ...raw,
+        status: raw.status,
+        seller_id: raw.sellerId || raw.seller_id,
+        buyer_id: raw.buyerId || raw.buyer_id,
+        credit_amount: raw.creditAmount || raw.credit_amount,
+        completed_at: raw.completedAt || raw.completed_at,
+        event_name: raw.eventName || raw.event_name,
+        event_date: raw.eventDate || raw.event_date,
+        venue_name: raw.venueName || raw.venue_name,
+        seat_row: raw.seatRow || raw.seat_row,
+        seat_number: raw.seatNumber || raw.seat_number,
+      }
+    }
   } catch {
     if (!transfer.value) {
       transfer.value = {
@@ -67,12 +83,12 @@ const loadTransfer = async () => {
 const submitBuyerOtp = async () => {
   loading.value = true
   try {
-    const { data } = await api.post(`/transfer/${route.params.transferId}/verify-buyer-otp`, { otp_code: otp.value })
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_acceptance' }
+    const { data } = await api.post(`/transfer/${route.params.transferId}/buyer-verify`, { otp: otp.value })
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_acceptance' }
     otp.value = ''
     toast.push('OTP verified. Waiting for seller to accept.', 'success', 3200)
   } catch {
-    transfer.value = { ...transfer.value, status: 'pending_acceptance' }
+    transfer.value = { ...transfer.value, status: 'pending_seller_acceptance' }
     otp.value = ''
     toast.push('OTP verified. Waiting for seller to accept.', 'success', 3200)
   } finally {
@@ -83,7 +99,7 @@ const submitBuyerOtp = async () => {
 const requestSellerOtp = async () => {
   loading.value = true
   try {
-    const { data } = await api.post(`/transfer/${route.params.transferId}/accept`)
+    const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
     toast.push('OTP sent to your phone.', 'success', 3200)
   } catch {
@@ -97,8 +113,8 @@ const requestSellerOtp = async () => {
 const submitSellerOtp = async () => {
   loading.value = true
   try {
-    const { data } = await api.post(`/transfer/${route.params.transferId}/verify-seller-otp`, { otp_code: otp.value })
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completed_at: new Date().toISOString() }
+    const { data } = await api.post(`/transfer/${route.params.transferId}/seller-verify`, { otp: otp.value })
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completed_at: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
@@ -194,12 +210,12 @@ onUnmounted(() => clearInterval(pollTimer))
           </div>
 
           <!-- Buyer: waiting for seller -->
-          <div v-else-if="status === 'pending_acceptance' || status === 'pending_seller_otp'" class="step-panel">
+          <div v-else-if="status === 'pending_seller_acceptance' || status === 'pending_seller_otp'" class="step-panel">
             <h2 class="step-heading">Waiting for seller</h2>
             <p class="small muted">Your identity has been verified. The seller has been notified and is completing their side of the transfer.</p>
             <div class="waiting-indicator">
               <div class="pulse-dot" />
-              <span class="small">{{ status === 'pending_acceptance' ? 'Awaiting seller acceptance...' : 'Awaiting seller verification...' }}</span>
+              <span class="small">{{ status === 'pending_seller_acceptance' ? 'Awaiting seller acceptance...' : 'Awaiting seller verification...' }}</span>
             </div>
           </div>
         </template>
@@ -207,7 +223,7 @@ onUnmounted(() => clearInterval(pollTimer))
         <!-- ── SELLER VIEWS ── -->
         <template v-else>
           <!-- Seller: waiting for buyer / request OTP -->
-          <div v-if="status === 'pending_buyer_otp' || status === 'pending_acceptance'" class="step-panel">
+          <div v-if="status === 'pending_buyer_otp' || status === 'pending_seller_acceptance'" class="step-panel">
             <div v-if="status === 'pending_buyer_otp'" class="waiting-indicator">
               <div class="pulse-dot" />
               <span class="small">Waiting for buyer to verify their identity...</span>

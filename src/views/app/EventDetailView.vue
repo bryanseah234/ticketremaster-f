@@ -81,26 +81,8 @@ const load = async () => {
 }
 
 const handlePurchase = async (seatId: string, date: string) => {
-  try {
-    const { data } = await api.post('/reserve', { seat_id: seatId, user_id: auth.state.user?.user_id })
-    const orderId = data?.data?.order_id || ''
-    if (orderId) {
-      localStorage.setItem('pending_order', JSON.stringify({
-        order_id: orderId,
-        event_id: route.params.eventId,
-        event: { name: eventData.value?.name, event_date: date },
-        seat: { seat_id: seatId },
-      }))
-      router.push(`/checkout/${orderId}`)
-    }
-  } catch (e: any) {
-    const code = e?.response?.data?.error_code
-    const msg = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD' ? 'Seat unavailable, please choose another.'
-      : code === 'SEAT_NOT_FOUND' ? 'Seat not found.'
-      : code === 'EVENT_ENDED' ? 'Event ended.'
-      : 'Reserve failed.'
-    toast.push(msg, 'error', 3200)
-  }
+  // Redirect to seat selection page — proper flow for picking and holding a seat
+  router.push(`/events/${route.params.eventId}/seats`)
 }
 
 onMounted(load)

@@ -29,10 +29,21 @@ const loadSeats = async () => {
   usingFallback.value = false
   toast.push('Loading seats...', 'info', 1600)
   try {
-    const { data } = await api.get(`/events/${route.params.eventId}`)
-    seats.value = data?.data?.seats || []
+    const { data } = await api.get(`/events/${route.params.eventId}/seats`)
+    const raw = data?.data?.seats || []
+    seats.value = raw.map((s: any) => ({
+      inventory_id: s.inventoryId || s.inventory_id,
+      seat_id: s.seatId || s.seat_id,
+      row_number: s.rowNumber || s.row_number,
+      seat_number: s.seatNumber || s.seat_number,
+      status: (s.status || 'available').toUpperCase(),
+      category: s.category || 'GA',
+      price: s.price || 0,
+      held_until: s.heldUntil || s.held_until,
+    }))
   } catch {
     seats.value = Array.from({ length: 120 }).map((_, index) => ({
+      inventory_id: `demo-inv-${index + 1}`,
       seat_id: `demo-seat-${index + 1}`,
       row_number: String.fromCharCode(65 + Math.floor(index / 10)),
       seat_number: (index % 10) + 1,
@@ -54,40 +65,39 @@ const reserveSeat = async () => {
   }
   if (!selectedSeat.value || !auth.state.user) return
   try {
-    const { data } = await api.post('/reserve', { seat_id: selectedSeat.value.seat_id, user_id: auth.state.user.user_id })
-    holdSeconds.value = data?.data?.ttl_seconds || 300
+    const inventoryId = selectedSeat.value.inventory_id
+    const { data } = await api.post(`/purchase/hold/${inventoryId}`)
+    const heldUntil = data?.data?.heldUntil || data?.data?.held_until
+    holdSeconds.value = heldUntil
+      ? Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
+      : 300
     if (timer) clearInterval(timer)
     timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
-    orderId.value = data?.data?.order_id || ''
-    if (orderId.value) {
-      const pending = {
-        order_id: orderId.value,
-        event_id: route.params.eventId,
-        event: {
-          name: loading.value ? 'Loading...' : 'Taylor Swift SG', // Fallback name if needed
-          event_date: '2025-12-12T20:00:00Z'
-        },
-        seat: {
-          seat_id: selectedSeat.value.seat_id,
-          row_number: selectedSeat.value.row_number,
-          seat_number: selectedSeat.value.seat_number,
-          category: selectedSeat.value.category,
-          price: selectedSeat.value.price,
-        },
-      }
-      localStorage.setItem('pending_order', JSON.stringify(pending))
+    orderId.value = data?.data?.inventoryId || data?.data?.inventory_id || inventoryId
+    const pending = {
+      order_id: orderId.value,
+      inventory_id: orderId.value,
+      hold_token: data?.data?.holdToken || data?.data?.hold_token || '',
+      event_id: route.params.eventId,
+      seat: {
+        seat_id: selectedSeat.value.seat_id,
+        row_number: selectedSeat.value.row_number,
+        seat_number: selectedSeat.value.seat_number,
+        category: selectedSeat.value.category,
+        price: selectedSeat.value.price,
+      },
     }
+    localStorage.setItem('pending_order', JSON.stringify(pending))
+    toast.push('Seat held for 5 minutes.', 'success', 3200)
   } catch (e: any) {
-    const code = e?.response?.data?.error_code
+    const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
     const status = e?.response?.status
     const message = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD' ? 'Seat unavailable, please choose another.' :
       code === 'SEAT_NOT_FOUND' ? 'Seat not found.' :
         code === 'EVENT_ENDED' ? 'Event ended.' :
-          code === 'USER_NOT_FOUND' ? 'User not found.' :
-            code === 'INVALID_UUID' ? 'Invalid event or seat ID.' :
-              status === 409 ? 'Seat unavailable, please choose another.' :
-                status === 410 ? 'Event ended or hold expired.' :
-                  'Reserve failed.'
+          status === 409 ? 'Seat unavailable, please choose another.' :
+            status === 410 ? 'Event ended or hold expired.' :
+              'Reserve failed.'
     toast.push(message, 'error', 3200)
   }
 }
