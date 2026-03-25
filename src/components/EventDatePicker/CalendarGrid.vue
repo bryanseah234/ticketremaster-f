@@ -56,9 +56,9 @@ const select = (day: number) => {
   <div class="calendar">
     <!-- Month navigation -->
     <div class="cal-header">
-      <button class="nav-btn" :disabled="!canGoPrev" @click="prev">&#8249;</button>
+      <button class="nav-btn" :disabled="!canGoPrev" @click="prev">&#10094;</button>
       <span class="month-label">{{ monthLabel }}</span>
-      <button class="nav-btn" @click="next">&#8250;</button>
+      <button class="nav-btn" @click="next">&#10095;</button>
     </div>
 
     <!-- Weekday headers -->
@@ -115,14 +115,15 @@ const select = (day: number) => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,.15);
-  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border, rgba(255,255,255,.15));
+  background: var(--surface, rgba(255,255,255,.06));
   cursor: pointer;
-  font-size: 1.3rem;
-  line-height: 1;
-  color: inherit;
-  display: grid;
-  place-items: center;
+  color: var(--text, #fff);
+  font-size: .9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background .15s;
 }
 .nav-btn:hover:not(:disabled) { background: rgba(255,255,255,.14); }

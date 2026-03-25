@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketremaster-v2'
+const CACHE_NAME = 'ticketremaster-v3'
 const ASSETS = ['/', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
@@ -21,17 +21,13 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  // NEVER cache API or proxy routes!
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/') || event.request.url.includes('/proxy/')) {
-    event.respondWith(
-      fetch(event.request).catch(err => {
-        console.error('Service Worker Fetch Failed:', err)
-        return new Response(JSON.stringify({ error: { message: "Network Error" } }), {
-          status: 408,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      })
-    )
+  const url = new URL(event.request.url)
+  const isSameOrigin = url.origin === self.location.origin
+  const isApiPath = url.pathname.includes('/api/') || url.pathname.includes('/proxy/')
+
+  // NEVER intercept: non-GET requests, cross-origin API calls (direct orchestrator ports), or known API paths
+  if (event.request.method !== 'GET' || !isSameOrigin || isApiPath) {
+    // Pass through directly — do NOT return a fallback 408 response on failure
     return
   }
 
