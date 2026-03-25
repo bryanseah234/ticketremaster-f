@@ -144,8 +144,6 @@ onMounted(() => {
         <article class="glass card">
           <h2 class="card-title">Actions</h2>
           <div class="actions-list">
-            <RouterLink to="/tickets"><button class="secondary full-width">My Tickets</button></RouterLink>
-            <RouterLink to="/marketplace"><button class="secondary full-width">Marketplace</button></RouterLink>
             <button class="danger full-width" @click="logout">Log Out</button>
           </div>
         </article>

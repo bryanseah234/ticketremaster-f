@@ -137,6 +137,18 @@ api.interceptors.response.use(
       }
     }
 
+    // If the current user's own record returns 404, their account no longer exists — force logout
+    if (status === 404) {
+      const auth = useAuthStore()
+      const userId = auth.state.user?.userId
+      const url = resolveUrl(error.config)
+      if (userId && url.includes(`/users/${userId}`)) {
+        auth.clearSession()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+    }
+
     // Map common HTTP errors to user-facing messages
     if (status && status >= 400) {
       const codeMessage = errorCode === 'SEAT_UNAVAILABLE' ? 'Seat is currently unavailable.' :

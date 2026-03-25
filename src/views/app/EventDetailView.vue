@@ -33,6 +33,7 @@ const pickerEvent = computed(() => {
     venueAddress: eventData.value.venue?.address || '',
     type: eventData.value.type || 'Event',
     price: firstPrice,
+    image: eventData.value.image || null,
     availableDates,
   }
 })

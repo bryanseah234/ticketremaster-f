@@ -14,6 +14,8 @@ const otp = ref('')
 const loading = ref(false)
 const resendLoading = ref(false)
 const showSuccessBanner = ref(false)
+const otpError = ref('')
+const otpAttempts = ref(0)
 
 const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
 
@@ -79,13 +81,17 @@ const loadTransfer = async () => {
 
 const submitBuyerOtp = async () => {
   loading.value = true
+  otpError.value = ''
   try {
     const { data } = await api.post(`/transfer/${route.params.transferId}/buyer-verify`, { otp: otp.value })
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
     otp.value = ''
+    otpAttempts.value = 0
     toast.push('OTP verified. Waiting for seller to confirm.', 'success', 3200)
   } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'OTP incorrect or expired.', 'error', 3200)
+    otpAttempts.value++
+    otp.value = ''
+    otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
   } finally {
     loading.value = false
   }
@@ -119,14 +125,18 @@ const rejectTransfer = async () => {
 
 const submitSellerOtp = async () => {
   loading.value = true
+  otpError.value = ''
   try {
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-verify`, { otp: otp.value })
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
+    otpAttempts.value = 0
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
   } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'OTP incorrect or expired.', 'error', 3200)
+    otpAttempts.value++
+    otp.value = ''
+    otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
   } finally {
     loading.value = false
   }
@@ -208,9 +218,11 @@ onUnmounted(() => clearInterval(pollTimer))
             <h2 class="step-heading">Verify your identity</h2>
             <p class="small muted">The seller has accepted. Enter the OTP sent to your phone to confirm this purchase.</p>
             <div class="otp-row">
-              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" @keyup.enter="submitBuyerOtp" />
+              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" :class="['otp-input', otpError && 'otp-input-error']" @keyup.enter="submitBuyerOtp" @input="otpError = ''" />
               <button :disabled="loading || otp.length < 4" @click="submitBuyerOtp">{{ loading ? 'Verifying...' : 'Verify' }}</button>
             </div>
+            <p v-if="otpError" class="otp-error-msg">{{ otpError }}</p>
+            <p v-if="otpAttempts >= 3" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
             <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
             </button>
@@ -254,9 +266,11 @@ onUnmounted(() => clearInterval(pollTimer))
             <h2 class="step-heading">Verify your identity</h2>
             <p class="small muted">Enter the OTP sent to your phone to confirm you are releasing this ticket.</p>
             <div class="otp-row">
-              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" @keyup.enter="submitSellerOtp" />
+              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" :class="['otp-input', otpError && 'otp-input-error']" @keyup.enter="submitSellerOtp" @input="otpError = ''" />
               <button :disabled="loading || otp.length < 4" @click="submitSellerOtp">{{ loading ? 'Verifying...' : 'Confirm' }}</button>
             </div>
+            <p v-if="otpError" class="otp-error-msg">{{ otpError }}</p>
+            <p v-if="otpAttempts >= 3" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
             <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
             </button>
@@ -352,7 +366,9 @@ onUnmounted(() => clearInterval(pollTimer))
 .step-heading { font-size: 1.15rem; font-weight: 700; }
 
 .otp-row { display: flex; gap: .6rem; }
-.otp-input { flex: 1; letter-spacing: .2em; font-size: 1.1rem; text-align: center; }
+.otp-input { flex: 1; letter-spacing: .2em; font-size: 1.1rem; text-align: center; transition: border-color .15s; }
+.otp-input-error { border-color: #f87171 !important; }
+.otp-error-msg { color: #f87171; font-size: .85rem; margin: 0; }
 .resend-btn { font-size: .85rem; padding: .4rem .85rem; justify-self: start; }
 
 .waiting-indicator { display: flex; align-items: center; gap: .75rem; padding: .9rem; background: var(--surface-2); border-radius: .75rem; }

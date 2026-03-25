@@ -155,7 +155,7 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
   <div class="edp">
     <!-- Event header -->
     <div class="event-header glass">
-      <div class="event-img" :style="event.image ? `background-image:url(${event.image})` : ''" />
+      <img class="event-img" :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'" :alt="event.name" @error="(e: any) => e.target.src = 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'" />
       <div class="event-meta">
         <span class="badge">{{ event.type }}</span>
         <h1 class="event-name">{{ event.name }}</h1>
@@ -232,7 +232,7 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
   width: 80px;
   height: 80px;
   border-radius: .45rem;
-  background: rgba(37,99,235,.25) center/cover no-repeat;
+  object-fit: cover;
   flex-shrink: 0;
 }
 
