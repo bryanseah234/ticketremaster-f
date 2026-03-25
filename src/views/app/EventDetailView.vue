@@ -85,21 +85,30 @@ onMounted(load)
     <article v-if="notFound" class="glass" style="padding:1rem;">Event not found.</article>
 
     <template v-else-if="eventData">
-      <article class="glass" style="padding:1rem;margin-bottom:1rem;display:grid;gap:.5rem;">
-        <h1>{{ eventData.name }}</h1>
-        <p class="small">{{ eventData.eventDate }} · {{ eventData.venue?.name }}</p>
-        <div class="row">
-          <span v-for="[cat, price] in Object.entries(eventData.pricingTiers || {})" :key="cat" class="badge">{{ cat }} · ${{ price }}</span>
-        </div>
-      </article>
+      <div class="content-col">
+        <article class="glass" style="padding:1rem;display:grid;gap:.5rem;">
+          <h1>{{ eventData.name }}</h1>
+          <p class="small">{{ eventData.eventDate }} · {{ eventData.venue?.name }}</p>
+          <div class="row">
+            <span v-for="[cat, price] in Object.entries(eventData.pricingTiers || {})" :key="cat" class="badge">{{ cat }} · ${{ price }}</span>
+          </div>
+        </article>
 
-      <EventDatePicker
-        v-if="pickerEvent"
-        :event="pickerEvent"
-      />
+        <EventDatePicker
+          v-if="pickerEvent"
+          :event="pickerEvent"
+        />
+      </div>
     </template>
   </section>
 </template>
 
 <style scoped>
+.content-col {
+  display: grid;
+  gap: 1rem;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
 </style>

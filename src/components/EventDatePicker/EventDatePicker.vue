@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import dayjs from 'dayjs'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
@@ -32,6 +32,23 @@ const selectedInventoryId = ref<string | null>(null)
 const holdSeconds = ref(0)
 const holding = ref(false)
 let holdTimer: number | undefined
+let proceedingToCheckout = false
+
+const releaseCurrentHold = async () => {
+  if (!selectedInventoryId.value) return
+  const raw = localStorage.getItem('pendingOrder')
+  const holdToken = raw ? (JSON.parse(raw).holdToken || '') : ''
+  try {
+    await api.delete(`/purchase/hold/${selectedInventoryId.value}`, { data: { holdToken } })
+  } catch {
+    // best-effort
+  }
+  selectedInventoryId.value = null
+  selectedSeat.value = null
+  holdSeconds.value = 0
+  if (holdTimer) clearInterval(holdTimer)
+  localStorage.removeItem('pendingOrder')
+}
 
 const currentStep = computed(() => {
   if (!showSeats.value) return 1
@@ -60,6 +77,10 @@ const onDateChange = (date: string) => {
 }
 
 const onSeatChange = async (seat: SeatItem) => {
+  // Release any existing hold before grabbing a new one
+  if (selectedInventoryId.value) {
+    await releaseCurrentHold()
+  }
   if (holdTimer) clearInterval(holdTimer)
   selectedSeat.value = seat
   selectedInventoryId.value = null
@@ -115,8 +136,17 @@ const goToSeats = () => {
 
 const confirmPurchase = () => {
   if (!selectedInventoryId.value) return
+  proceedingToCheckout = true
   router.push(`/checkout/${selectedInventoryId.value}`)
 }
+
+// Release hold if user navigates away without going to checkout
+onBeforeRouteLeave(async (_to, _from, next) => {
+  if (!proceedingToCheckout && selectedInventoryId.value) {
+    await releaseCurrentHold()
+  }
+  next()
+})
 
 onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
 </script>
@@ -188,7 +218,6 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
 .edp {
   display: grid;
   gap: 1rem;
-  max-width: 680px;
   width: 100%;
 }
 

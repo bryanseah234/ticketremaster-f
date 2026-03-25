@@ -51,7 +51,6 @@ watch([loading, tickets], ([isLoading, items]) => {
         <p class="small">Paid ${{ t.price ?? '—' }} · Purchased {{ formatDate(t.createdAt) }}</p>
         <div class="row">
           <RouterLink :to="`/tickets/${t.ticketId}`"><button>Show QR</button></RouterLink>
-          <RouterLink :to="`/tickets/${t.ticketId}/transfer`"><button class="secondary">Transfer</button></RouterLink>
         </div>
       </article>
     </div>
