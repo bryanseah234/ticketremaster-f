@@ -60,7 +60,7 @@ const loadTransactions = async () => {
   loadingTxns.value = true
   try {
     const { data } = await api.get('/credits/transactions')
-    transactions.value = data?.data || []
+    transactions.value = data?.data?.transactions || data?.data || []
   } catch {
     transactions.value = []
   } finally {
@@ -144,8 +144,6 @@ onMounted(() => {
         <article class="glass card">
           <h2 class="card-title">Actions</h2>
           <div class="actions-list">
-            <RouterLink to="/tickets"><button class="secondary full-width">My Tickets</button></RouterLink>
-            <RouterLink to="/marketplace"><button class="secondary full-width">Marketplace</button></RouterLink>
             <button class="danger full-width" @click="logout">Log Out</button>
           </div>
         </article>
@@ -176,7 +174,7 @@ onMounted(() => {
             <div v-for="txn in transactions" :key="txn.txnId || txn.id" class="txn-row">
               <div>
                 <p class="txn-label">{{ txnLabel(txn.reason) }}</p>
-                <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleDateString() : '—' }}</p>
+                <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' }) : '—' }}</p>
               </div>
               <span :class="['txn-amount', txn.delta > 0 ? 'positive' : 'negative']">
                 {{ txn.delta > 0 ? '+' : '' }}${{ Math.abs(txn.delta) }}

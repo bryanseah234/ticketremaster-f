@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
 const query = ref('')
-defineEmits<{ submit: [value: string] }>()
+const router = useRouter()
+
+const submit = () => {
+  const q = query.value.trim()
+  router.push(q ? `/events?search=${encodeURIComponent(q)}` : '/events')
+}
 </script>
 
 <template>
-  <form class="search" @submit.prevent="$emit('submit', query)">
-    <input v-model="query" placeholder="Search artists, events, venues" />
+  <form class="search" @submit.prevent="submit">
+    <input v-model="query" placeholder="Search artists, events, venues" @keyup.enter="submit" />
     <button type="submit">Search</button>
   </form>
 </template>
