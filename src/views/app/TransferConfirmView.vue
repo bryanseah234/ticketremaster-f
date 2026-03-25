@@ -14,28 +14,25 @@ const otp = ref('')
 const loading = ref(false)
 const resendLoading = ref(false)
 const showSuccessBanner = ref(false)
-const roleOverride = ref<'buyer' | 'seller' | null>(null)
 
-const status = computed(() => transfer.value?.status || 'pending_buyer_otp')
+const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
 
-// Determine role — fallback to buyer for demo; override available for testing
-const isSeller = computed(() => {
-  if (roleOverride.value) return roleOverride.value === 'seller'
-  return auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false
-})
+const isSeller = computed(() =>
+  auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false
+)
 const role = computed(() => isSeller.value ? 'seller' : 'buyer')
 
-// Steps differ by role
 const buyerSteps = [
+  { key: 'pending_seller_acceptance', label: 'Request sent' },
   { key: 'pending_buyer_otp', label: 'Your verification' },
-  { key: 'pending_seller_acceptance', label: 'Pending Seller Acceptance' },
-  { key: 'pending_seller_otp', label: 'Pending Seller Verification' },
-  { key: 'completed', label: 'Transaction Completed' },
+  { key: 'pending_seller_otp', label: 'Seller verification' },
+  { key: 'completed', label: 'Complete' },
 ]
 const sellerSteps = [
   { key: 'pending_seller_acceptance', label: 'Accept request' },
+  { key: 'pending_buyer_otp', label: 'Buyer verifying' },
   { key: 'pending_seller_otp', label: 'Your verification' },
-  { key: 'completed', label: 'Transaction Completed' },
+  { key: 'completed', label: 'Complete' },
 ]
 const steps = computed(() => isSeller.value ? sellerSteps : buyerSteps)
 
@@ -67,7 +64,7 @@ const loadTransfer = async () => {
   } catch {
     if (!transfer.value) {
       transfer.value = {
-        status: 'pending_buyer_otp',
+        status: 'pending_seller_acceptance',
         transferId: route.params.transferId,
         creditAmount: 180,
         eventName: 'Neon Skyline Festival',
@@ -84,27 +81,37 @@ const submitBuyerOtp = async () => {
   loading.value = true
   try {
     const { data } = await api.post(`/transfer/${route.params.transferId}/buyer-verify`, { otp: otp.value })
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_acceptance' }
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
     otp.value = ''
-    toast.push('OTP verified. Waiting for seller to accept.', 'success', 3200)
-  } catch {
-    transfer.value = { ...transfer.value, status: 'pending_seller_acceptance' }
-    otp.value = ''
-    toast.push('OTP verified. Waiting for seller to accept.', 'success', 3200)
+    toast.push('OTP verified. Waiting for seller to confirm.', 'success', 3200)
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'OTP incorrect or expired.', 'error', 3200)
   } finally {
     loading.value = false
   }
 }
 
-const requestSellerOtp = async () => {
+const acceptTransfer = async () => {
   loading.value = true
   try {
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
-    toast.push('OTP sent to your phone.', 'success', 3200)
-  } catch {
-    transfer.value = { ...transfer.value, status: 'pending_seller_otp' }
-    toast.push('OTP sent to your phone.', 'success', 3200)
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
+    toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'Could not accept transfer.', 'error', 3200)
+  } finally {
+    loading.value = false
+  }
+}
+
+const rejectTransfer = async () => {
+  loading.value = true
+  try {
+    await api.post(`/transfer/${route.params.transferId}/seller-reject`)
+    transfer.value = { ...transfer.value, status: 'cancelled' }
+    toast.push('Transfer rejected.', 'info', 3200)
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'Could not reject transfer.', 'error', 3200)
   } finally {
     loading.value = false
   }
@@ -118,11 +125,8 @@ const submitSellerOtp = async () => {
     otp.value = ''
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
-  } catch {
-    transfer.value = { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
-    otp.value = ''
-    showSuccessBanner.value = true
-    toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'OTP incorrect or expired.', 'error', 3200)
   } finally {
     loading.value = false
   }
@@ -177,13 +181,6 @@ onUnmounted(() => clearInterval(pollTimer))
         </div>
       </div>
 
-      <!-- Dev role toggle -->
-      <div class="dev-toggle">
-        <span class="small muted">Simulate as:</span>
-        <button :class="['toggle-btn', !isSeller ? 'active' : '']" @click="roleOverride = 'buyer'">Buyer</button>
-        <button :class="['toggle-btn', isSeller ? 'active' : '']" @click="roleOverride = 'seller'">Seller</button>
-      </div>
-
       <!-- Main card -->
       <article class="glass main-card">
         <div class="card-header">
@@ -196,45 +193,60 @@ onUnmounted(() => clearInterval(pollTimer))
 
         <!-- ── BUYER VIEWS ── -->
         <template v-if="!isSeller">
+          <!-- Buyer: waiting for seller to accept -->
+          <div v-if="status === 'pending_seller_acceptance'" class="step-panel">
+            <h2 class="step-heading">Request sent to seller</h2>
+            <p class="small muted">Your request is pending seller acceptance. You will be notified when they respond.</p>
+            <div class="waiting-indicator">
+              <div class="pulse-dot" />
+              <span class="small">Awaiting seller acceptance...</span>
+            </div>
+          </div>
+
           <!-- Buyer: enter OTP -->
-          <div v-if="status === 'pending_buyer_otp'" class="step-panel">
+          <div v-else-if="status === 'pending_buyer_otp'" class="step-panel">
             <h2 class="step-heading">Verify your identity</h2>
-            <p class="small muted">Enter the OTP sent to your phone to confirm this purchase.</p>
+            <p class="small muted">The seller has accepted. Enter the OTP sent to your phone to confirm this purchase.</p>
             <div class="otp-row">
-              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" />
-              <button :disabled="loading" @click="submitBuyerOtp">{{ loading ? 'Verifying...' : 'Verify' }}</button>
+              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" @keyup.enter="submitBuyerOtp" />
+              <button :disabled="loading || otp.length < 4" @click="submitBuyerOtp">{{ loading ? 'Verifying...' : 'Verify' }}</button>
             </div>
             <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
             </button>
           </div>
 
-          <!-- Buyer: waiting for seller -->
-          <div v-else-if="status === 'pending_seller_acceptance' || status === 'pending_seller_otp'" class="step-panel">
+          <!-- Buyer: waiting for seller OTP -->
+          <div v-else-if="status === 'pending_seller_otp'" class="step-panel">
             <h2 class="step-heading">Waiting for seller</h2>
-            <p class="small muted">Your identity has been verified. The seller has been notified and is completing their side of the transfer.</p>
+            <p class="small muted">Your identity has been verified. The seller is now confirming their side.</p>
             <div class="waiting-indicator">
               <div class="pulse-dot" />
-              <span class="small">{{ status === 'pending_seller_acceptance' ? 'Awaiting seller acceptance...' : 'Awaiting seller verification...' }}</span>
+              <span class="small">Awaiting seller verification...</span>
             </div>
           </div>
         </template>
 
         <!-- ── SELLER VIEWS ── -->
         <template v-else>
-          <!-- Seller: waiting for buyer / request OTP -->
-          <div v-if="status === 'pending_buyer_otp' || status === 'pending_seller_acceptance'" class="step-panel">
-            <div v-if="status === 'pending_buyer_otp'" class="waiting-indicator">
-              <div class="pulse-dot" />
-              <span class="small">Waiting for buyer to verify their identity...</span>
+          <!-- Seller: accept or reject -->
+          <div v-if="status === 'pending_seller_acceptance'" class="step-panel">
+            <h2 class="step-heading">A buyer wants your ticket</h2>
+            <p class="small muted">Review and accept or reject this transfer request. Accepting will send an OTP to the buyer to confirm the purchase.</p>
+            <div class="action-row">
+              <button :disabled="loading" @click="acceptTransfer">{{ loading ? 'Processing...' : 'Accept' }}</button>
+              <button class="secondary danger-btn" :disabled="loading" @click="rejectTransfer">Reject</button>
             </div>
-            <template v-else>
-              <h2 class="step-heading">A verified buyer wants your ticket</h2>
-              <p class="small muted">The buyer has confirmed their identity. Request an OTP to be sent to your phone to authorise this transfer.</p>
-              <button :disabled="loading" @click="requestSellerOtp">
-                {{ loading ? 'Sending OTP...' : 'Request OTP' }}
-              </button>
-            </template>
+          </div>
+
+          <!-- Seller: waiting for buyer OTP -->
+          <div v-else-if="status === 'pending_buyer_otp'" class="step-panel">
+            <h2 class="step-heading">Waiting for buyer</h2>
+            <p class="small muted">An OTP has been sent to the buyer. Waiting for them to verify.</p>
+            <div class="waiting-indicator">
+              <div class="pulse-dot" />
+              <span class="small">Awaiting buyer verification...</span>
+            </div>
           </div>
 
           <!-- Seller: enter OTP -->
@@ -242,8 +254,8 @@ onUnmounted(() => clearInterval(pollTimer))
             <h2 class="step-heading">Verify your identity</h2>
             <p class="small muted">Enter the OTP sent to your phone to confirm you are releasing this ticket.</p>
             <div class="otp-row">
-              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" />
-              <button :disabled="loading" @click="submitSellerOtp">{{ loading ? 'Verifying...' : 'Confirm' }}</button>
+              <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" class="otp-input" @keyup.enter="submitSellerOtp" />
+              <button :disabled="loading || otp.length < 4" @click="submitSellerOtp">{{ loading ? 'Verifying...' : 'Confirm' }}</button>
             </div>
             <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
@@ -369,7 +381,7 @@ onUnmounted(() => clearInterval(pollTimer))
 
 .muted { color: var(--muted); }
 
-.dev-toggle { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: rgba(255,255,255,.04); border: 1px dashed var(--border); border-radius: .75rem; }
-.toggle-btn { padding: .3rem .75rem; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: .82rem; cursor: pointer; }
-.toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.action-row { display: flex; gap: .75rem; flex-wrap: wrap; }
+.danger-btn { border-color: rgba(248,113,113,.4); color: #f87171; }
+.danger-btn:hover { background: rgba(248,113,113,.1); }
 </style>

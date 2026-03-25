@@ -82,8 +82,8 @@ api.interceptors.response.use(
     logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
-    const errorCode = error?.response?.data?.error_code
-    const errorMessage = error?.response?.data?.message
+    const errorCode = error?.response?.data?.error?.code || error?.response?.data?.error_code
+    const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message
     const original = error.config || {}
     const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
     if (isNetworkError || status === 502 || status === 503 || status === 504) {
