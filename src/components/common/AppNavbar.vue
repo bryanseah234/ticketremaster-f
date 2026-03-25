@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
+import { useSellerNotifications } from '@/composables/useSellerNotifications'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
+const { notifications, dismiss } = useSellerNotifications()
+const bellOpen = ref(false)
 const balance = ref<number | null>(null)
 const balanceLoading = ref(false)
 const balanceError = ref(false)
@@ -54,15 +58,24 @@ const scheduleBalance = () => {
   balanceTimer = window.setTimeout(fetchBalance, 250)
 }
 
-watch([() => auth.isLoggedIn, () => route.fullPath], () => {
-  mobileMenuOpen.value = false
-  if (!auth.isLoggedIn) {
+watch(() => auth.isLoggedIn, (loggedIn, wasLoggedIn) => {
+  if (loggedIn && !wasLoggedIn) scheduleBalance()
+  if (!loggedIn) {
     balance.value = null
     balanceError.value = false
-    return
   }
-  scheduleBalance()
-}, { immediate: true })
+})
+
+watch(() => route.fullPath, () => {
+  mobileMenuOpen.value = false
+  if (auth.isLoggedIn) scheduleBalance()
+})
+
+const goToTransfer = (transferId: string) => {
+  dismiss(transferId)
+  bellOpen.value = false
+  router.push(`/transfer/${transferId}`)
+}
 
 onMounted(() => {
   if (auth.isLoggedIn) scheduleBalance()
@@ -89,6 +102,35 @@ const balanceLabel = computed(() => {
       <!-- Desktop Navigation -->
       <div class="right-cluster desktop-only">
         <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
+
+        <!-- Notification Bell -->
+        <div v-if="auth.isLoggedIn" class="bell-wrap">
+          <button class="bell-btn" :class="{ 'bell-active': notifications.length }" @click="bellOpen = !bellOpen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span v-if="notifications.length" class="bell-badge">{{ notifications.length }}</span>
+          </button>
+          <Transition name="dropdown">
+            <div v-if="bellOpen" class="bell-dropdown">
+              <p v-if="!notifications.length" class="bell-empty">No pending requests</p>
+              <button
+                v-for="n in notifications"
+                :key="n.transferId"
+                class="bell-item"
+                @click="goToTransfer(n.transferId)"
+              >
+                <span class="bell-dot" />
+                <div>
+                  <p class="bell-title">Buyer wants your ticket</p>
+                  <p class="bell-sub">${{ n.creditAmount }} · {{ new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</p>
+                </div>
+              </button>
+            </div>
+          </Transition>
+        </div>
+
         <nav>
           <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
         </nav>
@@ -331,6 +373,102 @@ nav {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   color: #fed7aa;
 }
+
+/* Bell */
+.bell-wrap {
+  position: relative;
+}
+
+.bell-btn {
+  position: relative;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  padding: .35rem .45rem;
+  cursor: pointer;
+  color: rgba(255,255,255,.7);
+  display: flex;
+  align-items: center;
+  transition: background .15s;
+}
+.bell-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+.bell-btn.bell-active { color: #fb923c; border-color: rgba(251,146,60,.4); }
+
+.bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: .6rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.bell-dropdown {
+  position: absolute;
+  top: calc(100% + .6rem);
+  right: 0;
+  background: rgba(18,18,23,.97);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: .75rem;
+  min-width: 240px;
+  padding: .4rem 0;
+  box-shadow: 0 16px 40px rgba(0,0,0,.5);
+  z-index: 200;
+}
+
+.bell-empty {
+  padding: .6rem 1rem;
+  font-size: .82rem;
+  color: rgba(255,255,255,.4);
+}
+
+.bell-item {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: .6rem 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.bell-item:hover { background: rgba(255,255,255,.06); }
+
+.bell-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fb923c;
+  flex-shrink: 0;
+  margin-top: .3rem;
+}
+
+.bell-title {
+  font-size: .84rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.bell-sub {
+  font-size: .74rem;
+  color: rgba(255,255,255,.45);
+  margin: .1rem 0 0;
+}
+
+.dropdown-enter-active, .dropdown-leave-active { transition: opacity .15s, transform .15s; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
 
 
 /* Desktop breakpoint - 1025px and above */

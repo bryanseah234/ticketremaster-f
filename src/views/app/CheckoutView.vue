@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 
@@ -53,6 +53,26 @@ const loadBalance = async () => {
   }
 }
 
+const releaseHold = async () => {
+  const raw = localStorage.getItem('pendingOrder')
+  if (!raw) return
+  try {
+    const parsed = JSON.parse(raw)
+    const inventoryId = parsed?.inventoryId || route.params.orderId
+    const holdToken = parsed?.holdToken || ''
+    await api.delete(`/purchase/hold/${inventoryId}`, { data: { holdToken } })
+  } catch {
+    // best-effort
+  }
+  localStorage.removeItem('pendingOrder')
+}
+
+const cancel = async () => {
+  await releaseHold()
+  if (holdTimer) clearInterval(holdTimer)
+  router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
+}
+
 const pay = async () => {
   loading.value = true
   try {
@@ -86,6 +106,15 @@ const pay = async () => {
     loading.value = false
   }
 }
+
+// Release hold if user navigates away without completing purchase
+onBeforeRouteLeave(async (_to, _from, next) => {
+  if (!ticket.value) {
+    await releaseHold()
+  }
+  if (holdTimer) clearInterval(holdTimer)
+  next()
+})
 
 onMounted(() => {
   loadBalance()
@@ -145,7 +174,7 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
         <button :disabled="loading || !hasEnoughCredits" @click="pay">
           {{ loading ? 'Processing...' : 'Confirm Purchase' }}
         </button>
-        <RouterLink to="/events"><button class="secondary">Cancel</button></RouterLink>
+        <button class="secondary" @click="cancel">Cancel</button>
       </template>
 
     </article>

@@ -87,8 +87,9 @@ api.interceptors.response.use(
     logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
-    const errorCode = error?.response?.data?.error_code || error?.response?.data?.error?.code
-    const errorMessage = error?.response?.data?.message || error?.response?.data?.error?.message
+    const errorCode = error?.response?.data?.error?.code || error?.response?.data?.error_code
+    const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message
+    const original = error.config || {}
     const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
     
     if (isNetworkError || status === 502 || status === 503 || status === 504) {
@@ -103,6 +104,18 @@ api.interceptors.response.use(
       auth.clearSession()
       window.location.href = '/login'
       return Promise.reject(error)
+    }
+
+    // If the current user's own record returns 404, their account no longer exists — force logout
+    if (status === 404) {
+      const auth = useAuthStore()
+      const userId = auth.state.user?.userId
+      const url = resolveUrl(error.config)
+      if (userId && url.includes(`/users/${userId}`)) {
+        auth.clearSession()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
     }
 
     // Map common HTTP errors to user-facing messages

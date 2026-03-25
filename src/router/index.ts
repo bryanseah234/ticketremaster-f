@@ -9,7 +9,6 @@ import SeatSelectionView from '@/views/app/SeatSelectionView.vue'
 import CheckoutView from '@/views/app/CheckoutView.vue'
 import MyTicketsView from '@/views/app/MyTicketsView.vue'
 import TicketDetailView from '@/views/app/TicketDetailView.vue'
-import TransferInitiateView from '@/views/app/TransferInitiateView.vue'
 import TransferConfirmView from '@/views/app/TransferConfirmView.vue'
 import CreditTopupView from '@/views/app/CreditTopupView.vue'
 import ProfileView from '@/views/app/ProfileView.vue'
@@ -43,7 +42,6 @@ const routes = [
   { path: '/checkout/:orderId', component: CheckoutView, meta: { requiresAuth: true } },
   { path: '/tickets', component: MyTicketsView, meta: { requiresAuth: true } },
   { path: '/tickets/:ticketId', component: TicketDetailView, meta: { requiresAuth: true } },
-  { path: '/tickets/:ticketId/transfer', component: TransferInitiateView, meta: { requiresAuth: true } },
   { path: '/transfer/:transferId', component: TransferConfirmView }, // meta: { requiresAuth: true }
   { path: '/credits/topup', component: CreditTopupView, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfileView, meta: { requiresAuth: true } },
