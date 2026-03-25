@@ -2,43 +2,31 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
-// API base URL from env, with local fallback for development
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
-
-const api = axios.create({ baseURL })
+const api = axios.create()
 const apiKey = import.meta.env.VITE_KONG_API_KEY || ''
 
-let isRefreshing = false
-// Queue callbacks for requests waiting on a refreshed access token
-let queued: Array<(token: string | null) => void> = []
-let offlineNotified = false
-;(window as any).__apiOffline = false
-
-const flushQueue = (token: string | null) => {
-  queued.forEach((cb) => cb(token))
-  queued = []
-}
-
-const resolveUrl = (config: any) => {
-  const url = config?.url || ''
-  if (!url) return baseURL
-  if (url.startsWith('http')) return url
-  const base = config?.baseURL || baseURL
-  return `${String(base).replace(/\/$/, '')}/${String(url).replace(/^\//, '')}`
-}
+let offlineNotified = false;
+(window as any).__apiOffline = false
 
 const emitOffline = (message: string) => {
   if (offlineNotified) return
-  offlineNotified = true
-  ;(window as any).__apiOffline = true
+  offlineNotified = true;
+  (window as any).__apiOffline = true
   window.dispatchEvent(new CustomEvent('api:offline', { detail: { message } }))
 }
 
 const emitOnline = () => {
   if (!offlineNotified) return
-  offlineNotified = false
-  ;(window as any).__apiOffline = false
+  offlineNotified = false;
+  (window as any).__apiOffline = false
   window.dispatchEvent(new Event('api:online'))
+}
+
+const resolveUrl = (config: any) => {
+  const url = config?.url || ''
+  if (url.startsWith('http')) return url
+  const base = config?.baseURL || ''
+  return `${String(base).replace(/\/$/, '')}/${String(url).replace(/^\//, '')}`
 }
 
 const logApiError = (error: any) => {
@@ -46,8 +34,8 @@ const logApiError = (error: any) => {
   const headers = { ...(config?.headers || {}) }
   if (headers.Authorization) delete headers.Authorization
   const status = error?.response?.status
-  const errorCode = error?.response?.data?.error_code
-  const message = error?.response?.data?.message || error?.message
+  const errorCode = error?.response?.data?.error_code || error?.response?.data?.error?.code
+  const message = error?.response?.data?.message || error?.response?.data?.error?.message || error?.message
   const details = {
     method: String(config?.method || 'GET').toUpperCase(),
     url: resolveUrl(config),
@@ -62,7 +50,24 @@ const logApiError = (error: any) => {
   console.error('API error', details)
 }
 
+// Request Interceptor: Dynamically route requests to the correct Orchestrator
 api.interceptors.request.use((config) => {
+  const url = config.url || '';
+  
+  if (url.startsWith('/auth')) {
+    config.baseURL = import.meta.env.VITE_AUTH_ORCHESTRATOR_URL;
+  }
+  else if (url.startsWith('/events')) {
+    config.baseURL = import.meta.env.VITE_EVENT_ORCHESTRATOR_URL;
+  }
+  else if (url.startsWith('/credits')) config.baseURL = import.meta.env.VITE_CREDIT_ORCHESTRATOR_URL;
+  else if (url.startsWith('/tickets/purchase') || url.startsWith('/purchase')) config.baseURL = import.meta.env.VITE_TICKET_PURCHASE_ORCHESTRATOR_URL;
+  else if (url.startsWith('/qr') || url.startsWith('/verify-qr')) config.baseURL = import.meta.env.VITE_QR_ORCHESTRATOR_URL;
+  else if (url.startsWith('/marketplace')) config.baseURL = import.meta.env.VITE_MARKETPLACE_ORCHESTRATOR_URL;
+  else if (url.startsWith('/transfer')) config.baseURL = import.meta.env.VITE_TRANSFER_ORCHESTRATOR_URL;
+  else if (url.startsWith('/verify-ticket')) config.baseURL = import.meta.env.VITE_TICKET_VERIFICATION_ORCHESTRATOR_URL;
+  else config.baseURL = import.meta.env.VITE_EVENT_ORCHESTRATOR_URL; // fallback for /events, /venues, /tickets
+
   const auth = useAuthStore()
   if (auth.state.accessToken) {
     config.headers.Authorization = `Bearer ${auth.state.accessToken}`
@@ -76,65 +81,28 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => {
     emitOnline()
-    return response
+    return response;
   },
   async (error) => {
     logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
-    const errorCode = error?.response?.data?.error_code
-    const errorMessage = error?.response?.data?.message
-    const original = error.config || {}
+    const errorCode = error?.response?.data?.error_code || error?.response?.data?.error?.code
+    const errorMessage = error?.response?.data?.message || error?.response?.data?.error?.message
     const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
+    
     if (isNetworkError || status === 502 || status === 503 || status === 504) {
       emitOffline('Backend unavailable. Showing limited demo data.')
     }
 
-    // Refresh the access token once, then retry failed requests
-    if (status === 401 && !original._retry) {
+    // Since backend has no refresh tokens, we simply clear session and bounce to login
+    // Skip this for auth/login itself — wrong password returns 401 and should be handled in LoginView
+    const isLoginRequest = error?.config?.url?.includes('/auth/login')
+    if (status === 401 && !isLoginRequest) {
       const auth = useAuthStore()
-      if (!auth.state.refreshToken) {
-        auth.clearSession()
-        return Promise.reject(error)
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          queued.push((token) => {
-            if (!token) return reject(error)
-            original.headers = original.headers || {}
-            original.headers.Authorization = `Bearer ${token}`
-            resolve(api.request(original))
-          })
-        })
-      }
-
-      original._retry = true
-      isRefreshing = true
-      try {
-        const refreshResponse = await axios.post(`${baseURL}/auth/refresh`, null, {
-          headers: { Authorization: `Bearer ${auth.state.refreshToken}` },
-        })
-        const nextAccessToken = refreshResponse?.data?.data?.access_token
-        if (!nextAccessToken) throw new Error('Refresh token failed')
-        auth.setSession({
-          access_token: nextAccessToken,
-          refresh_token: auth.state.refreshToken,
-          user: auth.state.user!,
-        })
-        flushQueue(nextAccessToken)
-        original.headers = original.headers || {}
-        original.headers.Authorization = `Bearer ${nextAccessToken}`
-        return api.request(original)
-      } catch (refreshErr) {
-        logApiError(refreshErr)
-        flushQueue(null)
-        auth.clearSession()
-        window.location.href = '/login'
-        return Promise.reject(refreshErr)
-      } finally {
-        isRefreshing = false
-      }
+      auth.clearSession()
+      window.location.href = '/login'
+      return Promise.reject(error)
     }
 
     // Map common HTTP errors to user-facing messages
@@ -161,7 +129,7 @@ api.interceptors.response.use(
         ''
       const message = errorMessage || codeMessage ||
         (status === 429 ? 'You are doing that too fast. Please wait a moment before trying again.' :
-          status === 403 && !error?.response?.data?.error_code ? 'Access denied. Unusual activity detected.' :
+          status === 403 && !errorCode ? 'Access denied. Unusual activity detected.' :
           status === 401 ? 'Please login to continue.' :
           status === 402 ? 'Not enough credits for this action.' :
           status === 404 ? 'Requested data was not found.' :
