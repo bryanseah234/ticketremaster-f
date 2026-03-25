@@ -2,8 +2,23 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
-import { mockEvents } from '@/data/mockEvents'
 import { useToast } from '@/composables/useToast'
+
+const EVENT_TYPE_IMAGES: Record<string, string> = {
+  concert:   'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1200',
+  sports:    'https://images.unsplash.com/photo-1471295253337-3ceaaedca402?q=80&w=1200',
+  orchestra: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=1200',
+  classical: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=1200',
+  theatre:   'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=1200',
+  festival:  'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=1200',
+  default:   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1200',
+}
+
+const getEventImage = (type?: string, image?: string): string => {
+  // Only use the backend image if it's a real URL (not the example.com placeholders)
+  if (image && !image.includes('example.com')) return image
+  return EVENT_TYPE_IMAGES[type?.toLowerCase() ?? ''] ?? EVENT_TYPE_IMAGES.default
+}
 
 interface EventItem {
   eventId: string
@@ -53,7 +68,7 @@ const load = async () => {
       eventId: e.eventId || e.event_id,
       name: e.name,
       eventDate: e.date || e.eventDate || e.event_date,
-      image: e.image,
+      image: getEventImage(e.type, e.image),
       venue: e.venue ? { name: e.venue.name, city: e.venue.city || e.venue.address } : undefined,
       pricingTiers: e.pricingTiers || e.pricing_tiers || (e.price != null ? [{ category: 'GA', price: e.price }] : []),
     }))
@@ -68,8 +83,8 @@ const load = async () => {
       totalPages.value = parsed.totalPages || 1
       usingFallback.value = true
     } else {
-      usingFallback.value = true
-      events.value = mockEvents.slice(0, 20)
+      toast.push('Backend unavailable. No events could be loaded.', 'error', 3200)
+      events.value = []
       totalPages.value = 1
     }
   } finally {

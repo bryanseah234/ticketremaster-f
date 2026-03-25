@@ -14,4 +14,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+    proxy: {
+      '/proxy/auth': {
+        target: 'http://host.docker.internal:6010',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy\/auth/, '')
+      },
+      '/proxy/events': {
+        target: 'http://host.docker.internal:6001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy\/events/, '')
+      }
+    }
+  }
 })
