@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
+import { StreamBarcodeReader } from 'vue-barcode-reader'
 import api from '@/api/client'
-import { useToast } from '@/composables/useToast'
-
-const toast = useToast()
 
 type ScanResult = 'PASS' | 'FAILED' | 'WRONG_VENUE'
 
@@ -15,11 +13,6 @@ interface ScanRecord {
   time: string
 }
 
-const videoRef = ref<HTMLVideoElement | null>(null)
-const cameraActive = ref(false)
-const cameraError = ref('')
-const hasBarcodeDetector = typeof (window as any).BarcodeDetector !== 'undefined'
-
 const feedback = ref<{ result: ScanResult; message: string } | null>(null)
 const history = ref<ScanRecord[]>([])
 let recordSeq = 0
@@ -27,9 +20,6 @@ let recordSeq = 0
 const manualInput = ref('')
 const manualLoading = ref(false)
 
-let stream: MediaStream | null = null
-let scanInterval: number | undefined
-let detecting = false
 let lastQr = ''
 let lastQrTime = 0
 
@@ -47,61 +37,34 @@ const feedbackLabel = computed(() => {
     : 'FAILED'
 })
 
-const startCamera = async () => {
-  cameraError.value = ''
+const processQr = async (raw: string) => {
+  const qrHash = raw.includes('/ticket-qr/') ? raw.split('/ticket-qr/')[1].split('?')[0] : raw
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream
-      await videoRef.value.play()
-    }
-    cameraActive.value = true
-    if (hasBarcodeDetector) startScanLoop()
-  } catch {
-    cameraError.value = 'Camera access denied. Use manual entry below.'
-  }
-}
-
-const startScanLoop = () => {
-  // @ts-ignore — BarcodeDetector is a modern browser API not yet in TS lib
-  const detector = new BarcodeDetector({ formats: ['qr_code'] })
-  scanInterval = window.setInterval(async () => {
-    if (detecting || !videoRef.value || videoRef.value.readyState < 2) return
-    detecting = true
-    try {
-      const codes = await detector.detect(videoRef.value)
-      if (codes.length > 0) {
-        const qr: string = codes[0].rawValue
-        const now = Date.now()
-        if (qr !== lastQr || now - lastQrTime > 4000) {
-          lastQr = qr
-          lastQrTime = now
-          await processQr(qr)
-        }
-      }
-    } catch {}
-    detecting = false
-  }, 400)
-}
-
-const processQr = async (qrHash: string) => {
-  try {
-    await api.post('/tickets/verify', { qr_hash: qrHash })
+    await api.post('/scan/verify/scan', { qrHash })
     showFeedback('PASS', 'Check-in successful', qrHash)
   } catch (e: any) {
-    const code = e?.response?.data?.error_code
-    if (code === 'WRONG_VENUE') {
-      const venue = e?.response?.data?.correct_venue || 'another venue'
+    const code = e?.response?.data?.error?.code
+    if (code === 'WRONG_HALL') {
+      const venue = e?.response?.data?.error?.correctVenue?.name || 'another venue'
       showFeedback('WRONG_VENUE', `Redirect to: ${venue}`, qrHash)
     } else {
-      const msg = e?.response?.data?.message
+      const msg = e?.response?.data?.error?.message
         || (code === 'QR_EXPIRED' ? 'QR expired'
-          : code === 'TICKET_ALREADY_USED' ? 'Already scanned'
+          : code === 'ALREADY_CHECKED_IN' ? 'Already scanned'
           : code === 'TICKET_NOT_FOUND' ? 'Ticket not found'
           : 'Verification failed')
       showFeedback('FAILED', msg, qrHash)
     }
   }
+}
+
+const onDecode = (result: string) => {
+  if (!result) return
+  const now = Date.now()
+  if (result === lastQr && now - lastQrTime < 4000) return
+  lastQr = result
+  lastQrTime = now
+  processQr(result)
 }
 
 const showFeedback = (result: ScanResult, message: string, qrLabel: string) => {
@@ -121,20 +84,23 @@ const submitManual = async () => {
   if (!val) return
   manualLoading.value = true
   try {
-    await processQr(val)
+    await api.post('/scan/verify/manual', { ticketId: val })
+    showFeedback('PASS', 'Check-in successful', val)
     manualInput.value = ''
+  } catch (e: any) {
+    const code = e?.response?.data?.error?.code
+    const msg = e?.response?.data?.error?.message
+      || (code === 'ALREADY_CHECKED_IN' ? 'Already scanned'
+        : code === 'TICKET_NOT_FOUND' ? 'Ticket not found'
+        : code === 'QR_INVALID' ? 'Ticket not valid for entry'
+        : 'Verification failed')
+    showFeedback('FAILED', msg, val)
   } finally {
     manualLoading.value = false
   }
 }
 
 const clearHistory = () => { history.value = [] }
-
-onMounted(startCamera)
-onUnmounted(() => {
-  if (scanInterval) clearInterval(scanInterval)
-  stream?.getTracks().forEach(t => t.stop())
-})
 </script>
 
 <template>
@@ -149,23 +115,12 @@ onUnmounted(() => {
       <!-- Camera feed -->
       <article class="glass camera-card">
         <div class="camera-wrap">
-          <video ref="videoRef" class="camera-feed" muted playsinline />
+          <StreamBarcodeReader @decode="onDecode" />
 
           <!-- Scan feedback overlay -->
           <div v-if="feedback" class="feedback-overlay" :class="feedbackClass">
             <p class="feedback-label">{{ feedbackLabel }}</p>
             <p class="feedback-msg">{{ feedback.message }}</p>
-          </div>
-
-          <!-- States when camera is loading / unavailable -->
-          <div v-if="!cameraActive && !cameraError" class="camera-placeholder">
-            <p class="small">Starting camera…</p>
-          </div>
-          <div v-if="cameraError" class="camera-placeholder state-error">
-            <p class="small">{{ cameraError }}</p>
-          </div>
-          <div v-if="cameraActive && !hasBarcodeDetector" class="no-detector-notice">
-            <p class="small">Auto-scan not supported in this browser — use Chrome or Edge. Manual entry is available below.</p>
           </div>
         </div>
 
@@ -175,7 +130,7 @@ onUnmounted(() => {
           <div class="manual-row">
             <input
               v-model="manualInput"
-              placeholder="Ticket ID or QR hash"
+              placeholder="Ticket ID"
               @keydown.enter="submitManual"
             />
             <button :disabled="manualLoading || !manualInput.trim()" @click="submitManual">
@@ -236,24 +191,6 @@ onUnmounted(() => {
   border-radius: .5rem;
   overflow: hidden;
   background: #0b0b0d;
-  aspect-ratio: 4/3;
-}
-
-.camera-feed { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-.camera-placeholder {
-  position: absolute; inset: 0;
-  display: grid; place-items: center;
-  color: rgba(255,255,255,.5);
-}
-.state-error { background: rgba(239,68,68,.12); color: #fca5a5; }
-
-.no-detector-notice {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  padding: .5rem .75rem;
-  background: rgba(234,179,8,.18);
-  color: #fef08a;
-  text-align: center;
 }
 
 /* Feedback overlay */
@@ -263,6 +200,7 @@ onUnmounted(() => {
   align-items: center; justify-content: center;
   gap: .35rem;
   animation: fadein .12s ease;
+  pointer-events: none;
 }
 .feedback-pass  { background: rgba(34,197,94,.85); }
 .feedback-fail  { background: rgba(239,68,68,.85); }

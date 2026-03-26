@@ -9,8 +9,9 @@ const loading = ref(false)
 const toast = useToast()
 
 const fallbackTickets = [
-  { ticketId: 'demo-101', status: 'active', event: { name: 'Neon Skyline Festival', eventDate: '2026-04-12T20:00:00Z' }, rowNumber: 'B', seatNumber: 18, price: 120, createdAt: '2026-03-02T19:30:00Z' },
-  { ticketId: 'demo-102', status: 'active', event: { name: 'Midnight Bass District', eventDate: '2026-05-03T19:30:00Z' }, rowNumber: 'D', seatNumber: 9, price: 85, createdAt: '2026-02-18T14:20:00Z' },
+  { ticketId: 'demo-101', status: 'active', event: { name: 'Neon Skyline Festival', eventDate: '2026-04-12T20:00:00Z', image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=800' }, rowNumber: 'B', seatNumber: 18, price: 120, createdAt: '2026-03-02T19:30:00Z' },
+  { ticketId: 'demo-102', status: 'active', event: { name: 'Midnight Bass District', eventDate: '2026-05-03T19:30:00Z', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800' }, rowNumber: 'D', seatNumber: 9, price: 85, createdAt: '2026-02-18T14:20:00Z' },
+  { ticketId: 'demo-103', status: 'listed', event: { name: 'Jazz at Capitol', eventDate: '2026-06-08T19:00:00Z', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=800' }, rowNumber: 'A', seatNumber: 5, price: 110, createdAt: '2026-02-20T10:00:00Z' },
 ]
 
 const load = async () => {
@@ -39,21 +40,33 @@ const statusLabel = (s: string) => {
   const status = (s || '').toLowerCase()
   if (status === 'active') return 'Active'
   if (status === 'used') return 'Used'
-  if (status === 'listed') return 'Listed'
+  if (status === 'listed') return 'Listed on Marketplace'
   if (status === 'pending_transfer') return 'In Transfer'
   if (status === 'transferred') return 'Transferred'
   return s || 'Active'
 }
 
-const formatEventDate = (d?: string) => {
+const accentColor = (s: string) => {
+  const status = (s || '').toLowerCase()
+  if (status === 'active') return '#22c55e'
+  if (status === 'used') return '#6b7280'
+  if (status === 'listed') return '#f59e0b'
+  if (status === 'pending_transfer' || status === 'transferred') return '#3b82f6'
+  return 'var(--accent-rgb, 249,115,22)'
+}
+
+const formatDate = (d?: string) => {
   if (!d) return null
   return new Date(d).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-const formatEventTime = (d?: string) => {
+const formatTime = (d?: string) => {
   if (!d) return null
   return new Date(d).toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
 }
+
+const canShowQR = (t: any) => t.status !== 'used' && t.status !== 'transferred'
+const canList = (t: any) => t.status === 'active'
 
 onMounted(load)
 watch([loading, tickets], ([isLoading, items]) => {
@@ -86,53 +99,63 @@ watch([loading, tickets], ([isLoading, items]) => {
 
     <!-- Ticket grid -->
     <div v-else class="ticket-grid">
-      <article v-for="t in tickets" :key="t.ticketId" class="ticket-card glass">
+      <article v-for="t in tickets" :key="t.ticketId" class="ticket-card">
 
-        <!-- Colour strip -->
-        <div :class="['ticket-strip', statusColor(t.status)]" />
+        <!-- Header with image/gradient -->
+        <div
+          class="ticket-header"
+          :style="{
+            backgroundImage: t.event?.image
+              ? `linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.75) 100%), url(${t.event.image})`
+              : `linear-gradient(135deg, rgba(${accentColor(t.status)},0.25) 0%, rgba(0,0,0,0.6) 100%)`
+          }"
+        >
+          <span :class="['status-pill', statusColor(t.status)]">{{ statusLabel(t.status) }}</span>
+          <h3 class="ticket-name">{{ t.event?.name || 'Event' }}</h3>
+          <div v-if="t.event?.eventDate" class="header-date">
+            <svg viewBox="0 0 24 24" class="hd-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span>{{ formatDate(t.event.eventDate) }} · {{ formatTime(t.event.eventDate) }}</span>
+          </div>
+        </div>
 
+        <!-- Tear line -->
+        <div class="tear-line">
+          <div class="notch notch-l" />
+          <div class="dashes" />
+          <div class="notch notch-r" />
+        </div>
+
+        <!-- Body -->
         <div class="ticket-body">
-          <!-- Top row: event name + status -->
-          <div class="ticket-top">
-            <div class="ticket-title-wrap">
-              <h3 class="ticket-name">{{ t.event?.name || 'Event' }}</h3>
-              <span :class="['status-pill', statusColor(t.status)]">{{ statusLabel(t.status) }}</span>
+          <div class="info-row">
+            <!-- Seat -->
+            <div v-if="t.rowNumber || t.seatNumber" class="info-block">
+              <span class="info-label">Seat</span>
+              <span class="info-value">Row {{ t.rowNumber || '—' }} · {{ t.seatNumber || '—' }}</span>
+            </div>
+            <div v-else class="info-block">
+              <span class="info-label">Ticket</span>
+              <span class="info-value">#{{ t.ticketId?.slice(0, 8) }}</span>
+            </div>
+            <!-- Price -->
+            <div class="info-block text-right">
+              <span class="info-label">Paid</span>
+              <span class="info-value price">${{ t.price ?? '—' }}</span>
             </div>
           </div>
 
-          <!-- Event meta -->
-          <div class="ticket-meta">
-            <div v-if="t.event?.eventDate" class="meta-item">
-              <svg viewBox="0 0 24 24" class="meta-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              <span>{{ formatEventDate(t.event.eventDate) }}</span>
-            </div>
-            <div v-if="t.event?.eventDate" class="meta-item">
-              <svg viewBox="0 0 24 24" class="meta-icon"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              <span>{{ formatEventTime(t.event.eventDate) }}</span>
-            </div>
-            <div v-if="t.seatRow || t.seatNumber" class="meta-item">
-              <svg viewBox="0 0 24 24" class="meta-icon"><path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/><path d="M2 11v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H6v-2a2 2 0 0 0-4 0z"/></svg>
-              <span>Row {{ t.seatRow }} · Seat {{ t.seatNumber }}</span>
-            </div>
-          </div>
-
-          <!-- Divider (perforated look) -->
-          <div class="ticket-divider">
-            <div class="notch notch-left" />
-            <div class="dashes" />
-            <div class="notch notch-right" />
-          </div>
-
-          <!-- Bottom row: price + action -->
-          <div class="ticket-footer">
-            <div>
-              <p class="footer-label">Paid</p>
-              <p class="footer-price">${{ t.price ?? '—' }}</p>
-            </div>
-            <RouterLink :to="`/tickets/${t.ticketId}`">
-              <button :disabled="t.status === 'used' || t.status === 'transferred'" class="qr-btn">
-                <svg viewBox="0 0 24 24" class="qr-icon"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>
-                Show QR
+          <!-- Actions -->
+          <div class="actions">
+            <RouterLink :to="{ path: `/tickets/${t.ticketId}`, query: { status: t.status } }" class="action-link">
+              <button :disabled="!canShowQR(t)" class="btn-primary full-btn">
+                <svg viewBox="0 0 24 24" class="btn-icon"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>
+                Show QR Code
+              </button>
+            </RouterLink>
+            <RouterLink v-if="canList(t)" to="/marketplace" class="action-link">
+              <button class="btn-secondary full-btn">
+                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                List on Marketplace
               </button>
             </RouterLink>
           </div>
@@ -148,7 +171,7 @@ watch([loading, tickets], ([isLoading, items]) => {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
   flex-wrap: wrap;
   gap: .5rem;
 }
@@ -181,97 +204,144 @@ watch([loading, tickets], ([isLoading, items]) => {
 /* Grid */
 .ticket-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
 }
 
 /* Card */
 .ticket-card {
-  display: flex;
+  border-radius: 1.2rem;
   overflow: hidden;
-  border-radius: 1rem;
-  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
   transition: transform .2s ease, box-shadow .2s ease;
-}
-.ticket-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,.35); }
-
-/* Left colour strip */
-.ticket-strip { width: 5px; flex-shrink: 0; }
-.status-active  { background: #22c55e; }
-.status-used    { background: #6b7280; }
-.status-listed  { background: #f59e0b; }
-.status-transfer { background: #3b82f6; }
-.status-default { background: var(--accent); }
-
-/* Body */
-.ticket-body { flex: 1; padding: 1.1rem 1.2rem; display: grid; gap: .75rem; min-width: 0; }
-
-.ticket-top { display: grid; gap: .35rem; }
-.ticket-title-wrap { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
-.ticket-name { font-size: 1rem; font-weight: 700; line-height: 1.3; margin: 0; flex: 1; min-width: 0; }
-
-/* Status pill */
-.status-pill {
-  font-size: .7rem;
-  font-weight: 600;
-  padding: .2rem .6rem;
-  border-radius: 999px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-}
-.status-pill.status-active  { background: rgba(34,197,94,.15);  color: #4ade80; border-color: rgba(34,197,94,.3); }
-.status-pill.status-used    { background: rgba(107,114,128,.15); color: #9ca3af; border-color: rgba(107,114,128,.3); }
-.status-pill.status-listed  { background: rgba(245,158,11,.15);  color: #fbbf24; border-color: rgba(245,158,11,.3); }
-.status-pill.status-transfer { background: rgba(59,130,246,.15); color: #60a5fa; border-color: rgba(59,130,246,.3); }
-.status-pill.status-default { background: rgba(249,115,22,.15);  color: #fb923c; border-color: rgba(249,115,22,.3); }
-
-/* Meta */
-.ticket-meta { display: grid; gap: .35rem; }
-.meta-item { display: flex; align-items: center; gap: .45rem; font-size: .82rem; color: var(--muted); }
-.meta-icon { width: .9rem; height: .9rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
-
-/* Perforated divider */
-.ticket-divider {
   display: flex;
-  align-items: center;
-  margin: .1rem -.05rem;
+  flex-direction: column;
+}
+.ticket-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+
+/* Header */
+.ticket-header {
   position: relative;
-}
-.notch {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--bg);
-  flex-shrink: 0;
-  margin: 0 -5px;
-}
-.dashes {
-  flex: 1;
-  border-top: 1.5px dashed var(--border);
-  margin: 0 4px;
-}
-
-/* Footer */
-.ticket-footer {
+  height: 140px;
+  background-size: cover;
+  background-position: center;
+  padding: 1rem 1.2rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: .35rem;
 }
-.footer-label { font-size: .72rem; color: var(--muted); margin-bottom: .1rem; }
-.footer-price { font-size: 1.1rem; font-weight: 700; }
 
-.qr-btn {
+.ticket-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  line-height: 1.25;
+  text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+
+.header-date {
   display: flex;
   align-items: center;
   gap: .4rem;
-  padding: .45rem 1rem;
-  font-size: .85rem;
-  font-weight: 600;
-  border-radius: .5rem;
+  font-size: .78rem;
+  color: rgba(255,255,255,.85);
 }
-.qr-btn:disabled { opacity: .4; cursor: default; }
-.qr-icon { width: .95rem; height: .95rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.hd-icon { width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
+
+/* Status pill — positioned top-right in header */
+.status-pill {
+  position: absolute;
+  top: .85rem;
+  right: .85rem;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: .25rem .65rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  backdrop-filter: blur(8px);
+}
+.status-active   { background: rgba(34,197,94,.25);  color: #4ade80; border-color: rgba(34,197,94,.5); }
+.status-used     { background: rgba(107,114,128,.25); color: #d1d5db; border-color: rgba(107,114,128,.5); }
+.status-listed   { background: rgba(245,158,11,.25);  color: #fcd34d; border-color: rgba(245,158,11,.5); }
+.status-transfer { background: rgba(59,130,246,.25);  color: #93c5fd; border-color: rgba(59,130,246,.5); }
+.status-default  { background: rgba(249,115,22,.25);  color: #fdba74; border-color: rgba(249,115,22,.5); }
+
+/* Tear line */
+.tear-line {
+  display: flex;
+  align-items: center;
+  background: var(--surface-1);
+  position: relative;
+}
+.notch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg);
+  flex-shrink: 0;
+  margin: 0 -7px;
+  border: 1px solid var(--border);
+}
+.dashes {
+  flex: 1;
+  border-top: 2px dashed var(--border);
+  margin: 0 4px;
+}
+
+/* Body */
+.ticket-body {
+  padding: 1rem 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.info-block { display: flex; flex-direction: column; gap: .15rem; }
+.text-right { align-items: flex-end; }
+.info-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.info-value { font-size: .95rem; font-weight: 600; color: var(--text); }
+.info-value.price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+
+/* Actions */
+.actions { display: flex; flex-direction: column; gap: .55rem; }
+.action-link { display: block; }
+
+.full-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .6rem 1rem;
+  font-size: .88rem;
+  font-weight: 600;
+  border-radius: .65rem;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.full-btn:active { transform: scale(.98); }
+.full-btn:disabled { opacity: .35; cursor: default; }
+
+.btn-primary { background: var(--accent); color: #fff; border: none; }
+.btn-primary:hover:not(:disabled) { opacity: .88; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+
+.btn-icon { width: .95rem; height: .95rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
 
 @media (max-width: 640px) {
   .ticket-grid { grid-template-columns: 1fr; }

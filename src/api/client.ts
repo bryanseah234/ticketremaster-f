@@ -150,7 +150,8 @@ api.interceptors.response.use(
     }
 
     // Map common HTTP errors to user-facing messages
-    if (status && status >= 400) {
+    const isScanRoute = resolveUrl(error.config).includes('/scan/verify/')
+    if (status && status >= 400 && !isScanRoute) {
       const codeMessage = errorCode === 'SEAT_UNAVAILABLE' ? 'Seat is currently unavailable.' :
         errorCode === 'SEAT_ALREADY_SOLD' ? 'Seat has already been sold.' :
         errorCode === 'SEAT_NOT_FOUND' ? 'Seat not found.' :
