@@ -21,6 +21,7 @@ import InfoPageView from '@/views/app/InfoPageView.vue'
 import ResaleGuaranteesView from '@/views/app/ResaleGuaranteesView.vue'
 import VenuesView from '@/views/app/VenuesView.vue'
 import StaffScannerView from '@/views/app/StaffScannerView.vue'
+import TicketQrView from '@/views/app/TicketQrView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -46,6 +47,7 @@ const routes = [
   { path: '/credits/topup', component: CreditTopupView, meta: { requiresAuth: true } },
   { path: '/profile', component: ProfileView, meta: { requiresAuth: true } },
   { path: '/marketplace', component: MarketplaceView },
+  { path: '/ticket-qr/:qrHash', component: TicketQrView },
   { path: '/staff/scan', component: StaffScannerView, meta: { requiresAuth: true, requiresStaff: true } },
   { path: '/admin/events/new', component: AdminEventCreateView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/events/:eventId/dashboard', component: AdminEventDashboardView, meta: { requiresAuth: true, requiresAdmin: true } },

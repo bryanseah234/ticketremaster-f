@@ -48,6 +48,7 @@ const loadProfile = async () => {
 }
 
 const loadBalance = async () => {
+  if (auth.isStaff) return
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.creditBalance ?? data?.creditBalance ?? 0
@@ -124,7 +125,7 @@ onMounted(() => {
         </article>
 
         <!-- Credits -->
-        <article class="glass card">
+        <article v-if="!auth.isStaff" class="glass card">
           <h2 class="card-title">Credits</h2>
           <div class="balance-row">
             <div>
@@ -166,7 +167,7 @@ onMounted(() => {
           </div>
         </article>
 
-        <article class="glass card">
+        <article v-if="!auth.isStaff" class="glass card">
           <h2 class="card-title">Credit History</h2>
           <div v-if="loadingTxns" class="muted small">Loading...</div>
           <div v-else-if="transactions.length === 0" class="muted small">No transactions yet.</div>

@@ -11,6 +11,7 @@ interface Listing {
   price: number
   status: string
   sellerId?: string
+  sellerName?: string
   createdAt?: string
   eventName?: string
   eventDate?: string
@@ -93,6 +94,7 @@ const loadListings = async () => {
       price: Number(item.price || 0),
       status: (item.status || 'ACTIVE').toUpperCase(),
       sellerId: item.sellerId || item.seller_id,
+      sellerName: item.sellerName || item.seller_name || null,
       createdAt: item.createdAt || item.created_at,
       eventName: item.event?.name || item.eventName,
       eventDate: item.event?.date || item.event?.eventDate || item.eventDate,
@@ -241,6 +243,10 @@ onMounted(loadListings)
           <p class="event-date small">{{ listing.eventDate ? new Date(listing.eventDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBA' }}</p>
           <h3 class="event-name">{{ listing.eventName || 'Event' }}</h3>
           <p class="seat-label small">{{ seatLabel(listing) }}</p>
+          <p v-if="listing.sellerName" class="seller-label small">
+            <svg viewBox="0 0 24 24" class="seller-icon"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
+            Listed by {{ listing.sellerName }}
+          </p>
           <div class="card-footer">
             <span :class="['status-dot', listing.status === 'ACTIVE' ? 'active' : 'inactive']" />
             <span class="small status-text">{{ listing.status }}</span>
@@ -280,6 +286,8 @@ onMounted(loadListings)
 .event-date { color: var(--muted); }
 .event-name { font-size: 1rem; font-weight: 700; line-height: 1.3; }
 .seat-label { color: var(--muted); }
+.seller-label { color: var(--muted); display: flex; align-items: center; gap: .3rem; }
+.seller-icon { width: .85rem; height: .85rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
 
 .card-footer { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; }
 .status-dot { width: .5rem; height: .5rem; border-radius: 50%; flex-shrink: 0; }

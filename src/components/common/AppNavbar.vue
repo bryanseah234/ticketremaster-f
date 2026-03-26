@@ -17,6 +17,12 @@ const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
 
 const items = computed(() => {
+  if (auth.isStaff) {
+    return [
+      { to: '/staff/scan', label: 'Scanner', key: 'scan' },
+      { to: '/profile', label: 'Profile', key: 'profile' },
+    ]
+  }
   if (auth.isLoggedIn) {
     return [
       { to: '/', label: 'Home', key: 'home' },
@@ -35,7 +41,7 @@ const items = computed(() => {
 })
 
 const fetchBalance = async () => {
-  if (!auth.isLoggedIn) {
+  if (!auth.isLoggedIn || auth.isStaff) {
     balance.value = null
     balanceError.value = false
     return
@@ -101,7 +107,7 @@ const balanceLabel = computed(() => {
 
       <!-- Desktop Navigation -->
       <div class="right-cluster desktop-only">
-        <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
+        <RouterLink v-if="auth.isLoggedIn && !auth.isStaff" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
 
         <!-- Notification Bell -->
         <div v-if="auth.isLoggedIn" class="bell-wrap">
