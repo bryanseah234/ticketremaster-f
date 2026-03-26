@@ -7,6 +7,37 @@ import { useToast } from '@/composables/useToast'
 const tickets = ref<any[]>([])
 const loading = ref(false)
 const toast = useToast()
+const listingTicketId = ref<string | null>(null)
+const listingPrice = ref<number>(0)
+const listingLoading = ref(false)
+
+const startListing = (ticketId: string, price: number) => {
+  listingTicketId.value = ticketId
+  listingPrice.value = price || 0
+}
+
+const cancelListing = () => {
+  listingTicketId.value = null
+  listingPrice.value = 0
+}
+
+const submitListing = async (ticketId: string) => {
+  if (!listingPrice.value || listingPrice.value <= 0) {
+    toast.push('Enter a valid price.', 'error', 3000)
+    return
+  }
+  listingLoading.value = true
+  try {
+    await api.post('/marketplace/list', { ticketId, price: listingPrice.value })
+    toast.push('Ticket listed on marketplace.', 'success', 3000)
+    listingTicketId.value = null
+    await load()
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'Could not list ticket.', 'error', 3000)
+  } finally {
+    listingLoading.value = false
+  }
+}
 
 const fallbackTickets = [
   { ticketId: 'demo-101', status: 'active', event: { name: 'Neon Skyline Festival', eventDate: '2026-04-12T20:00:00Z', image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=800' }, rowNumber: 'B', seatNumber: 18, price: 120, createdAt: '2026-03-02T19:30:00Z' },
@@ -18,7 +49,15 @@ const load = async () => {
   loading.value = true
   try {
     const { data } = await api.get('/qr/tickets')
-    tickets.value = data?.data?.tickets || data?.data || []
+    const raw = data?.data?.tickets || data?.data || []
+    tickets.value = raw.map((t: any) => ({
+      ...t,
+      event: t.event ? {
+        ...t.event,
+        eventDate: t.event.eventDate || t.event.date,
+        image: t.event.image || null,
+      } : null,
+    }))
   } catch {
     tickets.value = fallbackTickets
     toast.push('Backend unavailable. Showing limited demo data.', 'info', 3200)
@@ -134,14 +173,19 @@ watch([loading, tickets], ([isLoading, items]) => {
               <span class="info-value">Row {{ t.rowNumber || '—' }} · {{ t.seatNumber || '—' }}</span>
             </div>
             <div v-else class="info-block">
-              <span class="info-label">Ticket</span>
-              <span class="info-value">#{{ t.ticketId?.slice(0, 8) }}</span>
+              <span class="info-label">Seat</span>
+              <span class="info-value">—</span>
             </div>
             <!-- Price -->
             <div class="info-block text-right">
               <span class="info-label">Paid</span>
               <span class="info-value price">${{ t.price ?? '—' }}</span>
             </div>
+          </div>
+          <!-- Ticket ID -->
+          <div class="info-block">
+            <span class="info-label">Ticket ID</span>
+            <span class="info-value ticket-id">{{ t.ticketId }}</span>
           </div>
 
           <!-- Actions -->
@@ -152,12 +196,21 @@ watch([loading, tickets], ([isLoading, items]) => {
                 Show QR Code
               </button>
             </RouterLink>
-            <RouterLink v-if="canList(t)" to="/marketplace" class="action-link">
-              <button class="btn-secondary full-btn">
+            <template v-if="canList(t)">
+              <div v-if="listingTicketId === t.ticketId" class="list-inline">
+                <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price ($)" class="price-input" />
+                <div class="list-inline-btns">
+                  <button :disabled="listingLoading" class="btn-primary full-btn" @click="submitListing(t.ticketId)">
+                    {{ listingLoading ? 'Listing...' : 'Confirm' }}
+                  </button>
+                  <button class="btn-secondary full-btn" @click="cancelListing">Cancel</button>
+                </div>
+              </div>
+              <button v-else class="btn-secondary full-btn" @click="startListing(t.ticketId, t.price)">
                 <svg viewBox="0 0 24 24" class="btn-icon"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 List on Marketplace
               </button>
-            </RouterLink>
+            </template>
           </div>
         </div>
 
@@ -309,11 +362,16 @@ watch([loading, tickets], ([isLoading, items]) => {
 .text-right { align-items: flex-end; }
 .info-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .info-value { font-size: .95rem; font-weight: 600; color: var(--text); }
+.info-value.ticket-id { font-size: .72rem; font-family: monospace; font-weight: 400; color: var(--muted); word-break: break-all; }
 .info-value.price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
 
 /* Actions */
 .actions { display: flex; flex-direction: column; gap: .55rem; }
 .action-link { display: block; }
+.list-inline { display: flex; flex-direction: column; gap: .45rem; }
+.list-inline-btns { display: flex; gap: .45rem; }
+.list-inline-btns .full-btn { flex: 1; }
+.price-input { width: 100%; padding: .5rem .75rem; border-radius: .65rem; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: .88rem; }
 
 .full-btn {
   width: 100%;
