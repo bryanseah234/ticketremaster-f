@@ -8,6 +8,7 @@ type ScanResult = 'PASS' | 'FAILED' | 'WRONG_VENUE'
 interface ScanRecord {
   id: number
   label: string
+  sublabel: string
   result: ScanResult
   message: string
   time: string
@@ -40,20 +41,23 @@ const feedbackLabel = computed(() => {
 const processQr = async (raw: string) => {
   const qrHash = raw.includes('/ticket-qr/') ? raw.split('/ticket-qr/')[1].split('?')[0] : raw
   try {
-    await api.post('/scan/verify/scan', { qrHash })
-    showFeedback('PASS', 'Check-in successful', qrHash)
+    const { data } = await api.post('/scan/verify/scan', { qrHash })
+    const d = data?.data
+    const label = d?.event?.name || 'Unknown Event'
+    const sublabel = d?.ticketId ? `Ticket ${d.ticketId.slice(0, 8)}…` : qrHash.slice(0, 16) + '…'
+    showFeedback('PASS', 'Check-in successful', label, sublabel)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code
     if (code === 'WRONG_HALL') {
       const venue = e?.response?.data?.error?.correctVenue?.name || 'another venue'
-      showFeedback('WRONG_VENUE', `Redirect to: ${venue}`, qrHash)
+      showFeedback('WRONG_VENUE', `Redirect to: ${venue}`, qrHash.slice(0, 16) + '…', '')
     } else {
       const msg = e?.response?.data?.error?.message
         || (code === 'QR_EXPIRED' ? 'QR expired'
           : code === 'ALREADY_CHECKED_IN' ? 'Already scanned'
           : code === 'TICKET_NOT_FOUND' ? 'Ticket not found'
           : 'Verification failed')
-      showFeedback('FAILED', msg, qrHash)
+      showFeedback('FAILED', msg, qrHash.slice(0, 16) + '…', '')
     }
   }
 }
@@ -67,11 +71,12 @@ const onDecode = (result: string) => {
   processQr(result)
 }
 
-const showFeedback = (result: ScanResult, message: string, qrLabel: string) => {
+const showFeedback = (result: ScanResult, message: string, label: string, sublabel = '') => {
   feedback.value = { result, message }
   history.value.unshift({
     id: recordSeq++,
-    label: qrLabel.length > 28 ? qrLabel.slice(0, 28) + '…' : qrLabel,
+    label: label.length > 28 ? label.slice(0, 28) + '…' : label,
+    sublabel,
     result,
     message,
     time: new Date().toLocaleTimeString(),
@@ -84,8 +89,11 @@ const submitManual = async () => {
   if (!val) return
   manualLoading.value = true
   try {
-    await api.post('/scan/verify/manual', { ticketId: val })
-    showFeedback('PASS', 'Check-in successful', val)
+    const { data } = await api.post('/scan/verify/manual', { ticketId: val })
+    const d = data?.data
+    const label = d?.event?.name || 'Manual entry'
+    const sublabel = `Ticket ${val.slice(0, 8)}…`
+    showFeedback('PASS', 'Check-in successful', label, sublabel)
     manualInput.value = ''
   } catch (e: any) {
     const code = e?.response?.data?.error?.code
@@ -94,7 +102,7 @@ const submitManual = async () => {
         : code === 'TICKET_NOT_FOUND' ? 'Ticket not found'
         : code === 'QR_INVALID' ? 'Ticket not valid for entry'
         : 'Verification failed')
-    showFeedback('FAILED', msg, val)
+    showFeedback('FAILED', msg, `Ticket ${val.slice(0, 8)}…`)
   } finally {
     manualLoading.value = false
   }
@@ -159,6 +167,7 @@ const clearHistory = () => { history.value = [] }
             <div class="hist-dot" />
             <div class="hist-info">
               <p class="hist-label">{{ rec.label }}</p>
+              <p v-if="rec.sublabel" class="small hist-sublabel">{{ rec.sublabel }}</p>
               <p class="small hist-msg">{{ rec.message }}</p>
             </div>
             <span class="hist-time">{{ rec.time }}</span>
@@ -261,6 +270,7 @@ const clearHistory = () => { history.value = [] }
   font-size: .8rem; font-weight: 500; margin: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.hist-sublabel { margin: 0; opacity: .65; font-size: .72rem; }
 .hist-msg  { margin: 0; opacity: .55; }
 .hist-time { font-size: .72rem; opacity: .4; flex-shrink: 0; }
 </style>

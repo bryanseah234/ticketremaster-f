@@ -32,10 +32,9 @@ const submit = async () => {
   }
   loading.value = true
   try {
-    const { data } = await api.post('/auth/register', { email: form.value.email, phoneNumber: form.value.phone, password: form.value.password })
-    const pendingUserId = data?.data?.userId || data?.data?.user_id
-    if (pendingUserId) localStorage.setItem('pendingUserId', pendingUserId)
-    router.push('/verify')
+    await api.post('/auth/register', { email: form.value.email, phoneNumber: form.value.phone, password: form.value.password })
+    toast.push('Account created! Please log in.', 'success', 3000)
+    router.push('/login')
   } catch (e: any) {
     toast.push(extractError(e), 'error', 3200)
   } finally {
@@ -49,12 +48,12 @@ const submit = async () => {
     <article class="glass" style="padding:1rem;display:grid;gap:.7rem;">
       <h1 class="section-title">Register</h1>
       <div class="grid-2">
-        <div><label>Email</label><input v-model="form.email" placeholder="you@email.com" /></div>
-        <div><label>Phone</label><input v-model="form.phone" placeholder="+65..." /></div>
+        <div><label>Email</label><input v-model="form.email" placeholder="you@email.com" autocomplete="off" /></div>
+        <div><label>Phone</label><input v-model="form.phone" placeholder="+65..." autocomplete="off" /></div>
       </div>
       <div class="grid-2">
-        <div><label>Password</label><input v-model="form.password" type="password" /></div>
-        <div><label>Confirm Password</label><input v-model="form.confirm" type="password" /></div>
+        <div><label>Password</label><input v-model="form.password" type="password" autocomplete="new-password" /></div>
+        <div><label>Confirm Password</label><input v-model="form.confirm" type="password" autocomplete="new-password" /></div>
       </div>
       <button :disabled="loading" @click="submit">{{ loading ? 'Creating...' : 'Create Account' }}</button>
       <p class="small">Already have an account? <RouterLink to="/login" style="color:#fdba74">Sign in</RouterLink></p>

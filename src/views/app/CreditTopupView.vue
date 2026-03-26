@@ -70,11 +70,9 @@ const createTopUp = async () => {
       return
     }
     if (confirmation.paymentIntent?.status === 'succeeded') {
+      await api.post('/credits/topup/confirm', { paymentIntentId })
       result.value = 'Top up succeeded.'
-      // Wait briefly for webhook to process before fetching new balance
-      setTimeout(async () => {
-        await loadBalance()
-      }, 2000)
+      await loadBalance()
     } else {
       result.value = `Payment status: ${confirmation.paymentIntent?.status || 'unknown'}`
     }
