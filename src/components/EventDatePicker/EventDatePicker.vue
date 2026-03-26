@@ -157,7 +157,7 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
     <div class="event-header glass">
       <img class="event-img" :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'" :alt="event.name" @error="(e: any) => e.target.src = 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'" />
       <div class="event-meta">
-        <span class="badge">{{ event.type }}</span>
+        <!-- <span class="badge">{{ event.type }}</span> -->
         <h1 class="event-name">{{ event.name }}</h1>
         <p class="event-venue">{{ event.venue }} &middot; {{ event.venueAddress }}</p>
         <p class="event-price">From <strong>${{ event.price }}</strong></p>
@@ -169,7 +169,7 @@ onUnmounted(() => { if (holdTimer) clearInterval(holdTimer) })
 
     <!-- Calendar -->
     <div v-if="!showSeats" class="glass cal-panel">
-      <h2 class="panel-title">Pick a date</h2>
+      <!-- <h2 class="panel-title">Pick a date</h2> -->
       <CalendarGrid
         :available-dates="event.availableDates"
         :model-value="selectedDate"

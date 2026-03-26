@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -10,12 +11,21 @@ const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 
-const seats = ref<any[]>([])
-const selectedSeat = ref<any | null>(null)
+/* ── State ─────────────────────────────────────────────────────────────── */
+interface Seat {
+  inventoryId: string
+  seatId: string
+  rowNumber: string
+  seatNumber: string
+  status: 'AVAILABLE' | 'HELD' | 'SOLD'
+  heldUntil?: string | null
+}
+
+const rows = ref<Map<string, Seat[]>>(new Map())
+const selectedSeat = ref<Seat | null>(null)
 const holdSeconds = ref(0)
 const orderId = ref('')
 const loading = ref(false)
-const usingFallback = ref(false)
 let timer: number | undefined
 
 const holdDisplay = computed(() => {
@@ -24,45 +34,56 @@ const holdDisplay = computed(() => {
   return `${m}:${String(s).padStart(2, '0')}`
 })
 
+const totalAvailable = computed(() => {
+  let n = 0
+  rows.value.forEach(seats => seats.forEach(s => { if (s.status === 'AVAILABLE') n++ }))
+  return n
+})
+
+/* ── Load ──────────────────────────────────────────────────────────────── */
 const loadSeats = async () => {
   loading.value = true
-  usingFallback.value = false
-  toast.push('Loading seats...', 'info', 1600)
+  toast.push('Loading seat map…', 'info', 1600)
   try {
-    const { data } = await api.get(`/events/${route.params.eventId}/seats`)
-    const raw = data?.data?.seats || []
-    seats.value = raw.map((s: any) => ({
-      inventoryId: s.inventoryId || s.inventory_id,
-      seatId: s.seatId || s.seat_id,
-      rowNumber: s.rowNumber || s.row_number,
-      seatNumber: s.seatNumber || s.seat_number,
-      status: (s.status || 'available').toUpperCase(),
-      category: s.category || 'GA',
-      price: s.price || 0,
-      heldUntil: s.heldUntil || s.held_until,
-    }))
-  } catch {
-    seats.value = Array.from({ length: 120 }).map((_, index) => ({
-      inventoryId: `demo-inv-${index + 1}`,
-      seatId: `demo-seat-${index + 1}`,
-      rowNumber: String.fromCharCode(65 + Math.floor(index / 10)),
-      seatNumber: (index % 10) + 1,
-      status: index % 8 === 0 ? 'HELD' : index % 6 === 0 ? 'SOLD' : 'AVAILABLE',
-      category: 'GA',
-      price: 59,
-    }))
-    usingFallback.value = true
-    toast.push('Backend unavailable. Showing limited demo data. Actions are limited.', 'info', 3200)
+    const eventId = route.params.eventId as string
+
+    // Single enriched call — event-orchestrator now joins inventory + seat metadata server-side
+    const { data } = await api.get(`/events/${eventId}/seats`)
+    const rawSeats: any[] = data?.data?.seats || []
+
+    const rowMap = new Map<string, Seat[]>()
+    for (const s of rawSeats) {
+      const row = s.rowNumber ?? 'GA'
+      const merged: Seat = {
+        inventoryId: s.inventoryId,
+        seatId:      s.seatId,
+        rowNumber:   row,
+        seatNumber:  s.seatNumber ?? s.inventoryId.slice(-4),
+        status:      (s.status ?? 'available').toUpperCase() as Seat['status'],
+        heldUntil:   s.heldUntil,
+      }
+      if (!rowMap.has(row)) rowMap.set(row, [])
+      rowMap.get(row)!.push(merged)
+    }
+
+    rows.value = new Map(
+      [...rowMap.entries()]
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+        .map(([r, seats]) => [
+          r,
+          seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
+        ])
+    )
+  } catch (e) {
+    console.error(e)
+    toast.push('Failed to load seat map.', 'error', 3200)
   } finally {
     loading.value = false
   }
 }
 
+/* ── Reserve ───────────────────────────────────────────────────────────── */
 const reserveSeat = async () => {
-  if (usingFallback.value) {
-    toast.push('Reservations are disabled in demo mode.', 'error', 3200)
-    return
-  }
   if (!selectedSeat.value || !auth.state.user) return
   try {
     const inventoryId = selectedSeat.value.inventoryId
@@ -73,32 +94,27 @@ const reserveSeat = async () => {
       : 300
     if (timer) clearInterval(timer)
     timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
-    orderId.value = data?.data?.inventoryId || data?.data?.inventory_id || inventoryId
-    const pending = {
+    orderId.value = data?.data?.inventoryId || inventoryId
+    localStorage.setItem('pendingOrder', JSON.stringify({
       orderId: orderId.value,
       inventoryId: orderId.value,
-      holdToken: data?.data?.holdToken || data?.data?.hold_token || '',
+      holdToken: data?.data?.holdToken || '',
       eventId: route.params.eventId,
       seat: {
         seatId: selectedSeat.value.seatId,
         rowNumber: selectedSeat.value.rowNumber,
         seatNumber: selectedSeat.value.seatNumber,
-        category: selectedSeat.value.category,
-        price: selectedSeat.value.price,
+        price: 0,
       },
-    }
-    localStorage.setItem('pendingOrder', JSON.stringify(pending))
-    toast.push('Seat held for 5 minutes.', 'success', 3200)
+    }))
+    toast.push('Seat held! You have 5 minutes to complete checkout.', 'success', 3200)
   } catch (e: any) {
-    const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
+    const code = e?.response?.data?.error?.code
     const status = e?.response?.status
-    const message = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD' ? 'Seat unavailable, please choose another.' :
-      code === 'SEAT_NOT_FOUND' ? 'Seat not found.' :
-        code === 'EVENT_ENDED' ? 'Event ended.' :
-          status === 409 ? 'Seat unavailable, please choose another.' :
-            status === 410 ? 'Event ended or hold expired.' :
-              'Reserve failed.'
-    toast.push(message, 'error', 3200)
+    const msg = code === 'SEAT_UNAVAILABLE' || status === 409 ? 'Seat is no longer available.' :
+      code === 'EVENT_ENDED' || status === 410 ? 'Event has ended.' :
+      'Unable to reserve seat.'
+    toast.push(msg, 'error', 3200)
   }
 }
 
@@ -109,28 +125,230 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 <template>
   <section class="page">
     <h1 class="section-title">Seat Selection</h1>
-    <p class="section-subtitle">Select an AVAILABLE seat to reserve it for 5 minutes.</p>
+    <p class="section-subtitle">Choose an available seat to reserve it for 5 minutes.</p>
 
-    <article class="glass" style="padding:1rem;">
-      <div class="grid-4" style="margin-top:.7rem;">
-        <button
-          v-for="seat in seats.slice(0,120)"
-          :key="seat.seatId"
-          class="secondary"
-          :disabled="seat.status !== 'AVAILABLE'"
-          :style="{ borderColor: seat.status === 'AVAILABLE' ? 'var(--success)' : seat.status === 'HELD' ? 'var(--warning)' : 'var(--disabled)' }"
-          @click="selectedSeat = seat"
-        >
-          {{ seat.rowNumber }}-{{ seat.seatNumber }}
-        </button>
+    <!-- Legend -->
+    <div class="legend">
+      <span class="dot available"></span> Available ({{ totalAvailable }})
+      <span class="dot held"></span> Held
+      <span class="dot sold"></span> Sold
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading seat map…</p>
+    </div>
+
+    <!-- Seat map -->
+    <article v-else class="glass seat-map">
+      <!-- Stage indicator -->
+      <div class="stage">
+        <span>STAGE</span>
       </div>
 
-      <div class="row" style="margin-top:1rem;flex-wrap:wrap;gap:.6rem;">
-        <span class="badge">Selected: {{ selectedSeat ? `${selectedSeat.rowNumber}-${selectedSeat.seatNumber}` : 'None' }}</span>
-        <span v-if="holdSeconds>0" class="badge">Hold: {{ holdDisplay }}</span>
-        <button :disabled="!selectedSeat || usingFallback" @click="reserveSeat">Reserve</button>
-        <button v-if="orderId" class="secondary" :disabled="usingFallback" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>
+      <div v-if="rows.size === 0" class="empty-state">No seats available for this event.</div>
+
+      <div v-for="[rowLabel, seats] in rows" :key="rowLabel" class="seat-row">
+        <span class="row-label">{{ rowLabel }}</span>
+        <div class="seats">
+          <button
+            v-for="seat in seats"
+            :key="seat.inventoryId"
+            class="seat-btn"
+            :class="{
+              available: seat.status === 'AVAILABLE',
+              held: seat.status === 'HELD',
+              sold: seat.status === 'SOLD',
+              selected: selectedSeat?.inventoryId === seat.inventoryId
+            }"
+            :disabled="seat.status !== 'AVAILABLE'"
+            :title="`Row ${seat.rowNumber} · Seat ${seat.seatNumber} · ${seat.status}`"
+            @click="selectedSeat = seat"
+          >
+            {{ seat.seatNumber }}
+          </button>
+        </div>
+      </div>
+    </article>
+
+    <!-- Action bar -->
+    <article class="glass action-bar">
+      <div class="selection-info">
+        <template v-if="selectedSeat">
+          <span class="badge">Row {{ selectedSeat.rowNumber }}, Seat {{ selectedSeat.seatNumber }}</span>
+          <span v-if="holdSeconds > 0" class="badge warning">⏱ {{ holdDisplay }} remaining</span>
+        </template>
+        <span v-else class="muted">No seat selected</span>
+      </div>
+      <div class="actions">
+        <button :disabled="!selectedSeat || holdSeconds > 0" @click="reserveSeat">
+          {{ holdSeconds > 0 ? 'Seat Reserved ✓' : 'Reserve Seat' }}
+        </button>
+        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">
+          Proceed to Checkout →
+        </button>
       </div>
     </article>
   </section>
 </template>
+
+<style scoped>
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-bottom: 1rem;
+  font-size: .85rem;
+  color: var(--text-muted, #a1a1aa);
+}
+.dot {
+  display: inline-block;
+  width: .75rem;
+  height: .75rem;
+  border-radius: 50%;
+  margin-right: .3rem;
+}
+.dot.available { background: #22c55e; }
+.dot.held      { background: #f59e0b; }
+.dot.sold      { background: #52525b; }
+
+/* Stage */
+.stage {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding: .4rem 2rem;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent);
+  border-radius: .4rem;
+  font-size: .75rem;
+  letter-spacing: .2em;
+  color: #a1a1aa;
+}
+
+/* Map container */
+.seat-map {
+  padding: 1.5rem 1rem;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+/* Row */
+.seat-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.row-label {
+  width: 2rem;
+  text-align: center;
+  font-size: .72rem;
+  font-weight: 600;
+  color: #71717a;
+  flex-shrink: 0;
+}
+.seats {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .25rem;
+}
+
+/* Seat button */
+.seat-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: .3rem;
+  border: 1px solid transparent;
+  font-size: .65rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+  flex-shrink: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.seat-btn.available {
+  background: rgba(34,197,94,.18);
+  border-color: #22c55e;
+  color: #86efac;
+}
+.seat-btn.available:hover {
+  background: rgba(34,197,94,.35);
+  transform: scale(1.15);
+}
+.seat-btn.held {
+  background: rgba(245,158,11,.14);
+  border-color: #f59e0b;
+  color: #fcd34d;
+  cursor: not-allowed;
+}
+.seat-btn.sold {
+  background: rgba(82,82,91,.2);
+  border-color: #3f3f46;
+  color: #52525b;
+  cursor: not-allowed;
+}
+.seat-btn.selected {
+  background: rgba(249,115,22,.35) !important;
+  border-color: #f97316 !important;
+  color: #fed7aa !important;
+  box-shadow: 0 0 0 2px #f97316;
+  transform: scale(1.2);
+}
+
+/* Action bar */
+.action-bar {
+  margin-top: 1rem;
+  padding: .9rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.actions {
+  display: flex;
+  gap: .6rem;
+}
+.badge.warning {
+  background: rgba(245,158,11,.2);
+  border-color: #f59e0b;
+  color: #fcd34d;
+}
+.muted { color: #71717a; font-size: .9rem; }
+
+/* Loading */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem;
+  gap: 1rem;
+  color: #a1a1aa;
+}
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(255,255,255,.1);
+  border-top-color: #f97316;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #71717a;
+}
+</style>
