@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted, watch } from 'vue'
 import api from '@/api/client'
 
 const form = reactive({
   name: '',
+  description: '',
+  type: 'concert',
+  venueId: '',
   venueName: '',
   venueAddress: '',
-  totalHalls: 1,
-  hallId: 'HALL-1',
-  eventDate: '',
+  startDate: '',
+  endDate: '',
   totalSeats: 200,
   cat1Price: 100,
 })
@@ -16,6 +18,25 @@ const form = reactive({
 const loading = ref(false)
 const created = ref<{ eventId: string; seatsCreated: number } | null>(null)
 const estimatedRevenue = computed(() => Number(form.totalSeats || 0) * Number(form.cat1Price || 0))
+const venues = ref<any[]>([])
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/venues')
+    venues.value = data?.venues || []
+  } catch (e) {
+    console.error('Failed to load venues', e)
+  }
+})
+
+watch(() => form.venueId, (newId) => {
+  const venue = venues.value.find(v => v.venueId === newId)
+  if (venue) {
+    form.venueName = venue.name
+    form.venueAddress = venue.address || ''
+    form.totalSeats = venue.capacity || 200
+  }
+})
 
 const submit = async () => {
   loading.value = true
@@ -23,9 +44,12 @@ const submit = async () => {
   try {
     const payload = {
       name: form.name,
-      venue: { name: form.venueName, address: form.venueAddress, total_halls: Number(form.totalHalls) },
-      hall_id: form.hallId,
-      event_date: form.eventDate,
+      description: form.description,
+      type: form.type,
+      venue_id: form.venueId,
+      venue: { name: form.venueName, address: form.venueAddress },
+      event_date: form.startDate,
+      end_date: form.endDate,
       total_seats: Number(form.totalSeats),
       pricing_tiers: { CAT1: Number(form.cat1Price) },
     }
@@ -39,33 +63,54 @@ const submit = async () => {
 
 <template>
   <section class="page admin-create">
+    
+     <h1 class="section-title">Create Event & Provision Seats</h1>
     <article class="glass panel-form">
       <div class="row" style="justify-content:space-between;align-items:flex-start;">
         <div>
-          <span class="badge">Admin Tools</span>
-          <h1 class="section-title">Create Event & Provision Seats</h1>
-          <p class="small">This form maps directly to <code>POST /admin/events</code>.</p>
+          <!-- <span class="badge">Admin Tools</span> -->
+         
+          <!-- <p class="small">This form maps directly to <code>POST /admin/events</code>.</p> -->
         </div>
-        <article class="panel summary">
-          <p class="small">Estimated gross</p>
-          <h3>${{ estimatedRevenue.toLocaleString() }}</h3>
-        </article>
+       
       </div>
 
       <div class="grid-2">
         <div><label>Event name</label><input v-model="form.name" placeholder="Neon Skyline Festival" /></div>
-        <div><label>Event date</label><input v-model="form.eventDate" type="datetime-local" /></div>
+        <div>
+          <label>Event type</label>
+          <select v-model="form.type" class="native-select">
+            <option value="festival">Festival</option>
+            <option value="concert">Concert</option>
+            <option value="theatre">Theatre</option>
+            <option value="sports">Sports</option>
+            <option value="classical">Classical</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label>Description</label>
+        <textarea v-model="form.description" rows="2" placeholder="Write a short description about this event..."></textarea>
+      </div>
+
+      <div class="grid-2">
+        <div><label>Start date</label><input v-model="form.startDate" type="datetime-local" /></div>
+        <div><label>End date</label><input v-model="form.endDate" type="datetime-local" /></div>
       </div>
       <div class="grid-2">
-        <div><label>Venue name</label><input v-model="form.venueName" placeholder="Marina Bay Arena" /></div>
-        <div><label>Venue address</label><input v-model="form.venueAddress" placeholder="123 Bayfront Ave" /></div>
+        <div>
+          <label>Venue Selection</label>
+          <select v-model="form.venueId" class="native-select">
+            <option disabled value="">Select a venue...</option>
+            <option v-for="v in venues" :key="v.venueId" :value="v.venueId">
+              {{ v.name }}
+            </option>
+          </select>
+        </div>
       </div>
-      <div class="grid-3">
-        <div><label>Total halls</label><input v-model="form.totalHalls" type="number" min="1" /></div>
-        <div><label>Hall ID</label><input v-model="form.hallId" /></div>
-        <div><label>Total seats</label><input v-model="form.totalSeats" type="number" min="1" /></div>
-      </div>
-      <div style="max-width:220px;"><label>CAT1 price</label><input v-model="form.cat1Price" type="number" min="1" /></div>
+      <div style="max-width:220px;"><label>Total seats</label><input v-model="form.totalSeats" type="number" min="1" /></div>
+      <div style="max-width:220px;"><label>Ticket price</label><input v-model="form.cat1Price" type="number" min="1" /></div>
 
       <div class="row" style="justify-content:flex-end;">
         <button :disabled="loading" @click="submit">{{ loading ? 'Creating...' : 'Create event' }}</button>
@@ -82,4 +127,23 @@ const submit = async () => {
 .summary h3{margin-top:.2rem}
 .success{color:#86efac}
 code{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;color:#fed7aa}
+
+.native-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.5)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1.2rem;
+}
+.native-select:focus { border-color: #fb923c; outline: none; }
+textarea { width: 100%; resize: vertical; }
 </style>

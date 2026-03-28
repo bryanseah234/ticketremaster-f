@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const isLoggedIn = computed(() => Boolean(state.accessToken))
-  const isAdmin = computed(() => Boolean(state.user?.isAdmin))
+  const isAdmin = computed(() => state.user?.role === 'admin')
   const isStaff = computed(() => state.user?.role === 'staff')
 
   const setSession = (payload: { access_token: string; refresh_token: string; user: AuthUser }) => {

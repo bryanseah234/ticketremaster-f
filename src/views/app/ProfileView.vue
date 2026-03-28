@@ -48,7 +48,7 @@ const loadProfile = async () => {
 }
 
 const loadBalance = async () => {
-  if (auth.isStaff) return
+  if (auth.isStaff || auth.isAdmin) return
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.creditBalance ?? data?.creditBalance ?? 0
@@ -104,7 +104,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="layout">
+    <div class="layout" :class="{ 'admin-layout': auth.isAdmin }">
       <!-- Left column -->
       <div class="left-col">
         <!-- Account details -->
@@ -125,7 +125,7 @@ onMounted(() => {
         </article>
 
         <!-- Credits -->
-        <article v-if="!auth.isStaff" class="glass card">
+        <article v-if="!auth.isStaff && !auth.isAdmin" class="glass card">
           <h2 class="card-title">Credits</h2>
           <div class="balance-row">
             <div>
@@ -151,7 +151,7 @@ onMounted(() => {
       </div>
 
       <!-- Right column -->
-      <div class="right-col">
+      <div v-if="!auth.isAdmin" class="right-col">
         <!-- Favourite Events -->
         <article class="glass card">
           <h2 class="card-title">Favourite Events</h2>
@@ -214,6 +214,10 @@ onMounted(() => {
   grid-template-columns: 320px 1fr;
   gap: 1.2rem;
   align-items: start;
+}
+
+.layout.admin-layout {
+  grid-template-columns: 320px;
 }
 
 .left-col, .right-col {
