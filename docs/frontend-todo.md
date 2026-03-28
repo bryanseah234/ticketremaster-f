@@ -38,7 +38,7 @@ All API calls go directly to individual backend orchestrators running on `localh
 - [x] **Credit balance display**
   - `GET /credits/balance`
   - Show `creditBalance` and `lastToppedUpAt`
-- [x] **Top-up initiation**
+- [] **Top-up initiation**
   - `POST /credits/topup/initiate` with `{ amount: number }`
   - Receive `clientSecret` and render **Stripe payment UI** (Stripe Elements)
   - Handle errors: `INVALID_AMOUNT` (400), `UNAUTHORIZED` (401)
@@ -69,7 +69,7 @@ All API calls go directly to individual backend orchestrators running on `localh
   - Interactive seat grid showing status: `available` / `held` / `sold`
   - Colour-code seats by status
   - Handle error: `EVENT_NOT_FOUND` (404)
-- [x] **Seat detail panel/modal**
+- [] **Seat detail panel/modal**
   - `GET /events/:eventId/seats/:inventoryId`
   - Show seat info (`seatNumber`, `rowNumber`, `status`, `heldUntil`) and event/venue summary
   - Display "Hold Seat" CTA (proceeds to purchase flow if authenticated)
@@ -82,11 +82,11 @@ All API calls go directly to individual backend orchestrators running on `localh
 **Pages/Components:** Hold Seat, Purchase Confirmation
 
 ### Tasks
-- [x] **Hold seat action**
+- [] **Hold seat action**
   - `POST /purchase/hold/:inventoryId`
   - Lock seat for 10 minutes; show countdown timer using `heldUntil`
   - Handle errors: `SEAT_NOT_AVAILABLE` (409), `SEAT_NOT_FOUND` (404), `UNAUTHORIZED` (401)
-- [x] **Purchase confirmation page**
+- [] **Purchase confirmation page**
   - `POST /purchase/confirm/:inventoryId`
   - Show ticket summary on success: `ticketId`, `eventId`, `seatNumber`, `rowNumber`, `price`, `status`
   - Handle errors:
