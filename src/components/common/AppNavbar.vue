@@ -23,6 +23,16 @@ const items = computed(() => {
       { to: '/profile', label: 'Profile', key: 'profile' },
     ]
   }
+  if (auth.isAdmin) {
+    return [
+      { to: '/', label: 'Home', key: 'home' },
+      { to: '/events', label: 'Events', key: 'events' },
+      { to: '/admin/events/new', label: 'Admin Tools', key: 'admin-events' },
+      { to: '/admin/users', label: 'User Management', key: 'admin-users' },
+      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
+      { to: '/profile', label: 'Profile', key: 'profile' },
+    ]
+  }
   if (auth.isLoggedIn) {
     return [
       { to: '/', label: 'Home', key: 'home' },
@@ -41,7 +51,7 @@ const items = computed(() => {
 })
 
 const fetchBalance = async () => {
-  if (!auth.isLoggedIn || auth.isStaff) {
+  if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) {
     balance.value = null
     balanceError.value = false
     return
@@ -99,7 +109,7 @@ const balanceLabel = computed(() => {
 
 <template>
   <header class="header">
-    <div class="inner">
+    <div class="inner" :class="{ 'inner-wide': auth.isAdmin }">
       <RouterLink to="/" class="brand">
         <img src="/logo.svg" alt="TicketRemaster logo" />
         <span>TicketRemaster</span>
@@ -107,7 +117,7 @@ const balanceLabel = computed(() => {
 
       <!-- Desktop Navigation -->
       <div class="right-cluster desktop-only">
-        <RouterLink v-if="auth.isLoggedIn && !auth.isStaff" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
+        <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
 
         <!-- Notification Bell -->
         <div v-if="auth.isLoggedIn" class="bell-wrap">
@@ -158,7 +168,7 @@ const balanceLabel = computed(() => {
     <!-- Mobile Navigation Menu -->
     <nav v-if="mobileMenuOpen" class="mobile-menu">
       <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-nav-link">{{ item.label }}</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
+      <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
     </nav>
   </header>
 </template>
@@ -498,6 +508,10 @@ nav {
   
   .inner {
     max-width: 860px;
+  }
+
+  .inner.inner-wide {
+    max-width: 1080px;
   }
 }
 

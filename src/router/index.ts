@@ -15,6 +15,7 @@ import ProfileView from '@/views/app/ProfileView.vue'
 import MarketplaceView from '@/views/app/MarketplaceView.vue'
 import AdminEventCreateView from '@/views/app/AdminEventCreateView.vue'
 import AdminEventDashboardView from '@/views/app/AdminEventDashboardView.vue'
+import AdminUserManagementView from '@/views/app/AdminUserManagementView.vue'
 import DesignSystemView from '@/views/app/DesignSystemView.vue'
 import NotFoundView from '@/views/app/NotFoundView.vue'
 import InfoPageView from '@/views/app/InfoPageView.vue'
@@ -51,6 +52,7 @@ const routes = [
   { path: '/staff/scan', component: StaffScannerView, meta: { requiresAuth: true, requiresStaff: true } },
   { path: '/admin/events/new', component: AdminEventCreateView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/admin/events/:eventId/dashboard', component: AdminEventDashboardView, meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: '/admin/users', component: AdminUserManagementView, meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', component: NotFoundView },
 ]
 

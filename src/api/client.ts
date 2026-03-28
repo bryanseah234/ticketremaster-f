@@ -54,19 +54,7 @@ const logApiError = (error: any) => {
 api.interceptors.request.use((config) => {
   const url = config.url || '';
   
-  if (url.startsWith('/auth')) {
-    config.baseURL = import.meta.env.VITE_AUTH_ORCHESTRATOR_URL;
-  }
-  else if (url.startsWith('/events')) {
-    config.baseURL = import.meta.env.VITE_EVENT_ORCHESTRATOR_URL;
-  }
-  else if (url.startsWith('/credits')) config.baseURL = import.meta.env.VITE_CREDIT_ORCHESTRATOR_URL;
-  else if (url.startsWith('/tickets/purchase') || url.startsWith('/purchase')) config.baseURL = import.meta.env.VITE_TICKET_PURCHASE_ORCHESTRATOR_URL;
-  else if (url.startsWith('/qr') || url.startsWith('/verify-qr')) config.baseURL = import.meta.env.VITE_QR_ORCHESTRATOR_URL;
-  else if (url.startsWith('/marketplace')) config.baseURL = import.meta.env.VITE_MARKETPLACE_ORCHESTRATOR_URL;
-  else if (url.startsWith('/transfer')) config.baseURL = import.meta.env.VITE_TRANSFER_ORCHESTRATOR_URL;
-  else if (url.startsWith('/verify-ticket')) config.baseURL = import.meta.env.VITE_TICKET_VERIFICATION_ORCHESTRATOR_URL;
-  else config.baseURL = import.meta.env.VITE_EVENT_ORCHESTRATOR_URL; // fallback for /events, /venues, /tickets
+  config.baseURL = import.meta.env.VITE_API_BASE_URL;
 
   const auth = useAuthStore()
   if (auth.state.accessToken) {
