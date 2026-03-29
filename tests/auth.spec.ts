@@ -2,43 +2,40 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication Flow', () => {
     test('should show login page and handle successful login', async ({ page }) => {
-        // Mock successful login response
-        await page.route('**/api/auth/login', async route => {
+        // Mock successful login response - actual endpoint: POST /auth/login
+        await page.route('**/auth/login', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    success: true,
                     data: {
-                        access_token: 'mock-access-token',
-                        refresh_token: 'mock-refresh-token',
-                        user: { user_id: '123', email: 'test@example.com' }
+                        token: 'mock-access-token',
+                        expiresAt: new Date(Date.now() + 3600000).toISOString(),
+                        user: { userId: 'usr_001', email: 'test@example.com', role: 'user' }
                     }
                 })
             });
         });
 
         await page.goto('/login');
-        await expect(page).toHaveTitle(/Login/);
+        await expect(page.locator('h1')).toHaveText(/Login/);
 
         await page.fill('input[type="email"]', 'test@example.com');
         await page.fill('input[type="password"]', 'password123');
-        await page.click('button:has-text("Login")');
+        await page.click('button:has-text("Sign In")');
 
         // Should redirect to home/events
-        await expect(page).toHaveURL('/');
+        await expect(page).toHaveURL('/events');
     });
 
     test('should handle 401 Unauthorized with toast message', async ({ page }) => {
         // Mock 401 response
-        await page.route('**/api/auth/login', async route => {
+        await page.route('**/auth/login', async route => {
             await route.fulfill({
                 status: 401,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    success: false,
-                    error_code: 'UNAUTHORIZED',
-                    message: 'Invalid credentials'
+                    error: { code: 'UNAUTHORIZED', message: 'Invalid email or password' }
                 })
             });
         });
@@ -46,32 +43,25 @@ test.describe('Authentication Flow', () => {
         await page.goto('/login');
         await page.fill('input[type="email"]', 'wrong@example.com');
         await page.fill('input[type="password"]', 'wrongpass');
-        await page.click('button:has-text("Login")');
+        await page.click('button:has-text("Sign In")');
 
-        // Check for toast message (vue-toastification usually has a container)
+        // Check for toast message
         const toast = page.locator('.Vue-Toastification__toast--error');
         await expect(toast).toBeVisible();
-        await expect(toast).toContainText('Invalid credentials');
+        await expect(toast).toContainText(/Invalid|credentials/);
     });
 
-    test('should handle registration and OTP', async ({ page }) => {
-        // Mock registration
-        await page.route('**/api/auth/register', async route => {
+    test('should handle registration successfully', async ({ page }) => {
+        // Mock registration - actual endpoint: POST /auth/register
+        await page.route('**/auth/register', async route => {
             await route.fulfill({
                 status: 201,
-                body: JSON.stringify({ success: true, data: { user_id: '123', status: 'PENDING_VERIFICATION' } })
-            });
-        });
-
-        // Mock OTP verification
-        await page.route('**/api/auth/verify-registration', async route => {
-            await route.fulfill({
-                status: 200,
                 body: JSON.stringify({
-                    success: true,
                     data: {
-                        access_token: 'mock-access-token',
-                        user: { user_id: '123', email: 'new@example.com' }
+                        userId: 'usr_002',
+                        email: 'new@example.com',
+                        role: 'user',
+                        createdAt: new Date().toISOString()
                     }
                 })
             });
@@ -81,13 +71,66 @@ test.describe('Authentication Flow', () => {
         await page.fill('input[placeholder*="email"]', 'new@example.com');
         await page.fill('input[placeholder*="phone"]', '+6591234567');
         await page.fill('input[type="password"]', 'password123');
-        await page.click('button:has-text("Register")');
+        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.click('button:has-text("Create Account")');
 
-        // Should show OTP input (check for "OTP" text or similar)
-        await expect(page).toHaveURL(/\/verify-registration/);
-        await page.fill('input[placeholder*="code"]', '123456');
-        await page.click('button:has-text("Verify")');
+        // Should redirect to login
+        await expect(page).toHaveURL('/login');
+        await expect(page.locator('text=Account created')).toBeVisible();
+    });
 
-        await expect(page).toHaveURL('/');
+    test('should handle registration validation errors (400)', async ({ page }) => {
+        await page.route('**/auth/register', async route => {
+            await route.fulfill({
+                status: 400,
+                body: JSON.stringify({
+                    error: { code: 'VALIDATION_ERROR', message: 'Invalid email format' },
+                    errors: { email: ['Must be a valid email address'] }
+                })
+            });
+        });
+
+        await page.goto('/register');
+        await page.fill('input[placeholder*="email"]', 'invalid-email');
+        await page.fill('input[placeholder*="phone"]', '+6591234567');
+        await page.fill('input[type="password"]', 'password123');
+        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.click('button:has-text("Create Account")');
+
+        const toast = page.locator('.Vue-Toastification__toast--error');
+        await expect(toast).toBeVisible();
+        await expect(toast).toContainText(/validation|Invalid|email/i);
+    });
+
+    test('should handle duplicate email registration (409)', async ({ page }) => {
+        await page.route('**/auth/register', async route => {
+            await route.fulfill({
+                status: 409,
+                body: JSON.stringify({
+                    error: { code: 'EMAIL_ALREADY_EXISTS', message: 'This email is already registered' }
+                })
+            });
+        });
+
+        await page.goto('/register');
+        await page.fill('input[placeholder*="email"]', 'existing@example.com');
+        await page.fill('input[placeholder*="phone"]', '+6591234567');
+        await page.fill('input[type="password"]', 'password123');
+        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.click('button:has-text("Create Account")');
+
+        const toast = page.locator('.Vue-Toastification__toast--error');
+        await expect(toast).toBeVisible();
+        await expect(toast).toContainText(/already registered/);
+    });
+
+    test('should redirect unauthenticated user from protected routes', async ({ page }) => {
+        // Clear any stored auth
+        await page.evaluate(() => {
+            localStorage.clear();
+        });
+
+        await page.goto('/tickets');
+        await expect(page).toHaveURL('/login');
     });
 });

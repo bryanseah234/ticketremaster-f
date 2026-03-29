@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+
+# Development files
+.env.local
+.env.*.local
+*.log
+
+# Testing
+tests/
+playwright.config.ts
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output (Vercel handles this)
+dist
+
+# Audit and documentation (optional - include if needed for reference)
+# AUDIT_REPORT.md
+# FRONTEND.md

@@ -8,6 +8,40 @@ const apiKey = import.meta.env.VITE_KONG_API_KEY || ''
 let offlineNotified = false;
 (window as any).__apiOffline = false
 
+// Idempotency key cache to prevent duplicate operations within TTL
+const idempotencyCache = new Map<string, { response: any; timestamp: number }>()
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours as per FRONTEND.md
+
+// Paths that require idempotency keys (state-changing operations)
+const IDEMPOTENCY_REQUIRED_PATHS = [
+  '/purchase/hold/',
+  '/purchase/confirm/',
+  '/credits/topup/initiate',
+  '/credits/topup/confirm',
+  '/transfer/initiate',
+  '/transfer/',
+]
+
+const needsIdempotencyKey = (url: string, method: string): boolean => {
+  if (!['POST', 'PUT', 'DELETE'].includes(method.toUpperCase())) return false
+  return IDEMPOTENCY_REQUIRED_PATHS.some(path => url.includes(path))
+}
+
+const generateIdempotencyKey = (config: any): string => {
+  const url = config.url || ''
+  const method = config.method || 'POST'
+  const body = config.data ? JSON.stringify(config.data) : ''
+  const timestamp = Date.now()
+  const keyBase = `${method}:${url}:${body}:${timestamp}`
+  let hash = 0
+  for (let i = 0; i < keyBase.length; i++) {
+    const char = keyBase.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return `idem_${Math.abs(hash).toString(36)}_${timestamp}`
+}
+
 const emitOffline = (message: string) => {
   if (offlineNotified) return
   offlineNotified = true;
@@ -63,12 +97,41 @@ api.interceptors.request.use((config) => {
   if (apiKey && !config.headers.apikey) {
     config.headers.apikey = apiKey
   }
+  
+  // Add idempotency key for state-changing operations
+  if (needsIdempotencyKey(url, config.method || '')) {
+    // Clean expired cache entries
+    for (const [key, cached] of idempotencyCache.entries()) {
+      if (Date.now() - cached.timestamp > IDEMPOTENCY_TTL_MS) {
+        idempotencyCache.delete(key)
+      }
+    }
+    
+    // Generate deterministic cache key
+    const cachedKey = `${config.method}:${url}:${JSON.stringify(config.data)}`
+    
+    // Generate and set idempotency key
+    const idemKey = generateIdempotencyKey(config)
+    config.headers['Idempotency-Key'] = idemKey
+    
+    // Store request metadata for potential retry
+    config.metadata = { ...config.metadata, idempotencyKey: idemKey, cachedKey }
+  }
+  
   return config
 })
 
 api.interceptors.response.use(
   (response) => {
     emitOnline()
+    // Cache successful responses for idempotent operations
+    const config = response.config
+    if (config.metadata?.cachedKey && response.status >= 200 && response.status < 300) {
+      idempotencyCache.set(config.metadata.cachedKey, {
+        response: response.data,
+        timestamp: Date.now()
+      })
+    }
     return response;
   },
   async (error) => {
@@ -79,6 +142,15 @@ api.interceptors.response.use(
     const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message
     const original = error.config || {}
     const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
+    
+    // Check if we can return a cached response for idempotent retry
+    if (original.metadata?.cachedKey && (status === 408 || status === 504 || isNetworkError)) {
+      const cached = idempotencyCache.get(original.metadata.cachedKey)
+      if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL_MS) {
+        // Return cached response instead of failing
+        return Promise.resolve({ data: cached.response, status: 200 })
+      }
+    }
     
     if (isNetworkError || status === 502 || status === 503 || status === 504) {
       emitOffline('Backend unavailable. Showing limited demo data.')

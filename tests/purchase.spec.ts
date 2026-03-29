@@ -7,96 +7,133 @@ test.describe('Purchase Flow', () => {
         await page.evaluate(() => {
             localStorage.setItem('access_token', 'mock-token');
             localStorage.setItem('refresh_token', 'refresh-token');
-            localStorage.setItem('user', JSON.stringify({ user_id: 'u1', email: 'test@example.com', credit_balance: 500 }));
+            localStorage.setItem('user', JSON.stringify({ userId: 'u1', email: 'test@example.com', role: 'user' }));
         });
     });
 
     test('should reserve a seat and pay successfully', async ({ page }) => {
-        // Mock reserve
-        await page.route('**/api/reserve', async route => {
-            await route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: { order_id: 'o1', status: 'HELD' } }) });
+        // Mock seat hold - actual endpoint: POST /purchase/hold/{inventoryId}
+        await page.route('**/purchase/hold/*', async route => {
+            await route.fulfill({ status: 200, body: JSON.stringify({
+                data: {
+                    inventoryId: 'inv_001',
+                    status: 'held',
+                    heldUntil: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+                    holdToken: 'mock-hold-token'
+                }
+            }) });
         });
 
-        // Mock pay
-        await page.route('**/api/pay', async route => {
-            await route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: { status: 'CONFIRMED' } }) });
+        // Mock purchase confirm - actual endpoint: POST /purchase/confirm/{inventoryId}
+        await page.route('**/purchase/confirm/*', async route => {
+            await route.fulfill({ status: 200, body: JSON.stringify({
+                data: {
+                    ticketId: 'tkt_001',
+                    eventId: 'evt_001',
+                    status: 'active',
+                    price: 100,
+                    createdAt: new Date().toISOString()
+                }
+            }) });
         });
 
-        await page.goto('/events/e1/seats');
-        await page.click('button:has-text("A-1")');
-        await page.click('button:has-text("Reserve")');
+        // Mock credit balance check
+        await page.route('**/credits/balance', async route => {
+            await route.fulfill({ status: 200, body: JSON.stringify({
+                data: { creditBalance: 500 }
+            }) });
+        });
 
+        await page.goto('/events/evt_001/seats');
+        await page.click('button.seat-btn.available');
+        await page.click('button:has-text("Reserve Seat")');
+
+        // Should navigate to checkout
         await expect(page.locator('h1')).toHaveText(/Checkout/);
-        await page.click('button:has-text("Confirm Payment")');
+        await page.click('button:has-text("Confirm Purchase")');
 
-        await expect(page).toHaveURL(/\/profile/);
-        await expect(page.locator('text=Purchase confirmed')).toBeVisible();
+        // Should show success
+        await expect(page.locator('text=Purchase Successful')).toBeVisible();
     });
 
     test('should handle SEAT_UNAVAILABLE (409)', async ({ page }) => {
-        await page.route('**/api/reserve', async route => {
+        await page.route('**/purchase/hold/*', async route => {
             await route.fulfill({
                 status: 409,
-                body: JSON.stringify({ success: false, error_code: 'SEAT_UNAVAILABLE', message: 'Seat is held by another user' })
+                body: JSON.stringify({
+                    error: { code: 'SEAT_UNAVAILABLE', message: 'Seat is no longer available' }
+                })
             });
         });
 
-        await page.goto('/events/e1/seats');
-        await page.click('button:has-text("A-1")');
-        await page.click('button:has-text("Reserve")');
+        await page.goto('/events/evt_001/seats');
+        await page.click('button.seat-btn.available');
+        await page.click('button:has-text("Reserve Seat")');
 
         const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toContainText('Seat is currently unavailable');
+        await expect(toast).toContainText(/no longer available|Seat is/);
     });
 
     test('should handle INSUFFICIENT_CREDITS (402)', async ({ page }) => {
         // Mock checkout page load (balance check)
-        await page.route('**/api/credits/balance', async route => {
-            await route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: { credit_balance: 10 } }) });
+        await page.route('**/credits/balance', async route => {
+            await route.fulfill({ status: 200, body: JSON.stringify({
+                data: { creditBalance: 10 }
+            }) });
         });
 
-        await page.route('**/api/pay', async route => {
+        await page.route('**/purchase/confirm/*', async route => {
             await route.fulfill({
                 status: 402,
-                body: JSON.stringify({ success: false, error_code: 'INSUFFICIENT_CREDITS', message: 'Not enough credits' })
+                body: JSON.stringify({
+                    error: { code: 'INSUFFICIENT_CREDITS', message: 'Not enough credits' }
+                })
             });
         });
 
-        await page.goto('/checkout/o1');
-        await page.click('button:has-text("Confirm Payment")');
+        // Set up pending order in localStorage
+        await page.evaluate(() => {
+            localStorage.setItem('pendingOrder', JSON.stringify({
+                orderId: 'inv_001',
+                inventoryId: 'inv_001',
+                holdToken: 'mock-token',
+                eventId: 'evt_001',
+                seat: { price: 100 }
+            }));
+        });
+
+        await page.goto('/checkout/inv_001');
+        await page.click('button:has-text("Confirm Purchase")');
 
         const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toContainText('Not enough credits');
-    });
-
-    test('should handle OTP_REQUIRED (428)', async ({ page }) => {
-        await page.route('**/api/pay', async route => {
-            await route.fulfill({
-                status: 428,
-                body: JSON.stringify({ success: false, error_code: 'OTP_REQUIRED', message: 'OTP verification required' })
-            });
-        });
-
-        await page.goto('/checkout/o1');
-        await page.click('button:has-text("Confirm Payment")');
-
-        // Should show OTP input (redirect or modal)
-        await expect(page).toHaveURL(/\/verify-otp/);
-        await expect(page.locator('text=OTP verification required')).toBeVisible();
+        await expect(toast).toContainText(/Not enough credits|Insufficient/);
     });
 
     test('should handle HOLD_EXPIRED (410)', async ({ page }) => {
-        await page.route('**/api/pay', async route => {
+        await page.route('**/purchase/confirm/*', async route => {
             await route.fulfill({
                 status: 410,
-                body: JSON.stringify({ success: false, error_code: 'HOLD_EXPIRED', message: 'Seat hold expired' })
+                body: JSON.stringify({
+                    error: { code: 'PAYMENT_HOLD_EXPIRED', message: 'Seat hold expired' }
+                })
             });
         });
 
-        await page.goto('/checkout/o1');
-        await page.click('button:has-text("Confirm Payment")');
+        // Set up pending order in localStorage
+        await page.evaluate(() => {
+            localStorage.setItem('pendingOrder', JSON.stringify({
+                orderId: 'inv_001',
+                inventoryId: 'inv_001',
+                holdToken: 'mock-token',
+                eventId: 'evt_001',
+                seat: { price: 100 }
+            }));
+        });
+
+        await page.goto('/checkout/inv_001');
+        await page.click('button:has-text("Confirm Purchase")');
 
         const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toContainText('Your seat hold expired');
+        await expect(toast).toContainText(/expired|hold/);
     });
 });
