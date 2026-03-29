@@ -16,6 +16,9 @@ const resendLoading = ref(false)
 const showSuccessBanner = ref(false)
 const otpError = ref('')
 const otpAttempts = ref(0)
+const rateLimited = ref(false)
+const rateLimitResetAt = ref<Date | null>(null)
+const rateLimitCountdown = ref(0)
 
 const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
 
@@ -155,6 +158,8 @@ const resendOtp = async () => {
 }
 
 let pollTimer: number | undefined
+let countdownTimer: number | undefined
+
 onMounted(async () => {
   await loadTransfer()
   pollTimer = window.setInterval(async () => {
@@ -164,8 +169,21 @@ onMounted(async () => {
     }
     await loadTransfer()
   }, 5000)
+  
+  // Countdown timer for rate limiting
+  countdownTimer = window.setInterval(() => {
+    if (rateLimited.value && rateLimitCountdown.value > 0) {
+      rateLimitCountdown.value--
+    } else if (rateLimitCountdown.value <= 0 && rateLimited.value) {
+      rateLimited.value = false
+      rateLimitResetAt.value = null
+    }
+  }, 1000)
 })
-onUnmounted(() => clearInterval(pollTimer))
+onUnmounted(() => {
+  clearInterval(pollTimer)
+  clearInterval(countdownTimer)
+})
 </script>
 
 <template>

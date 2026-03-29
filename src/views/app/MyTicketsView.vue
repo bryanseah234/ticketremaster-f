@@ -21,6 +21,36 @@ const cancelListing = () => {
   listingPrice.value = 0
 }
 
+const unlistingTicketId = ref<string | null>(null)
+const unlistingLoading = ref(false)
+
+const startUnlisting = (ticketId: string) => {
+  unlistingTicketId.value = ticketId
+}
+
+const cancelUnlisting = () => {
+  unlistingTicketId.value = null
+}
+
+const confirmUnlist = async (ticketId: string) => {
+  unlistingLoading.value = true
+  try {
+    const ticket = tickets.value.find(t => t.ticketId === ticketId)
+    if (!ticket?.listingId) {
+      toast.push('Could not find listing information.', 'error', 3000)
+      return
+    }
+    await api.delete(`/marketplace/${ticket.listingId}`)
+    toast.push('Ticket removed from marketplace.', 'success', 3000)
+    unlistingTicketId.value = null
+    await load()
+  } catch (e: any) {
+    toast.push(e?.response?.data?.error?.message || 'Could not unlist ticket.', 'error', 3000)
+  } finally {
+    unlistingLoading.value = false
+  }
+}
+
 const submitListing = async (ticketId: string) => {
   if (!listingPrice.value || listingPrice.value <= 0) {
     toast.push('Enter a valid price.', 'error', 3000)
@@ -211,6 +241,21 @@ watch([loading, tickets], ([isLoading, items]) => {
                 List on Marketplace
               </button>
             </template>
+            <template v-else-if="t.status === 'listed'">
+              <div v-if="unlistingTicketId === t.ticketId" class="list-inline">
+                <p class="small muted">Remove this ticket from the marketplace?</p>
+                <div class="list-inline-btns">
+                  <button :disabled="unlistingLoading" class="btn-danger full-btn" @click="confirmUnlist(t.ticketId)">
+                    {{ unlistingLoading ? 'Unlisting...' : 'Confirm Unlist' }}
+                  </button>
+                  <button class="btn-secondary full-btn" @click="cancelUnlisting">Cancel</button>
+                </div>
+              </div>
+              <button v-else class="btn-secondary full-btn" @click="startUnlisting(t.ticketId)">
+                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                Unlist from Marketplace
+              </button>
+            </template>
           </div>
         </div>
 
@@ -398,6 +443,13 @@ watch([loading, tickets], ([isLoading, items]) => {
   border: 1px solid var(--border);
 }
 .btn-secondary:hover { background: var(--surface-2); color: var(--text); }
+
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+}
+.btn-danger:hover:not(:disabled) { opacity: .88; }
 
 .btn-icon { width: .95rem; height: .95rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
 
