@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import { StreamBarcodeReader } from 'vue-barcode-reader'
 import api from '@/api/client'
 
+// Type workaround for vue-barcode-reader
+const BarcodeReader = StreamBarcodeReader
+
 type ScanResult = 'PASS' | 'FAILED' | 'WRONG_VENUE'
 
 interface ScanRecord {
@@ -123,7 +126,7 @@ const clearHistory = () => { history.value = [] }
       <!-- Camera feed -->
       <article class="glass camera-card">
         <div class="camera-wrap">
-          <StreamBarcodeReader @decode="onDecode" />
+          <component :is="BarcodeReader" @decode="onDecode" />
 
           <!-- Scan feedback overlay -->
           <div v-if="feedback" class="feedback-overlay" :class="feedbackClass">

@@ -1,5 +1,4 @@
 import { reactive, readonly } from 'vue'
-import api from '@/api/client'
 import type { Toast } from '@/types'
 
 interface ToastState {

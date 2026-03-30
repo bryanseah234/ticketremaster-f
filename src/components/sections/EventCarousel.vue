@@ -53,8 +53,7 @@ const loadFeatured = async () => {
 }
 
 const active = ref<EventCard | null>(null)
-const modalRef = ref<HTMLElement | null>(null)
-useOutsideClick(modalRef, () => (active.value = null))
+const { ref: modalRef } = useOutsideClick(() => (active.value = null))
 const animateRail = (time: number) => {
   const rail = railRef.value
   if (!rail) {

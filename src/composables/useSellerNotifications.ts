@@ -1,12 +1,18 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
-import type { User } from '@/types'
+
+interface NotificationItem {
+  transferId: string
+  creditAmount: number
+  createdAt: string
+}
 
 interface NotificationState {
   loading: boolean
   error: string | null
   lastChecked: Date | null
+  notifications: NotificationItem[]
 }
 
 export function useSellerNotifications() {
@@ -15,6 +21,7 @@ export function useSellerNotifications() {
     loading: false,
     error: null,
     lastChecked: null,
+    notifications: [],
   })
 
   const checkNotifications = async () => {
@@ -26,15 +33,23 @@ export function useSellerNotifications() {
     try {
       // Check for pending transfers
       const response = await api.get('/transfers/pending')
-      const pendingCount = response.data?.count || 0
+      const pendingTransfers = response.data?.data || []
 
-      if (pendingCount > 0) {
+      if (pendingTransfers.length > 0) {
+        state.value.notifications = pendingTransfers.map((t: any) => ({
+          transferId: t.transferId,
+          creditAmount: t.creditAmount || 0,
+          createdAt: t.createdAt,
+        }))
+
         // Dispatch custom event for UI notification
         window.dispatchEvent(
           new CustomEvent('seller:notifications', {
-            detail: { pendingTransfers: pendingCount },
+            detail: { pendingTransfers: pendingTransfers.length },
           })
         )
+      } else {
+        state.value.notifications = []
       }
 
       state.value.lastChecked = new Date()
@@ -44,6 +59,10 @@ export function useSellerNotifications() {
     } finally {
       state.value.loading = false
     }
+  }
+
+  const dismiss = (transferId: string) => {
+    state.value.notifications = state.value.notifications.filter(n => n.transferId !== transferId)
   }
 
   let pollInterval: number | undefined
@@ -62,6 +81,8 @@ export function useSellerNotifications() {
 
   return {
     state: state.value,
+    notifications: computed(() => state.value.notifications),
     checkNotifications,
+    dismiss,
   }
 }

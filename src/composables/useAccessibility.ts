@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, type Ref } from 'vue'
+import { ref, onMounted, type Ref } from 'vue'
 
 interface FocusTrapOptions {
   initialFocus?: HTMLElement | null

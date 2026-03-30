@@ -17,7 +17,6 @@ import type {
   EventSummary,
   Ticket,
   Seat,
-  SeatInventory,
   Venue,
   MarketplaceListing,
   Transfer,
@@ -238,7 +237,7 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const mockServices = {
   // Auth
-  async login(email: string, password: string): Promise<{ user: AuthUser; token: string }> {
+  async login(email: string, _password: string): Promise<{ user: AuthUser; token: string }> {
     await delay(defaultConfig.delay!)
     if (email === 'demo@ticketremaster.com' || email === 'admin@ticketremaster.com') {
       const user = email.includes('admin') ? mockAdminUser : mockUser
@@ -291,12 +290,15 @@ export const mockServices = {
     await delay(defaultConfig.delay!)
     const event = mockEvents.find(e => e.eventId === eventId)
     if (!event) throw new Error('Event not found')
-    return {
+    const eventWithCreatedAt = {
       ...event,
       description: 'This is a demo event description. In a real application, this would come from the backend.',
+      createdAt: '2024-01-01T00:00:00Z',
       cancelledAt: undefined,
       updatedAt: undefined,
-    }
+      venue: event.venue ? { ...event.venue, createdAt: '2024-01-01T00:00:00Z' } : undefined,
+    } as Event
+    return eventWithCreatedAt
   },
 
   async getUpcomingEvents(params?: { page?: number; limit?: number }): Promise<{ events: EventSummary[]; pagination: { page: number; limit: number; total: number } }> {
@@ -337,7 +339,7 @@ export const mockServices = {
   },
 
   // Seats
-  async getSeats(eventId: string): Promise<{ seats: Array<Seat & { inventoryId: string; status: string; price: number }> }> {
+  async getSeats(_eventId: string): Promise<{ seats: Array<Seat & { inventoryId: string; status: string; price: number }> }> {
     await delay(defaultConfig.delay!)
     return {
       seats: mockSeats.map((seat, i) => ({
@@ -367,7 +369,7 @@ export const mockServices = {
   },
 
   // User
-  async getUserProfile(userId: string): Promise<User> {
+  async getUserProfile(_userId: string): Promise<User> {
     await delay(defaultConfig.delay!)
     return mockUser
   },

@@ -4,7 +4,9 @@ import SearchBar from '@/components/ui/SearchBar.vue'
 import { useMousePosition } from '@/composables/useMousePosition'
 
 const rootRef = ref<HTMLElement | null>(null)
-const { x, y } = useMousePosition(rootRef)
+const { position } = useMousePosition()
+const x = computed(() => position.value.x)
+const y = computed(() => position.value.y)
 
 const layers = [
   { src: 'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=1200', top: '8%', left: '4%', depth: 0.015, width: '150px' },

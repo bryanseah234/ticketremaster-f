@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { mockServices, setDemoMode, mockUser, mockAdminUser, mockStaffUser } from '@/services/mockData'
+import { mockServices, setDemoMode } from '@/services/mockData'
 import type { AuthUser } from '@/types'
 
 const router = useRouter()
@@ -20,14 +20,6 @@ const demoAccounts = [
   { email: 'admin@ticketremaster.com', role: 'admin', label: 'Demo Admin' },
   { email: 'staff@ticketremaster.com', role: 'staff', label: 'Demo Staff' },
 ]
-
-export const mockStaffUser: AuthUser = {
-  userId: 'demo-staff-001',
-  email: 'staff@ticketremaster.com',
-  role: 'staff',
-  isFlagged: false,
-  isAdmin: false,
-}
 
 const useDemoAccount = async (accountEmail: string) => {
   email.value = accountEmail
@@ -81,11 +73,6 @@ const handleDemoLogin = async () => {
   }
 }
 
-const handleRegularLogin = async () => {
-  // This would call the real API
-  // For now, just show an error since backend might be down
-  toast.error('Backend is unavailable. Please use demo login for UI testing.')
-}
 </script>
 
 <template>

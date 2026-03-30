@@ -5,6 +5,14 @@ import axios, {
   type InternalAxiosRequestConfig,
   type AxiosError,
 } from 'axios'
+
+// Extend InternalAxiosRequestConfig to include metadata
+interface InternalAxiosRequestConfigWithMetadata extends InternalAxiosRequestConfig {
+  metadata?: {
+    cachedKey?: string
+    idempotencyKey?: string
+  }
+}
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { setDemoMode, isDemoMode } from '@/services/mockData'
@@ -94,7 +102,7 @@ interface ApiErrorDetails {
 }
 
 const logApiError = (error: AxiosError<ApiError>) => {
-  const config = error?.config || {}
+  const config = error?.config || {} as InternalAxiosRequestConfig
   const configHeaders = (config as InternalAxiosRequestConfig)?.headers || {}
   const headers = { ...(configHeaders as Record<string, string> || {}) }
   if (headers.Authorization) delete headers.Authorization
@@ -105,15 +113,15 @@ const logApiError = (error: AxiosError<ApiError>) => {
   const message =
     error?.response?.data?.error?.message ||
     error?.response?.data?.message ||
-    error?.message
+    error?.message || 'Unknown error'
   const details: ApiErrorDetails = {
-    method: String(config?.method || 'GET').toUpperCase(),
+    method: String((config as InternalAxiosRequestConfig)?.method || 'GET').toUpperCase(),
     url: resolveUrl(config),
     status,
     errorCode,
     message,
-    params: config?.params,
-    data: config?.data,
+    params: (config as InternalAxiosRequestConfig)?.params,
+    data: (config as InternalAxiosRequestConfig)?.data,
     headers,
     response: error?.response?.data,
   }
@@ -167,8 +175,8 @@ api.interceptors.request.use(
       config.headers['Idempotency-Key'] = idemKey
 
       // Store request metadata for potential retry
-      config.metadata = {
-        ...config.metadata,
+      ;(config as InternalAxiosRequestConfigWithMetadata).metadata = {
+        ...(config as InternalAxiosRequestConfigWithMetadata).metadata,
         idempotencyKey: idemKey,
         cachedKey,
       }
@@ -209,8 +217,7 @@ api.interceptors.response.use(
     const errorMessage =
       data?.error?.message ||
       data?.message
-    const original = error.config as (InternalAxiosRequestConfig & {
-      metadata?: { cachedKey?: string }
+    const original = error.config as (InternalAxiosRequestConfigWithMetadata & {
       __useMockData?: boolean
     }) || {}
     const isNetworkError =
@@ -258,7 +265,7 @@ api.interceptors.response.use(
     if (status === 404) {
       const auth = useAuthStore()
       const userId = auth.state.user?.userId
-      const url = resolveUrl(error.config)
+      const url = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig) : ''
       if (
         userId &&
         url.includes(`/users/${userId}`)
@@ -270,7 +277,7 @@ api.interceptors.response.use(
     }
 
     // Map common HTTP errors to user-facing messages
-    const isScanRoute = resolveUrl(error.config).includes('/scan/verify/')
+    const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/scan/verify/') : false
     if (status && status >= 400 && !isScanRoute) {
       const codeMessage =
         errorCode === 'SEAT_UNAVAILABLE'
