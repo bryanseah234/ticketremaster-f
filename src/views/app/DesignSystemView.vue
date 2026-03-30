@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { themeConfig } from '@/config/theme'
+import theme from '@/config/theme'
 </script>
 
 <template>
@@ -10,7 +10,7 @@ import { themeConfig } from '@/config/theme'
     <article class="glass block">
       <h2>Theme tokens</h2>
       <div class="grid-4">
-        <div v-for="(value, key) in themeConfig.colors" :key="key" class="panel token">
+        <div v-for="(value, key) in theme.colors" :key="key" class="panel token">
           <div class="swatch" :style="{background:value}"></div>
           <p class="small">{{ key }}</p>
           <code>{{ value }}</code>
