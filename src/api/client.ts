@@ -1,15 +1,25 @@
-import axios from 'axios'
+import axios, {
+  type AxiosInstance,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+  type AxiosError,
+} from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import type { ApiError } from '@/types'
 
-const api = axios.create()
-const apiKey = import.meta.env.VITE_KONG_API_KEY || ''
+const api: AxiosInstance = axios.create()
+const apiKey: string = import.meta.env.VITE_KONG_API_KEY || ''
 
-let offlineNotified = false;
-(window as any).__apiOffline = false
+let offlineNotified = false
+;(window as unknown as Record<string, unknown>).__apiOffline = false
 
 // Idempotency key cache to prevent duplicate operations within TTL
-const idempotencyCache = new Map<string, { response: any; timestamp: number }>()
+const idempotencyCache = new Map<
+  string,
+  { response: unknown; timestamp: number }
+>()
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours as per FRONTEND.md
 
 // Paths that require idempotency keys (state-changing operations)
@@ -24,10 +34,10 @@ const IDEMPOTENCY_REQUIRED_PATHS = [
 
 const needsIdempotencyKey = (url: string, method: string): boolean => {
   if (!['POST', 'PUT', 'DELETE'].includes(method.toUpperCase())) return false
-  return IDEMPOTENCY_REQUIRED_PATHS.some(path => url.includes(path))
+  return IDEMPOTENCY_REQUIRED_PATHS.some((path) => url.includes(path))
 }
 
-const generateIdempotencyKey = (config: any): string => {
+const generateIdempotencyKey = (config: InternalAxiosRequestConfig): string => {
   const url = config.url || ''
   const method = config.method || 'POST'
   const body = config.data ? JSON.stringify(config.data) : ''
@@ -44,33 +54,52 @@ const generateIdempotencyKey = (config: any): string => {
 
 const emitOffline = (message: string) => {
   if (offlineNotified) return
-  offlineNotified = true;
-  (window as any).__apiOffline = true
-  window.dispatchEvent(new CustomEvent('api:offline', { detail: { message } }))
+  offlineNotified = true
+  ;(window as unknown as Record<string, unknown>).__apiOffline = true
+  window.dispatchEvent(
+    new CustomEvent('api:offline', { detail: { message } })
+  )
 }
 
 const emitOnline = () => {
   if (!offlineNotified) return
-  offlineNotified = false;
-  (window as any).__apiOffline = false
+  offlineNotified = false
+  ;(window as unknown as Record<string, unknown>).__apiOffline = false
   window.dispatchEvent(new Event('api:online'))
 }
 
-const resolveUrl = (config: any) => {
+const resolveUrl = (config: InternalAxiosRequestConfig | AxiosRequestConfig): string => {
   const url = config?.url || ''
   if (url.startsWith('http')) return url
   const base = config?.baseURL || ''
   return `${String(base).replace(/\/$/, '')}/${String(url).replace(/^\//, '')}`
 }
 
-const logApiError = (error: any) => {
+interface ApiErrorDetails {
+  method: string
+  url: string
+  status?: number
+  errorCode?: string
+  message?: string
+  params?: unknown
+  data?: unknown
+  headers?: Record<string, string>
+  response?: unknown
+}
+
+const logApiError = (error: AxiosError<ApiError>) => {
   const config = error?.config || {}
-  const headers = { ...(config?.headers || {}) }
+  const headers = { ...(config?.headers as Record<string, string> || {}) }
   if (headers.Authorization) delete headers.Authorization
   const status = error?.response?.status
-  const errorCode = error?.response?.data?.error_code || error?.response?.data?.error?.code
-  const message = error?.response?.data?.message || error?.response?.data?.error?.message || error?.message
-  const details = {
+  const errorCode =
+    error?.response?.data?.error?.code ||
+    error?.response?.data?.error_code
+  const message =
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    error?.message
+  const details: ApiErrorDetails = {
     method: String(config?.method || 'GET').toUpperCase(),
     url: resolveUrl(config),
     status,
@@ -85,74 +114,104 @@ const logApiError = (error: any) => {
 }
 
 // Request Interceptor: Dynamically route requests to the correct Orchestrator
-api.interceptors.request.use((config) => {
-  const url = config.url || '';
-  
-  config.baseURL = import.meta.env.VITE_API_BASE_URL;
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const url = config.url || ''
 
-  const auth = useAuthStore()
-  if (auth.state.accessToken) {
-    config.headers.Authorization = `Bearer ${auth.state.accessToken}`
-  }
-  if (apiKey && !config.headers.apikey) {
-    config.headers.apikey = apiKey
-  }
-  
-  // Add idempotency key for state-changing operations
-  if (needsIdempotencyKey(url, config.method || '')) {
-    // Clean expired cache entries
-    for (const [key, cached] of idempotencyCache.entries()) {
-      if (Date.now() - cached.timestamp > IDEMPOTENCY_TTL_MS) {
-        idempotencyCache.delete(key)
+    config.baseURL = import.meta.env.VITE_API_BASE_URL
+
+    const auth = useAuthStore()
+    if (auth.state.accessToken) {
+      config.headers.Authorization = `Bearer ${auth.state.accessToken}`
+    }
+    if (apiKey && !config.headers.apikey) {
+      config.headers.apikey = apiKey
+    }
+
+    // Add idempotency key for state-changing operations
+    if (needsIdempotencyKey(url, config.method || '')) {
+      // Clean expired cache entries
+      for (const [key, cached] of idempotencyCache.entries()) {
+        if (Date.now() - cached.timestamp > IDEMPOTENCY_TTL_MS) {
+          idempotencyCache.delete(key)
+        }
+      }
+
+      // Generate deterministic cache key
+      const cachedKey = `${config.method}:${url}:${JSON.stringify(config.data)}`
+
+      // Generate and set idempotency key
+      const idemKey = generateIdempotencyKey(config)
+      config.headers['Idempotency-Key'] = idemKey
+
+      // Store request metadata for potential retry
+      config.metadata = {
+        ...config.metadata,
+        idempotencyKey: idemKey,
+        cachedKey,
       }
     }
-    
-    // Generate deterministic cache key
-    const cachedKey = `${config.method}:${url}:${JSON.stringify(config.data)}`
-    
-    // Generate and set idempotency key
-    const idemKey = generateIdempotencyKey(config)
-    config.headers['Idempotency-Key'] = idemKey
-    
-    // Store request metadata for potential retry
-    config.metadata = { ...config.metadata, idempotencyKey: idemKey, cachedKey }
-  }
-  
-  return config
-})
+
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     emitOnline()
     // Cache successful responses for idempotent operations
-    const config = response.config
-    if (config.metadata?.cachedKey && response.status >= 200 && response.status < 300) {
+    const config = response.config as InternalAxiosRequestConfig & {
+      metadata?: { cachedKey?: string }
+    }
+    if (
+      config.metadata?.cachedKey &&
+      response.status >= 200 &&
+      response.status < 300
+    ) {
       idempotencyCache.set(config.metadata.cachedKey, {
         response: response.data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
     }
-    return response;
+    return response
   },
-  async (error) => {
+  async (error: AxiosError<ApiError>) => {
     logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
-    const errorCode = error?.response?.data?.error?.code || error?.response?.data?.error_code
-    const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message
-    const original = error.config || {}
-    const isNetworkError = !error?.response || error?.code === 'ERR_NETWORK'
-    
+    const errorCode =
+      error?.response?.data?.error?.code ||
+      error?.response?.data?.error_code
+    const errorMessage =
+      error?.response?.data?.error?.message ||
+      error?.response?.data?.message
+    const original = error.config as (InternalAxiosRequestConfig & {
+      metadata?: { cachedKey?: string }
+    }) || {}
+    const isNetworkError =
+      !error?.response || error?.code === 'ERR_NETWORK'
+
     // Check if we can return a cached response for idempotent retry
-    if (original.metadata?.cachedKey && (status === 408 || status === 504 || isNetworkError)) {
+    if (
+      original.metadata?.cachedKey &&
+      (status === 408 ||
+        status === 504 ||
+        isNetworkError)
+    ) {
       const cached = idempotencyCache.get(original.metadata.cachedKey)
       if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL_MS) {
         // Return cached response instead of failing
         return Promise.resolve({ data: cached.response, status: 200 })
       }
     }
-    
-    if (isNetworkError || status === 502 || status === 503 || status === 504) {
+
+    if (
+      isNetworkError ||
+      status === 502 ||
+      status === 503 ||
+      status === 504
+    ) {
       emitOffline('Backend unavailable. Showing limited demo data.')
     }
 
@@ -171,7 +230,10 @@ api.interceptors.response.use(
       const auth = useAuthStore()
       const userId = auth.state.user?.userId
       const url = resolveUrl(error.config)
-      if (userId && url.includes(`/users/${userId}`)) {
+      if (
+        userId &&
+        url.includes(`/users/${userId}`)
+      ) {
         auth.clearSession()
         window.location.href = '/login'
         return Promise.reject(error)
@@ -181,39 +243,68 @@ api.interceptors.response.use(
     // Map common HTTP errors to user-facing messages
     const isScanRoute = resolveUrl(error.config).includes('/scan/verify/')
     if (status && status >= 400 && !isScanRoute) {
-      const codeMessage = errorCode === 'SEAT_UNAVAILABLE' ? 'Seat is currently unavailable.' :
-        errorCode === 'SEAT_ALREADY_SOLD' ? 'Seat has already been sold.' :
-        errorCode === 'SEAT_NOT_FOUND' ? 'Seat not found.' :
-        errorCode === 'EVENT_NOT_FOUND' ? 'Event not found.' :
-        errorCode === 'EVENT_ENDED' ? 'Event has ended.' :
-        errorCode === 'HOLD_EXPIRED' ? 'Your seat hold expired.' :
-        errorCode === 'INSUFFICIENT_CREDITS' ? 'Not enough credits for this action.' :
-        errorCode === 'OTP_REQUIRED' ? 'OTP verification required.' :
-        errorCode === 'OTP_INVALID' ? 'OTP code is incorrect.' :
-        errorCode === 'OTP_EXPIRED' ? 'OTP code has expired.' :
-        errorCode === 'OTP_MAX_RETRIES' ? 'Too many OTP attempts.' :
-        errorCode === 'TRANSFER_IN_PROGRESS' ? 'A transfer is already pending.' :
-        errorCode === 'TRANSFER_INVALID_STATE' ? 'Transfer is not in the expected state.' :
-        errorCode === 'TRANSFER_NOT_FOUND' ? 'Transfer not found.' :
-        errorCode === 'NOT_SEAT_OWNER' ? 'You do not own this ticket.' :
-        errorCode === 'SELF_TRANSFER' ? 'You cannot transfer to yourself.' :
-        errorCode === 'EMAIL_ALREADY_EXISTS' ? 'This email is already registered.' :
-        errorCode === 'UNVERIFIED_ACCOUNT' ? 'Please verify your phone number.' :
-        errorCode === 'VALIDATION_ERROR' ? 'Please check your input.' :
-        ''
-      const message = errorMessage || codeMessage ||
-        (status === 429 ? 'You are doing that too fast. Please wait a moment before trying again.' :
-          status === 403 && !errorCode ? 'Access denied. Unusual activity detected.' :
-          status === 401 ? 'Please login to continue.' :
-          status === 402 ? 'Not enough credits for this action.' :
-          status === 404 ? 'Requested data was not found.' :
-          status === 409 ? 'This action conflicts with current state.' :
-          status === 410 ? 'This action has expired.' :
-          'Something went wrong. Please try again.')
+      const codeMessage =
+        errorCode === 'SEAT_UNAVAILABLE'
+          ? 'Seat is currently unavailable.'
+          : errorCode === 'SEAT_ALREADY_SOLD'
+          ? 'Seat has already been sold.'
+          : errorCode === 'SEAT_NOT_FOUND'
+          ? 'Seat not found.'
+          : errorCode === 'EVENT_NOT_FOUND'
+          ? 'Event not found.'
+          : errorCode === 'EVENT_ENDED'
+          ? 'Event has ended.'
+          : errorCode === 'HOLD_EXPIRED'
+          ? 'Your seat hold expired.'
+          : errorCode === 'INSUFFICIENT_CREDITS'
+          ? 'Not enough credits for this action.'
+          : errorCode === 'OTP_REQUIRED'
+          ? 'OTP verification required.'
+          : errorCode === 'OTP_INVALID'
+          ? 'OTP code is incorrect.'
+          : errorCode === 'OTP_EXPIRED'
+          ? 'OTP code has expired.'
+          : errorCode === 'OTP_MAX_RETRIES'
+          ? 'Too many OTP attempts.'
+          : errorCode === 'TRANSFER_IN_PROGRESS'
+          ? 'A transfer is already pending.'
+          : errorCode === 'TRANSFER_INVALID_STATE'
+          ? 'Transfer is not in the expected state.'
+          : errorCode === 'TRANSFER_NOT_FOUND'
+          ? 'Transfer not found.'
+          : errorCode === 'NOT_SEAT_OWNER'
+          ? 'You do not own this ticket.'
+          : errorCode === 'SELF_TRANSFER'
+          ? 'You cannot transfer to yourself.'
+          : errorCode === 'EMAIL_ALREADY_EXISTS'
+          ? 'This email is already registered.'
+          : errorCode === 'UNVERIFIED_ACCOUNT'
+          ? 'Please verify your phone number.'
+          : errorCode === 'VALIDATION_ERROR'
+          ? 'Please check your input.'
+          : ''
+      const message =
+        errorMessage ||
+        codeMessage ||
+        (status === 429
+          ? 'You are doing that too fast. Please wait a moment before trying again.'
+          : status === 403 && !errorCode
+          ? 'Access denied. Unusual activity detected.'
+          : status === 401
+          ? 'Please login to continue.'
+          : status === 402
+          ? 'Not enough credits for this action.'
+          : status === 404
+          ? 'Requested data was not found.'
+          : status === 409
+          ? 'This action conflicts with current state.'
+          : status === 410
+          ? 'This action has expired.'
+          : 'Something went wrong. Please try again.')
       if (message) toast.push(message, 'error')
     }
     return Promise.reject(error)
-  },
+  }
 )
 
 export default api

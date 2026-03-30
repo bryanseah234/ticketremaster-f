@@ -1,36 +1,20 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue'
+import { ref, type Ref } from 'vue'
 
-export function useMousePosition(containerRef?: Ref<HTMLElement | null>) {
-  const x = ref(0)
-  const y = ref(0)
+interface MousePosition {
+  x: number
+  y: number
+}
 
-  const updatePosition = (clientX: number, clientY: number) => {
-    const container = containerRef?.value
-    if (container) {
-      const rect = container.getBoundingClientRect()
-      x.value = clientX - rect.left - rect.width / 2
-      y.value = clientY - rect.top - rect.height / 2
-    } else {
-      x.value = clientX
-      y.value = clientY
-    }
+export function useMousePosition(): { position: Ref<MousePosition> } {
+  const position = ref<MousePosition>({ x: 0, y: 0 })
+
+  const updatePosition = (event: MouseEvent) => {
+    position.value = { x: event.clientX, y: event.clientY }
   }
 
-  const onMove = (ev: MouseEvent) => updatePosition(ev.clientX, ev.clientY)
-  const onTouch = (ev: TouchEvent) => {
-    const touch = ev.touches[0]
-    if (touch) updatePosition(touch.clientX, touch.clientY)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('mousemove', updatePosition)
   }
 
-  onMounted(() => {
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('touchmove', onTouch, { passive: true })
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('touchmove', onTouch)
-  })
-
-  return { x, y }
+  return { position }
 }

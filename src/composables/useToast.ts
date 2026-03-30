@@ -1,33 +1,60 @@
-import { reactive } from 'vue'
+import { reactive, readonly } from 'vue'
+import api from '@/api/client'
+import type { Toast } from '@/types'
 
-export type ToastType = 'error' | 'success' | 'info'
-
-export interface ToastItem {
-  id: number
-  message: string
-  type: ToastType
+interface ToastState {
+  toasts: Toast[]
+  nextId: number
 }
 
-const state = reactive({
-  items: [] as ToastItem[],
+const state = reactive<ToastState>({
+  toasts: [],
+  nextId: 0,
 })
 
-let seq = 1
-
 export function useToast() {
-  const push = (message: string, type: ToastType = 'info', duration = 3200) => {
-    const id = seq++
-    state.items.push({ id, message, type })
-    window.setTimeout(() => {
-      const idx = state.items.findIndex((item) => item.id === id)
-      if (idx >= 0) state.items.splice(idx, 1)
-    }, duration)
+  const push = (
+    message: string,
+    type: Toast['type'] = 'info',
+    duration = 5000
+  ) => {
+    const id = state.nextId++
+    const toast: Toast = { id, message, type, duration }
+    state.toasts.push(toast)
+
+    if (duration > 0) {
+      setTimeout(() => remove(id), duration)
+    }
+
+    return id
   }
 
-  const remove = (id: number) => {
-    const idx = state.items.findIndex((item) => item.id === id)
-    if (idx >= 0) state.items.splice(idx, 1)
+  const remove = (id: string | number) => {
+    const index = state.toasts.findIndex((t) => t.id === id)
+    if (index !== -1) {
+      state.toasts.splice(index, 1)
+    }
   }
 
-  return { state, push, remove }
+  const success = (message: string, duration?: number) =>
+    push(message, 'success', duration)
+
+  const error = (message: string, duration?: number) =>
+    push(message, 'error', duration)
+
+  const warning = (message: string, duration?: number) =>
+    push(message, 'warning', duration)
+
+  const info = (message: string, duration?: number) =>
+    push(message, 'info', duration)
+
+  return {
+    toasts: readonly(state.toasts),
+    push,
+    remove,
+    success,
+    error,
+    warning,
+    info,
+  }
 }
