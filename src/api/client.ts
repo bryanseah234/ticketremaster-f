@@ -7,12 +7,14 @@ import axios, {
 } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { setDemoMode, isDemoMode } from '@/services/mockData'
 import type { ApiError } from '@/types'
 
 const api: AxiosInstance = axios.create()
 const apiKey: string = import.meta.env.VITE_KONG_API_KEY || ''
 
 let offlineNotified = false
+let demoModeEnabled = false
 ;(window as unknown as Record<string, unknown>).__apiOffline = false
 
 // Idempotency key cache to prevent duplicate operations within TTL
@@ -55,6 +57,8 @@ const generateIdempotencyKey = (config: InternalAxiosRequestConfig): string => {
 const emitOffline = (message: string) => {
   if (offlineNotified) return
   offlineNotified = true
+  demoModeEnabled = true
+  setDemoMode(true)
   ;(window as unknown as Record<string, unknown>).__apiOffline = true
   window.dispatchEvent(
     new CustomEvent('api:offline', { detail: { message } })
@@ -64,6 +68,8 @@ const emitOffline = (message: string) => {
 const emitOnline = () => {
   if (!offlineNotified) return
   offlineNotified = false
+  demoModeEnabled = false
+  setDemoMode(false)
   ;(window as unknown as Record<string, unknown>).__apiOffline = false
   window.dispatchEvent(new Event('api:online'))
 }
@@ -89,7 +95,8 @@ interface ApiErrorDetails {
 
 const logApiError = (error: AxiosError<ApiError>) => {
   const config = error?.config || {}
-  const headers = { ...(config?.headers as Record<string, string> || {}) }
+  const configHeaders = (config as InternalAxiosRequestConfig)?.headers || {}
+  const headers = { ...(configHeaders as Record<string, string> || {}) }
   if (headers.Authorization) delete headers.Authorization
   const status = error?.response?.status
   const errorCode =
@@ -111,6 +118,21 @@ const logApiError = (error: AxiosError<ApiError>) => {
     response: error?.response?.data,
   }
   console.error('API error', details)
+}
+
+// Check if this is a read-only endpoint that can use mock data
+const canUseMockData = (url: string, method: string): boolean => {
+  if (method.toUpperCase() !== 'GET') return false
+  const readOnlyPaths = [
+    '/events',
+    '/venues',
+    '/marketplace',
+    '/tickets',
+    '/transfers',
+    '/users',
+    '/auth/me',
+  ]
+  return readOnlyPaths.some(path => url.includes(path))
 }
 
 // Request Interceptor: Dynamically route requests to the correct Orchestrator
@@ -180,14 +202,16 @@ api.interceptors.response.use(
     logApiError(error)
     const toast = useToast()
     const status = error?.response?.status
+    const data = error?.response?.data
     const errorCode =
-      error?.response?.data?.error?.code ||
-      error?.response?.data?.error_code
+      data?.error?.code ||
+      data?.error_code
     const errorMessage =
-      error?.response?.data?.error?.message ||
-      error?.response?.data?.message
+      data?.error?.message ||
+      data?.message
     const original = error.config as (InternalAxiosRequestConfig & {
       metadata?: { cachedKey?: string }
+      __useMockData?: boolean
     }) || {}
     const isNetworkError =
       !error?.response || error?.code === 'ERR_NETWORK'
@@ -202,17 +226,22 @@ api.interceptors.response.use(
       const cached = idempotencyCache.get(original.metadata.cachedKey)
       if (cached && Date.now() - cached.timestamp < IDEMPOTENCY_TTL_MS) {
         // Return cached response instead of failing
-        return Promise.resolve({ data: cached.response, status: 200 })
+        return Promise.resolve({ data: cached.response, status: 200 } as AxiosResponse)
       }
     }
 
+    // Detect backend unavailability and enable demo mode
     if (
       isNetworkError ||
       status === 502 ||
       status === 503 ||
       status === 504
     ) {
-      emitOffline('Backend unavailable. Showing limited demo data.')
+      if (!demoModeEnabled && canUseMockData(original.url || '', original.method || '')) {
+        emitOffline('Backend unavailable. Showing demo data for UI development.')
+        // Mark this request to use mock data on retry
+        original.__useMockData = true
+      }
     }
 
     // Since backend has no refresh tokens, we simply clear session and bounce to login
@@ -306,5 +335,8 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// Export demo mode status for components
+export { isDemoMode }
 
 export default api

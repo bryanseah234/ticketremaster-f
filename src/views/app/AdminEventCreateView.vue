@@ -17,7 +17,6 @@ const form = reactive({
 
 const loading = ref(false)
 const created = ref<{ eventId: string; seatsCreated: number } | null>(null)
-const estimatedRevenue = computed(() => Number(form.totalSeats || 0) * Number(form.cat1Price || 0))
 const venues = ref<any[]>([])
 
 onMounted(async () => {

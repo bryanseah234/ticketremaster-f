@@ -3,6 +3,7 @@ import LandingPage from '@/views/LandingPage.vue'
 import EventListView from '@/views/app/EventListView.vue'
 import EventDetailView from '@/views/app/EventDetailView.vue'
 import LoginView from '@/views/app/LoginView.vue'
+import DemoLoginView from '@/views/app/DemoLoginView.vue'
 import RegisterView from '@/views/app/RegisterView.vue'
 import VerifyView from '@/views/app/VerifyView.vue'
 import SeatSelectionView from '@/views/app/SeatSelectionView.vue'
@@ -37,6 +38,7 @@ interface RouteMeta {
     subtitle: string
     sections: Array<{ heading: string; body: string }>
   }
+  [key: string]: unknown
 }
 
 const routes: RouteRecordRaw[] = [
@@ -44,6 +46,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/events', component: EventListView },
   { path: '/events/:eventId', component: EventDetailView },
   { path: '/login', component: LoginView },
+  { path: '/demo-login', component: DemoLoginView },
   { path: '/register', component: RegisterView },
   { path: '/verify', component: VerifyView },
   { path: '/design', component: DesignSystemView },

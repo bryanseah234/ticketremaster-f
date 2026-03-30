@@ -213,6 +213,7 @@ export interface ApiError {
     traceId?: string
     details?: Record<string, unknown>
   }
+  error_code?: string
 }
 
 // ── WebSocket Types ─────────────────────────────────────────────────
