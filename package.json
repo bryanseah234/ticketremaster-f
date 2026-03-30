@@ -24,7 +24,7 @@
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "dayjs": "^1.11.20",
-    "lucide-vue-next": "^0.542.0",
+    "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "posthog-js": "^1.200.0",
     "qrcode": "^1.5.4",
