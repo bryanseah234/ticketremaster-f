@@ -206,7 +206,7 @@ export interface ApiResponse<T> {
 }
 
 export interface ApiError {
-  error: {
+  error?: {
     code: string
     message: string
     status?: number
@@ -214,6 +214,7 @@ export interface ApiError {
     details?: Record<string, unknown>
   }
   error_code?: string
+  message?: string
 }
 
 // ── WebSocket Types ─────────────────────────────────────────────────

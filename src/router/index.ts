@@ -39,6 +39,7 @@ interface RouteMeta {
     sections: Array<{ heading: string; body: string }>
   }
   [key: string]: unknown
+  [key: symbol]: unknown
 }
 
 const routes: RouteRecordRaw[] = [

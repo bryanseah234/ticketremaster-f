@@ -8,7 +8,7 @@ const toast = useToast()
   <aside class="toast-stack">
     <TransitionGroup name="toast">
       <article
-        v-for="item in toast.state.items"
+        v-for="item in toast.toasts"
         :key="item.id"
         class="toast"
         :class="item.type"

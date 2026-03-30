@@ -55,7 +55,6 @@ const init = () => {
 
   // Textures
   const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
-  const specularMap = loader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg')
   const normalMap = loader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg')
 
   // Geometry

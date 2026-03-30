@@ -33,8 +33,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     // Session Replay
     replaysSessionSampleRate: 0.1, // 10% in production
     replaysOnErrorSampleRate: 1.0, // 100% of error sessions
-    // Enable logging to Sentry
-    enableLogs: true,
     // Send default PII (IP, etc.)
     sendDefaultPii: true,
   })

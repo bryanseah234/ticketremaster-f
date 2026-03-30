@@ -103,10 +103,15 @@ The frontend includes a comprehensive demo mode for UI development without a bac
 ### Accessing Demo Mode
 
 1. Navigate to `/demo-login`
-2. Choose a demo account:
-   - **Demo User** — Regular user experience
-   - **Demo Admin** — Admin dashboard access
-   - **Demo Staff** — Staff scanner access
+2. Choose a demo account or enter credentials manually:
+
+#### Demo Accounts
+
+| Account | Email | Password | Access Level |
+|---------|-------|----------|--------------|
+| Demo User | `demo@ticketremaster.com` | `demo1234` | Regular user features |
+| Demo Admin | `admin@ticketremaster.com` | `demo1234` | Admin dashboard and event management |
+| Demo Staff | `staff@ticketremaster.com` | `demo1234` | Staff scanner and ticket verification |
 
 ### Demo Features
 
