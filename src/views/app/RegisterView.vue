@@ -45,18 +45,52 @@ const submit = async () => {
 
 <template>
   <section class="page" style="max-width:640px;">
-    <article class="glass" style="padding:1rem;display:grid;gap:.7rem;">
-      <h1 class="section-title">Register</h1>
-      <div class="grid-2">
-        <div><label>Email</label><input v-model="form.email" placeholder="you@email.com" autocomplete="off" /></div>
-        <div><label>Phone</label><input v-model="form.phone" placeholder="+65..." autocomplete="off" /></div>
+    <article class="glass" style="padding:1.5rem;display:grid;gap:1rem;">
+      <div>
+        <h1 class="section-title">Create Account</h1>
+        <p class="section-subtitle">Join TicketRemaster to get started.</p>
       </div>
-      <div class="grid-2">
-        <div><label>Password</label><input v-model="form.password" type="password" autocomplete="new-password" /></div>
-        <div><label>Confirm Password</label><input v-model="form.confirm" type="password" autocomplete="new-password" /></div>
-      </div>
-      <button :disabled="loading" @click="submit">{{ loading ? 'Creating...' : 'Create Account' }}</button>
-      <p class="small">Already have an account? <RouterLink to="/login" style="color:#fdba74">Sign in</RouterLink></p>
+
+      <form class="space-y-4" @submit.prevent="submit">
+        <div class="grid-2">
+          <div>
+            <label>Email</label>
+            <input v-model="form.email" placeholder="you@email.com" autocomplete="off" />
+          </div>
+          <div>
+            <label>Phone</label>
+            <input v-model="form.phone" placeholder="+65..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>Password</label>
+            <input v-model="form.password" type="password" autocomplete="new-password" />
+          </div>
+          <div>
+            <label>Confirm Password</label>
+            <input v-model="form.confirm" type="password" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <button :disabled="loading" type="submit" style="width:100%;">
+          {{ loading ? 'Creating...' : 'Create Account' }}
+        </button>
+
+        <p class="small text-center">
+          Already have an account? <RouterLink to="/login" style="color:var(--accent);">Sign in</RouterLink>
+        </p>
+      </form>
     </article>
   </section>
 </template>
+
+<style scoped>
+.space-y-4 {
+  display: grid;
+  gap: 1rem;
+}
+.text-center {
+  text-align: center;
+}
+</style>
