@@ -57,18 +57,63 @@ const submit = async () => {
 
 <template>
   <section class="page" style="max-width:560px;">
-    <article class="glass" style="padding:1rem;display:grid;gap:.7rem;">
-      <h1 class="section-title">Login</h1>
+    <article class="glass" style="padding:1.5rem;display:grid;gap:1rem;">
       <div>
-        <label>Email</label>
-        <input v-model="email" placeholder="you@email.com" />
+        <h1 class="section-title">Sign In</h1>
+        <p class="section-subtitle">Welcome back! Please sign in to continue.</p>
       </div>
-      <div>
-        <label>Password</label>
-        <input v-model="password" type="password" placeholder="••••••••" />
+
+      <form class="space-y-4" @submit.prevent="submit">
+        <div>
+          <label>Email</label>
+          <input v-model="email" placeholder="you@email.com" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input v-model="password" type="password" placeholder="••••••••" />
+        </div>
+
+        <button :disabled="loading" type="submit" style="width:100%;">
+          {{ loading ? 'Signing in...' : 'Sign In' }}
+        </button>
+
+        <p class="small text-center">
+          New here? <RouterLink to="/register" style="color:var(--accent);">Create account</RouterLink>
+        </p>
+      </form>
+
+      <div class="divider">
+        <span class="small">or</span>
       </div>
-      <button :disabled="loading" @click="submit">{{ loading ? 'Signing in...' : 'Sign In' }}</button>
-      <p class="small">New here? <RouterLink to="/register" style="color:#fdba74">Create account</RouterLink></p>
+
+      <div class="text-center">
+        <RouterLink to="/demo-login" class="small" style="color:var(--accent);">
+          Try demo mode →
+        </RouterLink>
+      </div>
     </article>
   </section>
 </template>
+
+<style scoped>
+.space-y-4 {
+  display: grid;
+  gap: 1rem;
+}
+.text-center {
+  text-align: center;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--muted);
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+</style>

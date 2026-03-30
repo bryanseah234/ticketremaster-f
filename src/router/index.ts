@@ -1,29 +1,4 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import LandingPage from '@/views/LandingPage.vue'
-import EventListView from '@/views/app/EventListView.vue'
-import EventDetailView from '@/views/app/EventDetailView.vue'
-import LoginView from '@/views/app/LoginView.vue'
-import DemoLoginView from '@/views/app/DemoLoginView.vue'
-import RegisterView from '@/views/app/RegisterView.vue'
-import VerifyView from '@/views/app/VerifyView.vue'
-import SeatSelectionView from '@/views/app/SeatSelectionView.vue'
-import CheckoutView from '@/views/app/CheckoutView.vue'
-import MyTicketsView from '@/views/app/MyTicketsView.vue'
-import TicketDetailView from '@/views/app/TicketDetailView.vue'
-import TransferConfirmView from '@/views/app/TransferConfirmView.vue'
-import CreditTopupView from '@/views/app/CreditTopupView.vue'
-import ProfileView from '@/views/app/ProfileView.vue'
-import MarketplaceView from '@/views/app/MarketplaceView.vue'
-import AdminEventCreateView from '@/views/app/AdminEventCreateView.vue'
-import AdminEventDashboardView from '@/views/app/AdminEventDashboardView.vue'
-import AdminUserManagementView from '@/views/app/AdminUserManagementView.vue'
-import DesignSystemView from '@/views/app/DesignSystemView.vue'
-import NotFoundView from '@/views/app/NotFoundView.vue'
-import InfoPageView from '@/views/app/InfoPageView.vue'
-import ResaleGuaranteesView from '@/views/app/ResaleGuaranteesView.vue'
-import VenuesView from '@/views/app/VenuesView.vue'
-import StaffScannerView from '@/views/app/StaffScannerView.vue'
-import TicketQrView from '@/views/app/TicketQrView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 interface RouteMeta {
@@ -43,17 +18,17 @@ interface RouteMeta {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', component: LandingPage },
-  { path: '/events', component: EventListView },
-  { path: '/events/:eventId', component: EventDetailView },
-  { path: '/login', component: LoginView },
-  { path: '/demo-login', component: DemoLoginView },
-  { path: '/register', component: RegisterView },
-  { path: '/verify', component: VerifyView },
-  { path: '/design', component: DesignSystemView },
+  { path: '/', component: () => import('@/views/LandingPage.vue') },
+  { path: '/events', component: () => import('@/views/app/EventListView.vue') },
+  { path: '/events/:eventId', component: () => import('@/views/app/EventDetailView.vue') },
+  { path: '/login', component: () => import('@/views/app/LoginView.vue') },
+  { path: '/demo-login', component: () => import('@/views/app/DemoLoginView.vue') },
+  { path: '/register', component: () => import('@/views/app/RegisterView.vue') },
+  { path: '/verify', component: () => import('@/views/app/VerifyView.vue') },
+  { path: '/design', component: () => import('@/views/app/DesignSystemView.vue') },
   {
     path: '/about',
-    component: InfoPageView,
+    component: () => import('@/views/app/InfoPageView.vue'),
     props: {
       title: 'About TicketRemaster',
       subtitle:
@@ -80,7 +55,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/careers',
-    component: InfoPageView,
+    component: () => import('@/views/app/InfoPageView.vue'),
     props: {
       title: 'Careers',
       subtitle: 'Build the future of live events with us.',
@@ -106,7 +81,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/help',
-    component: InfoPageView,
+    component: () => import('@/views/app/InfoPageView.vue'),
     props: {
       title: 'Help Center',
       subtitle:
@@ -131,10 +106,10 @@ const routes: RouteRecordRaw[] = [
       ],
     },
   },
-  { path: '/resale-guarantees', component: ResaleGuaranteesView },
+  { path: '/resale-guarantees', component: () => import('@/views/app/ResaleGuaranteesView.vue') },
   {
     path: '/terms',
-    component: InfoPageView,
+    component: () => import('@/views/app/InfoPageView.vue'),
     props: {
       title: 'Terms of Service',
       subtitle: 'Guidelines for safe and fair use of TicketRemaster.',
@@ -160,7 +135,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/privacy',
-    component: InfoPageView,
+    component: () => import('@/views/app/InfoPageView.vue'),
     props: {
       title: 'Privacy Policy',
       subtitle: 'We protect your personal data and ticket history.',
@@ -184,64 +159,64 @@ const routes: RouteRecordRaw[] = [
       ],
     },
   },
-  { path: '/venues', component: VenuesView },
+  { path: '/venues', component: () => import('@/views/app/VenuesView.vue') },
   {
     path: '/events/:eventId/seats',
-    component: SeatSelectionView,
+    component: () => import('@/views/app/SeatSelectionView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/checkout/:orderId',
-    component: CheckoutView,
+    component: () => import('@/views/app/CheckoutView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/tickets',
-    component: MyTicketsView,
+    component: () => import('@/views/app/MyTicketsView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/tickets/:ticketId',
-    component: TicketDetailView,
+    component: () => import('@/views/app/TicketDetailView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/transfer/:transferId',
-    component: TransferConfirmView,
+    component: () => import('@/views/app/TransferConfirmView.vue'),
   },
   {
     path: '/credits/topup',
-    component: CreditTopupView,
+    component: () => import('@/views/app/CreditTopupView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/profile',
-    component: ProfileView,
+    component: () => import('@/views/app/ProfileView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
-  { path: '/marketplace', component: MarketplaceView },
-  { path: '/ticket-qr/:qrHash', component: TicketQrView },
+  { path: '/marketplace', component: () => import('@/views/app/MarketplaceView.vue') },
+  { path: '/ticket-qr/:qrHash', component: () => import('@/views/app/TicketQrView.vue') },
   {
     path: '/staff/scan',
-    component: StaffScannerView,
+    component: () => import('@/views/app/StaffScannerView.vue'),
     meta: { requiresAuth: true, requiresStaff: true } as RouteMeta,
   },
   {
     path: '/admin/events/new',
-    component: AdminEventCreateView,
+    component: () => import('@/views/app/AdminEventCreateView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,
   },
   {
     path: '/admin/events/:eventId/dashboard',
-    component: AdminEventDashboardView,
+    component: () => import('@/views/app/AdminEventDashboardView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,
   },
   {
     path: '/admin/users',
-    component: AdminUserManagementView,
+    component: () => import('@/views/app/AdminUserManagementView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,
   },
-  { path: '/:pathMatch(.*)*', component: NotFoundView },
+  { path: '/:pathMatch(.*)*', component: () => import('@/views/app/NotFoundView.vue') },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
