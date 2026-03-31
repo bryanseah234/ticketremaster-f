@@ -312,7 +312,7 @@ api.interceptors.response.use(
     }
 
     // Map common HTTP errors to user-facing messages
-    const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/scan/verify/') : false
+    const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/verify/') : false
     if (status && status >= 400 && !isScanRoute) {
       const codeMessage =
         errorCode === 'SERVICE_TIMEOUT'
