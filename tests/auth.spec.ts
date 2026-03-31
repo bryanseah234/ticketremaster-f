@@ -1,6 +1,18 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Authentication Flow', () => {
+    test.beforeEach(async ({ page }) => {
+        setupConsoleMonitoring(page);
+    });
+
+    test.afterEach(async () => {
+        assertNoConsoleErrors();
+    });
+
     test('should show login page and handle successful login', async ({ page }) => {
         // Mock successful login response - actual endpoint: POST /auth/login
         await page.route('**/auth/login', async route => {
