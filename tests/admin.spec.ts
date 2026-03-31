@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Admin Operations', () => {
     test.beforeEach(async ({ context }) => {
+        setupConsoleMonitoring(context.pages()[0]);
         await context.addInitScript(() => {
             window.localStorage.setItem('access_token', 'admin-token');
             window.localStorage.setItem('refresh_token', 'refresh-token');
@@ -11,6 +16,10 @@ test.describe('Admin Operations', () => {
                 is_admin: true
             }));
         });
+    });
+
+    test.afterEach(async ({ page }) => {
+        assertNoConsoleErrors();
     });
 
     test('should show event dashboard with stats', async ({ page }) => {

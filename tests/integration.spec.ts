@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Credit Top-up Flow', () => {
     test.beforeEach(async ({ page }) => {
@@ -8,6 +12,11 @@ test.describe('Credit Top-up Flow', () => {
             localStorage.setItem('refresh_token', 'refresh-token');
             localStorage.setItem('user', JSON.stringify({ userId: 'usr_001', email: 'test@example.com', role: 'user' }));
         });
+        setupConsoleMonitoring(page);
+    });
+
+    test.afterEach(async () => {
+        assertNoConsoleErrors();
     });
 
     test('should complete full top-up flow with Stripe', async ({ page }) => {

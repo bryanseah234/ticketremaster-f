@@ -1,6 +1,18 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Events Information', () => {
+    test.beforeEach(async ({ page }) => {
+        setupConsoleMonitoring(page);
+    });
+
+    test.afterEach(async () => {
+        assertNoConsoleErrors();
+    });
+
     test('should list events and show details', async ({ page }) => {
         // Mock event list - actual endpoint: GET /events
         await page.route('**/events', async route => {
