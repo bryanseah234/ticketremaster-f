@@ -27,8 +27,8 @@ let demoModeEnabled = false
 
 // Exponential backoff configuration for retry
 const MAX_RETRY_ATTEMPTS = 3
-const INITIAL_BACKOFF_MS = 1000
-const MAX_BACKOFF_MS = 10000
+const INITIAL_BACKOFF_MS = 2000
+const MAX_BACKOFF_MS = 15000
 const RETRYABLE_STATUS_CODES = [429, 503, 408, 504]
 
 const calculateBackoff = (attempt: number): number => {
@@ -315,7 +315,9 @@ api.interceptors.response.use(
     const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/scan/verify/') : false
     if (status && status >= 400 && !isScanRoute) {
       const codeMessage =
-        errorCode === 'SEAT_UNAVAILABLE'
+        errorCode === 'SERVICE_TIMEOUT'
+          ? 'The request took too long. Please try again.'
+          : errorCode === 'SEAT_UNAVAILABLE'
           ? 'Seat is currently unavailable.'
           : errorCode === 'SEAT_ALREADY_SOLD'
           ? 'Seat has already been sold.'
@@ -357,7 +359,9 @@ api.interceptors.response.use(
       const message =
         errorMessage ||
         codeMessage ||
-        (status === 429
+        (status === 408
+          ? 'The request timed out. Please try again.'
+          : status === 429
           ? 'You are doing that too fast. Please wait a moment before trying again.'
           : status === 403 && !errorCode
           ? 'Access denied. Unusual activity detected.'
