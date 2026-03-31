@@ -5,9 +5,9 @@ import {
 } from './setup/console-monitor';
 
 test.describe('Admin Operations', () => {
-    test.beforeEach(async ({ context }) => {
-        setupConsoleMonitoring(context.pages()[0]);
-        await context.addInitScript(() => {
+    test.beforeEach(async ({ page }) => {
+        setupConsoleMonitoring(page);
+        await page.addInitScript(() => {
             window.localStorage.setItem('access_token', 'admin-token');
             window.localStorage.setItem('refresh_token', 'refresh-token');
             window.localStorage.setItem('user', JSON.stringify({
@@ -18,7 +18,7 @@ test.describe('Admin Operations', () => {
         });
     });
 
-    test.afterEach(async ({ page }) => {
+    test.afterEach(async () => {
         assertNoConsoleErrors();
     });
 
