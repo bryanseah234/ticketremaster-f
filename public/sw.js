@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketremaster-v3'
+const CACHE_NAME = 'ticketremaster-v4'
 const ASSETS = ['/', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
