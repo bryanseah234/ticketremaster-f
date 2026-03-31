@@ -418,4 +418,15 @@ onUnmounted(() => {
 .action-row { display: flex; gap: .75rem; flex-wrap: wrap; }
 .danger-btn { border-color: rgba(248,113,113,.4); color: #f87171; }
 .danger-btn:hover { background: rgba(248,113,113,.1); }
+
+.rate-limit-warning {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .75rem 1rem;
+  background: rgba(251,191,36,.1);
+  border: 1px solid rgba(251,191,36,.3);
+  border-radius: .75rem;
+  color: #fbbf24;
+  font-size: .85rem;
+}
+.rate-limit-warning .warning-icon { font-size: 1.1rem; }
 </style>
