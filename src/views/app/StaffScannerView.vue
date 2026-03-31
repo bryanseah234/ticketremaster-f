@@ -44,7 +44,7 @@ const feedbackLabel = computed(() => {
 const processQr = async (raw: string) => {
   const qrHash = raw.includes('/ticket-qr/') ? raw.split('/ticket-qr/')[1].split('?')[0] : raw
   try {
-    const { data } = await api.post('/scan/verify/scan', { qrHash })
+    const { data } = await api.post('/verify/scan', { qrHash })
     const d = data?.data
     const label = d?.event?.name || 'Unknown Event'
     const sublabel = d?.ticketId ? `Ticket ${d.ticketId.slice(0, 8)}…` : qrHash.slice(0, 16) + '…'
@@ -92,7 +92,7 @@ const submitManual = async () => {
   if (!val) return
   manualLoading.value = true
   try {
-    const { data } = await api.post('/scan/verify/manual', { ticketId: val })
+    const { data } = await api.post('/verify/manual', { ticketId: val })
     const d = data?.data
     const label = d?.event?.name || 'Manual entry'
     const sublabel = `Ticket ${val.slice(0, 8)}…`

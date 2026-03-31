@@ -181,6 +181,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
+    path: '/transfer/initiate',
+    component: () => import('@/views/app/TransferInitiateView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
+  },
+  {
     path: '/transfer/:transferId',
     component: () => import('@/views/app/TransferConfirmView.vue'),
   },
