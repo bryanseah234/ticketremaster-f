@@ -2,11 +2,9 @@
 import { useRoute } from 'vue-router'
 import { computed, onMounted, ref } from 'vue'
 import api from '@/api/client'
-import { useAuthStore } from '@/stores/auth'
 import type { Ticket, Event, Venue } from '@/types'
 
 const route = useRoute()
-const auth = useAuthStore()
 const qrHash = computed(() => route.params.qrHash as string)
 
 const ticket = ref<Ticket | null>(null)
