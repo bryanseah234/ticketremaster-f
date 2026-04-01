@@ -24,44 +24,50 @@ test.describe('Role-Based Access Control', () => {
     });
 
     test.describe('Unauthenticated Access', () => {
-        test('should redirect unauthenticated user from /tickets to /login', async ({ page }) => {
-            // Clear any stored auth
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /tickets to /login', async ({ page, context }) => {
+            // Use fresh context with cleared storage
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/tickets');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /profile to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /profile to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/profile');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /checkout to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /checkout to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/checkout/order123');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /credits/topup to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /credits/topup to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/credits/topup');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /transfer/initiate to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /transfer/initiate to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/transfer/initiate');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /admin routes to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /admin routes to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/admin/events/new');
             await expect(page).toHaveURL('/login');
@@ -73,15 +79,17 @@ test.describe('Role-Based Access Control', () => {
             await expect(page).toHaveURL('/login');
         });
 
-        test('should redirect unauthenticated user from /staff routes to /login', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should redirect unauthenticated user from /staff routes to /login', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             await page.goto('/staff/scan');
             await expect(page).toHaveURL('/login');
         });
 
-        test('should allow unauthenticated access to public routes', async ({ page }) => {
-            await page.evaluate(() => localStorage.clear());
+        test('should allow unauthenticated access to public routes', async ({ page, context }) => {
+            await context.clearCookies();
+            await context.addInitScript(() => localStorage.clear());
 
             // These routes should be accessible without auth
             await page.goto('/');
@@ -114,17 +122,15 @@ test.describe('Role-Based Access Control', () => {
     });
 
     test.describe('Standard User Access', () => {
-        test.beforeEach(async ({ page }) => {
-            // Set up standard user session
-            await page.evaluate(() => {
+        test.beforeEach(async ({ page, context }) => {
+            // Set up standard user session using addInitScript
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'user-token');
                 localStorage.setItem('refresh_token', 'refresh-token');
                 localStorage.setItem('user', JSON.stringify({
                     userId: 'user-001',
                     email: 'user@example.com',
                     role: 'user',
-                    isAdmin: false,
-                    isStaff: false,
                 }));
             });
         });
@@ -164,17 +170,15 @@ test.describe('Role-Based Access Control', () => {
     });
 
     test.describe('Admin User Access', () => {
-        test.beforeEach(async ({ page }) => {
-            // Set up admin user session
-            await page.evaluate(() => {
+        test.beforeEach(async ({ page, context }) => {
+            // Set up admin user session using addInitScript
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'admin-token');
                 localStorage.setItem('refresh_token', 'refresh-token');
                 localStorage.setItem('user', JSON.stringify({
                     userId: 'admin-001',
                     email: 'admin@example.com',
                     role: 'admin',
-                    isAdmin: true,
-                    isStaff: false,
                 }));
             });
         });
@@ -212,17 +216,15 @@ test.describe('Role-Based Access Control', () => {
     });
 
     test.describe('Staff User Access', () => {
-        test.beforeEach(async ({ page }) => {
-            // Set up staff user session
-            await page.evaluate(() => {
+        test.beforeEach(async ({ page, context }) => {
+            // Set up staff user session using addInitScript
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'staff-token');
                 localStorage.setItem('refresh_token', 'refresh-token');
                 localStorage.setItem('user', JSON.stringify({
                     userId: 'staff-001',
                     email: 'staff@example.com',
                     role: 'staff',
-                    isAdmin: false,
-                    isStaff: true,
                 }));
             });
         });

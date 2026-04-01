@@ -55,9 +55,15 @@ const collectedErrors: ConsoleError[] = []
  * Setup console monitoring for a page
  * Call this in beforeEach to capture errors during test execution
  */
-export function setupConsoleMonitoring(page: Page): void {
+export function setupConsoleMonitoring(page: Page | undefined): void {
   // Clear any previous errors
   collectedErrors.length = 0
+
+  // Guard against undefined page
+  if (!page) {
+    console.warn('setupConsoleMonitoring: page is undefined, skipping console monitoring setup')
+    return
+  }
 
   // Monitor console messages
   page.on('console', (msg: ConsoleMessage) => {

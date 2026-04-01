@@ -34,6 +34,8 @@ export default defineConfig(({ mode }): UserConfig => {
       },
     },
     server: {
+      host: '127.0.0.1',
+      port: 3000,
       proxy: {
         '/proxy/auth': {
           target: env.VITE_PROXY_AUTH_URL || 'http://host.docker.internal:6010',

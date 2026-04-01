@@ -29,7 +29,10 @@ test.describe('Browser Console Monitoring', () => {
 
     test('should have no console errors on events page', async ({ page }) => {
         await page.goto('/events');
-        await expect(page.locator('h1')).toContainText(/Events/);
+        // Events page uses a toolbar with tabs, not an h1
+        await expect(page.locator('.events-page')).toBeVisible();
+        // Check for the All tab button
+        await expect(page.locator('button.tab:has-text("All")')).toBeVisible();
     });
 
     test('should have no console errors on login page', async ({ page }) => {
