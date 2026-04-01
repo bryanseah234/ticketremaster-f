@@ -239,15 +239,38 @@ export const mockServices = {
   // Auth
   async login(email: string, _password: string): Promise<{ user: AuthUser; token: string }> {
     await delay(defaultConfig.delay!)
-    if (email === 'demo@ticketremaster.com' || email === 'admin@ticketremaster.com') {
-      const user = email.includes('admin') ? mockAdminUser : mockUser
+    if (email === 'demo@ticketremaster.com') {
       return {
         user: {
-          userId: user.userId,
-          email: user.email,
-          role: user.role as AuthUser['role'],
-          isFlagged: user.isFlagged,
-          isAdmin: user.role === 'admin',
+          userId: mockUser.userId,
+          email: mockUser.email,
+          role: mockUser.role as AuthUser['role'],
+          isFlagged: mockUser.isFlagged,
+          isAdmin: false,
+        },
+        token: 'demo-jwt-token',
+      }
+    }
+    if (email === 'admin@ticketremaster.com') {
+      return {
+        user: {
+          userId: mockAdminUser.userId,
+          email: mockAdminUser.email,
+          role: mockAdminUser.role as AuthUser['role'],
+          isFlagged: mockAdminUser.isFlagged,
+          isAdmin: true,
+        },
+        token: 'demo-jwt-token',
+      }
+    }
+    if (email === 'staff@ticketremaster.com') {
+      return {
+        user: {
+          userId: mockStaffUser.userId,
+          email: mockStaffUser.email,
+          role: mockStaffUser.role as AuthUser['role'],
+          isFlagged: mockStaffUser.isFlagged,
+          isAdmin: false,
         },
         token: 'demo-jwt-token',
       }

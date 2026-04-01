@@ -207,6 +207,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, requiresStaff: true } as RouteMeta,
   },
   {
+    path: '/admin/events',
+    redirect: '/admin/events/new',
+    meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,
+  },
+  {
     path: '/admin/events/new',
     component: () => import('@/views/app/AdminEventCreateView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,

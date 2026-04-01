@@ -136,9 +136,10 @@ test.describe('Authentication Flow', () => {
         await expect(toast).toContainText(/already registered/);
     });
 
-    test('should redirect unauthenticated user from protected routes', async ({ page }) => {
-        // Clear any stored auth
-        await page.evaluate(() => {
+    test('should redirect unauthenticated user from protected routes', async ({ page, context }) => {
+        // Clear any stored auth by using a fresh context
+        await context.clearCookies();
+        await context.addInitScript(() => {
             localStorage.clear();
         });
 
