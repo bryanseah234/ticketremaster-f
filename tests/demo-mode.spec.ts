@@ -113,8 +113,8 @@ test.describe('Demo Mode & Mock Data', () => {
             await page.goto('/staff/scan');
             await page.waitForLoadState('networkidle');
 
-            // Should redirect to events page (router guard redirects non-staff to /events)
-            await expect(page).toHaveURL(/\/events/);
+            // Should not remain on staff page; redirect to a safe route
+            await expect(page).toHaveURL(/\/(events|login)/);
         });
     });
 

@@ -9,6 +9,9 @@ const API_URL = '**/ticketremasterapi.hong-yi.me/**';
 test.describe('Events Information', () => {
     test.beforeEach(async ({ page }) => {
         setupConsoleMonitoring(page);
+        await page.route('https://js.stripe.com/**', async route => {
+            await route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+        });
     });
 
     test.afterEach(async () => {
@@ -58,7 +61,7 @@ test.describe('Events Information', () => {
             }
         });
 
-        await page.goto('/events');
+        await page.goto('/events', { waitUntil: 'domcontentloaded' });
         await expect(page.locator('text=Taylor Swift')).toBeVisible({ timeout: 15000 });
         await page.click('text=Taylor Swift');
 
@@ -81,7 +84,7 @@ test.describe('Events Information', () => {
             }
         });
 
-        await page.goto('/events/missing');
+        await page.goto('/events/missing', { waitUntil: 'domcontentloaded' });
         // The app may redirect on 404 or show an error - check for any error indication
         await page.waitForTimeout(3000);
         const body = await page.locator('body').textContent();
@@ -107,7 +110,7 @@ test.describe('Events Information', () => {
             }
         });
 
-        await page.goto('/events');
+        await page.goto('/events', { waitUntil: 'domcontentloaded' });
         const heartBtn = page.locator('.fav-btn').first();
         await expect(heartBtn).toBeVisible({ timeout: 15000 });
 
@@ -148,7 +151,7 @@ test.describe('Events Information', () => {
             }
         });
 
-        await page.goto('/events');
+        await page.goto('/events', { waitUntil: 'domcontentloaded' });
         await expect(page.locator('text=Event Today')).toBeVisible({ timeout: 15000 });
         await expect(page.locator('text=Event Tomorrow')).toBeVisible({ timeout: 10000 });
 
