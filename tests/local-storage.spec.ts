@@ -172,24 +172,28 @@ test.describe('Local State Persistence', () => {
         });
 
         test('should clear auth state on logout', async ({ page, context }) => {
-            // Use addInitScript to set localStorage BEFORE any page loads
+            // Use addInitScript with a guard — only set tokens if not logged out
             await context.addInitScript(() => {
-                localStorage.setItem('access_token', 'test-token');
-                localStorage.setItem('refresh_token', 'test-refresh');
-                localStorage.setItem('user', JSON.stringify({
-                    userId: 'test-user',
-                    email: 'test@example.com',
-                    role: 'user',
-                }));
+                if (!sessionStorage.getItem('_test_logged_out')) {
+                    localStorage.setItem('access_token', 'test-token');
+                    localStorage.setItem('refresh_token', 'test-refresh');
+                    localStorage.setItem('user', JSON.stringify({
+                        userId: 'test-user',
+                        email: 'test@example.com',
+                        role: 'user',
+                    }));
+                }
             });
 
             await page.goto('/profile');
-            await page.waitForLoadState('networkidle');
+            await page.waitForTimeout(3000);
 
             // Find and click logout button (ProfileView uses "Log Out")
             const logoutBtn = page.locator('button:has-text("Log Out"), button:has-text("Logout"), button:has-text("Sign Out")');
 
             if (await logoutBtn.count() > 0) {
+                // Set the guard flag BEFORE clicking logout so addInitScript won't re-set tokens
+                await page.evaluate(() => sessionStorage.setItem('_test_logged_out', 'true'));
                 await logoutBtn.click();
 
                 // Wait for logout redirect (auth store navigates to /login)

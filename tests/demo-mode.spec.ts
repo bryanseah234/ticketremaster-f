@@ -95,7 +95,7 @@ test.describe('Demo Mode & Mock Data', () => {
         test('demo user should NOT access admin routes', async ({ page }) => {
             await page.goto('/demo-login');
             await page.click('button:has-text("Demo User")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/(events|admin)/, { timeout: 15000 });
 
             // Try to access admin page
             await page.goto('/admin/events/new');
@@ -150,7 +150,7 @@ test.describe('Demo Mode & Mock Data', () => {
         test('demo admin should access event creation', async ({ page }) => {
             await page.goto('/demo-login');
             await page.click('button:has-text("Demo Admin")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/(admin|events)/, { timeout: 15000 });
 
             // Admin is already on event creation page after login
             await expect(page).toHaveURL(/\/admin\/events/);
