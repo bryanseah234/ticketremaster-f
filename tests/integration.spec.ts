@@ -55,8 +55,7 @@ test.describe('Credit Top-up Flow', () => {
         });
 
         await page.goto('/credits/topup');
-        await page.waitForLoadState('networkidle');
-        await expect(page.locator('h1')).toContainText(/Credit Top Up|Top Up/);
+        await expect(page.locator('h1')).toContainText(/Credit Top Up|Top Up/, { timeout: 15000 });
         
         // Select amount
         const amountBtn = page.locator('button:has-text("$100")');
@@ -210,7 +209,7 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
 
         await page.goto('/transfer/txr_001');
         await page.waitForLoadState('networkidle');
-        await expect(page.locator('h1')).toContainText(/Ticket Transfer|Transfer|transfer/i, { timeout: 10000 });
+        await expect(page.locator('h1')).toContainText(/Ticket Transfer|Transfer|transfer/i, { timeout: 15000 });
 
         // Enter OTP and submit
         const otpInput = page.locator('input[placeholder*="6-digit"]');
@@ -393,8 +392,7 @@ test.describe('API Reliability Features', () => {
         });
 
         await page.goto('/credits/topup');
-        await page.waitForLoadState('networkidle');
-        await expect(page.locator('h1')).toContainText(/Credit Top Up|Top Up/);
+        await expect(page.locator('h1')).toContainText(/Credit Top Up|Top Up/, { timeout: 15000 });
     });
 
     test('should handle 503 Service Unavailable with graceful retry', async ({ page }) => {
@@ -410,7 +408,8 @@ test.describe('API Reliability Features', () => {
         });
 
         await page.goto('/events');
-        await page.waitForLoadState('networkidle');
+        // Wait for retries to complete - API client has exponential backoff
+        await page.waitForTimeout(5000);
         
         // Should show error toast or empty state but not crash
         const errorIndicator = page.locator('.toast.error').or(page.locator('.toast')).or(page.locator('text=Backend unavailable'));

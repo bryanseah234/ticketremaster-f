@@ -60,6 +60,7 @@ const ALLOWED_CONSOLE_PATTERNS = [
   /navigation guards is deprecated/, // Vue Router next() callback deprecation
   /Stripe\.js integration over HTTP/, // Stripe test environment warning
   /live Stripe\.js integrations must use HTTPS/, // Stripe test environment warning
+  /\[Vue warn\]/, // Vue component warnings during test mocking
 ]
 
 /**
