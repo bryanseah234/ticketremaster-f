@@ -24,8 +24,8 @@ test.describe('Admin Operations', () => {
     });
 
     test('should show event dashboard with stats', async ({ page }) => {
-        // Mock dashboard response - API path is /admin/events/{eventId}/dashboard
-        await page.route('**/admin/events/e1/dashboard', async route => {
+        // Mock dashboard response - only intercept API calls (not frontend route)
+        await page.route('**ticketremasterapi.hong-yi.me/admin/events/e1/dashboard', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -46,10 +46,8 @@ test.describe('Admin Operations', () => {
         await expect(page).toHaveURL('/admin/events/e1/dashboard');
         // Wait for page to load and data to render
         await page.waitForLoadState('networkidle');
-        // Wait for the page section to appear
-        await page.waitForSelector('.page', { timeout: 10000 });
         // h1 contains "Inventory Overview — e1"
-        await expect(page.locator('h1')).toContainText('Inventory Overview');
+        await expect(page.locator('h1')).toContainText('Inventory Overview', { timeout: 15000 });
         // Check for seats sold metric
         await expect(page.locator('h3:has-text("150")')).toBeVisible();
         // Check for attendee email in table

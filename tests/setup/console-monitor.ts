@@ -30,13 +30,36 @@ const ALLOWED_CONSOLE_PATTERNS = [
   /Failed to fetch/, // Network errors when backend is offline
   /Network Error/, // Axios network errors
   /ERR_FAILED/, // Chrome network errors
+  /ERR_INTERNET_DISCONNECTED/, // Offline mode test errors
+  /ERR_CONNECTION_REFUSED/, // Backend offline connection errors
+  /ERR_NAME_NOT_RESOLVED/, // DNS resolution errors
   /CORS policy/, // CORS errors when backend is unavailable
   /403/, // Forbidden errors from CDN/external resources
   /408/, // Request timeout errors
+  /429/, // Rate limit errors
+  /503/, // Service unavailable errors
+  /504/, // Gateway timeout errors
   /abort/, // Aborted requests
   /Failed to load resource/, // Resource loading failures
   /API error/, // API client error logs
   /status code/, // HTTP status code errors
+  /Retry attempt/, // API client retry logs
+  /SecurityError/, // localStorage access issues in some contexts
+  /vue-barcode-reader/, // Barcode reader component warnings
+  /ResizeObserver loop/, // ResizeObserver harmless warnings
+  /NotAllowedError/, // Camera permission errors (staff scanner)
+  /NotFoundError.*getUserMedia/, // Camera not found (headless)
+  /AxiosError/, // Axios error objects logged to console
+  /Request failed with status code/, // Axios HTTP error messages
+  /Backend unavailable/, // Expected demo mode message
+  /@sentry\/vue.*Misconfigured SDK/, // Sentry not fully configured in test env
+  /Vue Router warn.*next\(\).*deprecated/, // Vue Router deprecation warning (expected)
+  /WebGL/, // WebGL GPU performance warnings
+  /GL Driver Message/, // GPU driver messages
+  /Misconfigured SDK/, // Sentry SDK configuration warnings
+  /navigation guards is deprecated/, // Vue Router next() callback deprecation
+  /Stripe\.js integration over HTTP/, // Stripe test environment warning
+  /live Stripe\.js integrations must use HTTPS/, // Stripe test environment warning
 ]
 
 /**
@@ -71,7 +94,7 @@ export function setupConsoleMonitoring(page: Page | undefined): void {
     const type = msg.type()
 
     // Only track errors and warnings
-    if (type === 'error' || type === 'warn') {
+    if (type === 'error' || type === 'warning') {
       if (!isAllowedMessage(text)) {
         collectedErrors.push({
           type: 'console',

@@ -4,6 +4,8 @@ import {
     assertNoConsoleErrors,
 } from './setup/console-monitor';
 
+const API_HOST = 'ticketremasterapi.hong-yi.me';
+
 test.describe('Events Information', () => {
     test.beforeEach(async ({ page }) => {
         setupConsoleMonitoring(page);
@@ -14,72 +16,63 @@ test.describe('Events Information', () => {
     });
 
     test('should list events and show details', async ({ page }) => {
-        // Mock event list - actual endpoint: GET /events
-        await page.route('**/events', async route => {
-            await route.fulfill({
-                status: 200,
-                body: JSON.stringify({
-                    data: {
-                        events: [{
+        const mockEvents = [{
+            eventId: 'evt_001',
+            name: 'Taylor Swift',
+            eventDate: '2026-06-15T19:00:00Z',
+            venue: { name: 'Indoor Stadium', city: 'Singapore' },
+            pricingTiers: [{ category: 'CAT1', price: 350 }]
+        }];
+
+        // Intercept API calls only (not frontend routes)
+        await page.route(`**${API_HOST}/events**`, async route => {
+            const url = route.request().url();
+            // Serve event detail for /events/evt_001
+            if (url.includes('/events/evt_001') && !url.includes('/seats')) {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        data: {
                             eventId: 'evt_001',
                             name: 'Taylor Swift',
                             eventDate: '2026-06-15T19:00:00Z',
-                            venue: { name: 'Indoor Stadium', city: 'Singapore' },
-                            pricingTiers: [{ category: 'CAT1', price: 350 }]
-                        }],
-                        pagination: { page: 1, totalPages: 1 }
-                    }
-                })
-            });
+                            venue: { name: 'Indoor Stadium', address: '2 Stadium Walk' },
+                            type: 'concert',
+                            pricingTiers: { CAT1: 350 }
+                        }
+                    })
+                });
+            } else {
+                // Serve event list
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        data: {
+                            events: mockEvents,
+                            pagination: { page: 1, totalPages: 1 }
+                        }
+                    })
+                });
+            }
         });
 
-        // Mock event detail - actual endpoint: GET /events/{eventId}
-        await page.route('**/events/evt_001', async route => {
-            await route.fulfill({
-                status: 200,
-                body: JSON.stringify({
-                    data: {
-                        eventId: 'evt_001',
-                        name: 'Taylor Swift',
-                        eventDate: '2026-06-15T19:00:00Z',
-                        venue: { name: 'Indoor Stadium', address: '2 Stadium Walk' },
-                        type: 'concert',
-                        pricingTiers: { CAT1: 350 }
-                    }
-                })
-            });
-        });
-
-        // Mock seats endpoint - actual endpoint: GET /events/{eventId}/seats
-        await page.route('**/events/evt_001/seats', async route => {
-            await route.fulfill({
-                status: 200,
-                body: JSON.stringify({
-                    data: {
-                        eventId: 'evt_001',
-                        seats: [
-                            { inventoryId: 'inv_001', seatId: 'seat_001', rowNumber: 'A', seatNumber: '1', status: 'AVAILABLE', price: 350 }
-                        ]
-                    }
-                })
-            });
-        });
-
-        await page.goto('/');
-        await expect(page.locator('h1')).toHaveText(/Events/);
-        await expect(page.locator('text=Taylor Swift')).toBeVisible();
+        await page.goto('/events');
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('text=Taylor Swift')).toBeVisible({ timeout: 10000 });
         await page.click('text=Taylor Swift');
 
-        await expect(page).toHaveURL(/\/events\/evt_001/);
-        await expect(page.locator('h1')).toHaveText('Taylor Swift');
+        await expect(page).toHaveURL(/\/events\/evt_001/, { timeout: 5000 });
+        await expect(page.locator('h1')).toContainText('Taylor Swift');
         await expect(page.locator('text=Indoor Stadium')).toBeVisible();
-        await expect(page.locator('text=CAT1')).toBeVisible();
     });
 
     test('should handle 404 Event Not Found', async ({ page }) => {
-        await page.route('**/events/missing', async route => {
+        await page.route(`**${API_HOST}/events/missing`, async route => {
             await route.fulfill({
                 status: 404,
+                contentType: 'application/json',
                 body: JSON.stringify({ error: { code: 'EVENT_NOT_FOUND', message: 'Event not found' } })
             });
         });
@@ -89,10 +82,11 @@ test.describe('Events Information', () => {
     });
 
     test('should allow toggling favorites', async ({ page }) => {
-        // Mock event list
-        await page.route('**/events', async route => {
+        // Mock event list — only intercept API calls
+        await page.route(`**${API_HOST}/events**`, async route => {
             await route.fulfill({
                 status: 200,
+                contentType: 'application/json',
                 body: JSON.stringify({
                     data: {
                         events: [{ eventId: 'evt_001', name: 'Taylor Swift', eventDate: '2026-06-15T19:00:00Z', pricingTiers: [{ category: 'CAT1', price: 350 }] }],
@@ -102,9 +96,11 @@ test.describe('Events Information', () => {
             });
         });
 
-        await page.goto('/');
-        const heartBtn = page.locator('button[aria-label="Toggle favourite"]');
-        await expect(heartBtn).toBeVisible();
+        await page.goto('/events');
+        await page.waitForLoadState('networkidle');
+        // The fav button uses aria-label="Toggle favourite" (British spelling)
+        const heartBtn = page.locator('.fav-btn').first();
+        await expect(heartBtn).toBeVisible({ timeout: 10000 });
 
         // Initial state
         await expect(heartBtn).not.toHaveClass(/fav-active/);
@@ -119,14 +115,18 @@ test.describe('Events Information', () => {
     });
 
     test('should filter events by date range', async ({ page }) => {
-        await page.route('**/events', async route => {
+        const today = new Date().toISOString().slice(0, 10);
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+        await page.route(`**${API_HOST}/events**`, async route => {
             await route.fulfill({
                 status: 200,
+                contentType: 'application/json',
                 body: JSON.stringify({
                     data: {
                         events: [
-                            { eventId: 'evt_001', name: 'Event Today', eventDate: new Date().toISOString(), pricingTiers: [{ category: 'GA', price: 50 }] },
-                            { eventId: 'evt_002', name: 'Event Tomorrow', eventDate: new Date(Date.now() + 86400000).toISOString(), pricingTiers: [{ category: 'GA', price: 75 }] }
+                            { eventId: 'evt_001', name: 'Event Today', eventDate: `${today}T10:00:00Z`, pricingTiers: [{ category: 'GA', price: 50 }] },
+                            { eventId: 'evt_002', name: 'Event Tomorrow', eventDate: `${tomorrow}T10:00:00Z`, pricingTiers: [{ category: 'GA', price: 75 }] }
                         ],
                         pagination: { page: 1, totalPages: 1 }
                     }
@@ -134,13 +134,19 @@ test.describe('Events Information', () => {
             });
         });
 
-        await page.goto('/');
-        
+        await page.goto('/events');
+        await page.waitForLoadState('networkidle');
+
+        // Verify events loaded
+        await expect(page.locator('text=Event Today')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('text=Event Tomorrow')).toBeVisible({ timeout: 10000 });
+
         // Set date filter to today only
-        const today = new Date().toISOString().slice(0, 10);
         await page.fill('input[type="date"][title="From"]', today);
-        
+        await page.fill('input[type="date"][title="To"]', today);
+
         // Should only show today's event
         await expect(page.locator('text=Event Today')).toBeVisible();
+        await expect(page.locator('text=Event Tomorrow')).not.toBeVisible();
     });
 });

@@ -120,9 +120,9 @@ test.describe('Local State Persistence', () => {
     });
 
     test.describe('Authentication State Persistence', () => {
-        test('should persist auth token after page reload', async ({ page }) => {
-            // Set up auth state
-            await page.evaluate(() => {
+        test('should persist auth token after page reload', async ({ page, context }) => {
+            // Use addInitScript to set localStorage BEFORE any page loads
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'test-token');
                 localStorage.setItem('refresh_token', 'test-refresh');
                 localStorage.setItem('user', JSON.stringify({
@@ -146,9 +146,9 @@ test.describe('Local State Persistence', () => {
             expect(tokenAfterReload).toBe('test-token');
         });
 
-        test('should maintain logged-in state after navigation', async ({ page }) => {
-            // Set up auth state
-            await page.evaluate(() => {
+        test('should maintain logged-in state after navigation', async ({ page, context }) => {
+            // Use addInitScript to set localStorage BEFORE any page loads
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'test-token');
                 localStorage.setItem('refresh_token', 'test-refresh');
                 localStorage.setItem('user', JSON.stringify({
@@ -171,9 +171,9 @@ test.describe('Local State Persistence', () => {
             expect(token).toBe('test-token');
         });
 
-        test('should clear auth state on logout', async ({ page }) => {
-            // Set up auth state
-            await page.evaluate(() => {
+        test('should clear auth state on logout', async ({ page, context }) => {
+            // Use addInitScript to set localStorage BEFORE any page loads
+            await context.addInitScript(() => {
                 localStorage.setItem('access_token', 'test-token');
                 localStorage.setItem('refresh_token', 'test-refresh');
                 localStorage.setItem('user', JSON.stringify({
@@ -183,15 +183,17 @@ test.describe('Local State Persistence', () => {
                 }));
             });
 
-            await page.goto('/');
+            await page.goto('/profile');
+            await page.waitForLoadState('networkidle');
 
-            // Find and click logout button
-            const logoutBtn = page.locator('button:has-text("Logout"), button:has-text("Sign Out"), a:has-text("Logout"), a:has-text("Sign Out")');
+            // Find and click logout button (ProfileView uses "Log Out")
+            const logoutBtn = page.locator('button:has-text("Log Out"), button:has-text("Logout"), button:has-text("Sign Out")');
 
             if (await logoutBtn.count() > 0) {
                 await logoutBtn.click();
 
-                // Wait for logout to complete
+                // Wait for logout redirect (auth store navigates to /login)
+                await page.waitForURL(/\/(login|demo-login|\?)/, { timeout: 10000 }).catch(() => {});
                 await page.waitForTimeout(500);
 
                 // Auth should be cleared

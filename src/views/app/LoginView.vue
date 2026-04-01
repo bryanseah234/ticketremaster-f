@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
@@ -12,11 +12,33 @@ const toast = useToast()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
+const errors = reactive({ email: '', password: '' })
+
+const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
+const validate = (): boolean => {
+  errors.email = ''
+  errors.password = ''
+  let valid = true
+  if (!email.value.trim()) {
+    errors.email = 'Email is required'
+    valid = false
+  } else if (!validateEmail(email.value)) {
+    errors.email = 'Must be a valid email'
+    valid = false
+  }
+  if (!password.value) {
+    errors.password = 'Password is required'
+    valid = false
+  }
+  return valid
+}
 
 const extractError = (e: any) => {
   const status = e?.response?.status
   const code = e?.response?.data?.error_code || e?.response?.data?.error?.code
   if (code === 'VALIDATION_ERROR') return 'Please check your email and password.'
+  if (status === 429) return 'Too many login attempts. Please wait 30 seconds.'
   if (status === 401) return 'Invalid email or password'
   if (status === 403) return 'Please verify your phone number.'
   if (status === 400) return 'Please check your email and password.'
@@ -26,6 +48,7 @@ const extractError = (e: any) => {
 }
 
 const submit = async () => {
+  if (!validate()) return
   loading.value = true
   try {
     const { data } = await api.post('/auth/login', { email: email.value, password: password.value })
@@ -67,10 +90,12 @@ const submit = async () => {
         <div>
           <label>Email</label>
           <input v-model="email" placeholder="you@email.com" />
+          <p v-if="errors.email" class="field-error">{{ errors.email }}</p>
         </div>
         <div>
           <label>Password</label>
           <input v-model="password" type="password" placeholder="••••••••" />
+          <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
         </div>
 
         <button :disabled="loading" type="submit" style="width:100%;">
@@ -102,6 +127,11 @@ const submit = async () => {
 }
 .text-center {
   text-align: center;
+}
+.field-error {
+  color: #ef4444;
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0;
 }
 .divider {
   display: flex;

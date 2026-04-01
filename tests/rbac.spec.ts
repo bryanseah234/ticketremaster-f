@@ -144,7 +144,8 @@ test.describe('Role-Based Access Control', () => {
         test('standard user should access /profile', async ({ page }) => {
             await page.goto('/profile');
             await expect(page).toHaveURL('/profile');
-            await expect(page.locator('h1')).toContainText(/Profile/);
+            // Profile page h1 shows the user's email
+            await expect(page.locator('h1')).toContainText(/user@example\.com|Profile/);
         });
 
         test('standard user should NOT access /admin/events/new', async ({ page }) => {
