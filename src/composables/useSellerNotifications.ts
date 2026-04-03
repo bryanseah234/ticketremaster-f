@@ -32,7 +32,7 @@ export function useSellerNotifications() {
 
     try {
       // Check for pending transfers
-      const response = await api.get('/transfers/pending')
+      const response = await api.get('/transfer/pending')
       const pendingTransfers = response.data?.data || []
 
       if (pendingTransfers.length > 0) {
