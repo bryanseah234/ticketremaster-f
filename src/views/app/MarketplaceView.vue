@@ -91,7 +91,7 @@ const loadListings = async () => {
 
 const loadMyTickets = async () => {
   try {
-    const { data } = await api.get('/qr/tickets')
+    const { data } = await api.get('/tickets')
     myTickets.value = (data?.data?.tickets || data?.data || [])
       .filter((t: any) => t.status === 'active')
       .map((t: any) => ({
