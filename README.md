@@ -89,7 +89,7 @@ npm run preview      # Preview production build locally
 
 # Testing
 npm run typecheck    # Run TypeScript type checking
-npm run test         # Run Playwright E2E tests
+npm run test         # Run Playwright E2E tests (Chromium only)
 npm run test:ui      # Run tests with UI
 
 # Analysis

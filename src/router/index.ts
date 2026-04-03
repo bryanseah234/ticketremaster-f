@@ -181,6 +181,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true } as RouteMeta,
   },
   {
+    path: '/transfer/initiate',
+    component: () => import('@/views/app/TransferInitiateView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
+  },
+  {
     path: '/transfer/:transferId',
     component: () => import('@/views/app/TransferConfirmView.vue'),
   },
@@ -200,6 +205,11 @@ const routes: RouteRecordRaw[] = [
     path: '/staff/scan',
     component: () => import('@/views/app/StaffScannerView.vue'),
     meta: { requiresAuth: true, requiresStaff: true } as RouteMeta,
+  },
+  {
+    path: '/admin/events',
+    redirect: '/admin/events/new',
+    meta: { requiresAuth: true, requiresAdmin: true } as RouteMeta,
   },
   {
     path: '/admin/events/new',

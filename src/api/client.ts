@@ -25,6 +25,18 @@ let offlineNotified = false
 let demoModeEnabled = false
 ;(window as unknown as Record<string, unknown>).__apiOffline = false
 
+// Exponential backoff configuration for retry
+const MAX_RETRY_ATTEMPTS = 3
+const INITIAL_BACKOFF_MS = 2000
+const MAX_BACKOFF_MS = 15000
+const RETRYABLE_STATUS_CODES = [429, 503, 408, 504]
+
+const calculateBackoff = (attempt: number): number => {
+  const exponentialDelay = INITIAL_BACKOFF_MS * Math.pow(2, attempt)
+  const jitter = Math.random() * 1000
+  return Math.min(exponentialDelay + jitter, MAX_BACKOFF_MS)
+}
+
 // Idempotency key cache to prevent duplicate operations within TTL
 const idempotencyCache = new Map<
   string,
@@ -218,10 +230,16 @@ api.interceptors.response.use(
       data?.error?.message ||
       data?.message
     const original = error.config as (InternalAxiosRequestConfigWithMetadata & {
+      __retryCount?: number
       __useMockData?: boolean
     }) || {}
     const isNetworkError =
       !error?.response || error?.code === 'ERR_NETWORK'
+
+    // Initialize retry count if not present
+    if (original && !original.__retryCount) {
+      original.__retryCount = 0
+    }
 
     // Check if we can return a cached response for idempotent retry
     if (
@@ -235,6 +253,23 @@ api.interceptors.response.use(
         // Return cached response instead of failing
         return Promise.resolve({ data: cached.response, status: 200 } as AxiosResponse)
       }
+    }
+
+    // Exponential backoff retry for retryable status codes
+    const retryCount = original.__retryCount || 0
+    if (
+      (status && RETRYABLE_STATUS_CODES.includes(status)) &&
+      retryCount < MAX_RETRY_ATTEMPTS
+    ) {
+      original.__retryCount = retryCount + 1
+      const delay = calculateBackoff(retryCount)
+      
+      // Log retry attempt for debugging
+      console.log(`Retry attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS} for ${original.method} ${original.url} after ${delay}ms`)
+      
+      // Wait for backoff delay then retry
+      await new Promise(resolve => setTimeout(resolve, delay))
+      return api(original)
     }
 
     // Detect backend unavailability and enable demo mode
@@ -277,10 +312,12 @@ api.interceptors.response.use(
     }
 
     // Map common HTTP errors to user-facing messages
-    const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/scan/verify/') : false
+    const isScanRoute = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig).includes('/verify/') : false
     if (status && status >= 400 && !isScanRoute) {
       const codeMessage =
-        errorCode === 'SEAT_UNAVAILABLE'
+        errorCode === 'SERVICE_TIMEOUT'
+          ? 'The request took too long. Please try again.'
+          : errorCode === 'SEAT_UNAVAILABLE'
           ? 'Seat is currently unavailable.'
           : errorCode === 'SEAT_ALREADY_SOLD'
           ? 'Seat has already been sold.'
@@ -322,7 +359,9 @@ api.interceptors.response.use(
       const message =
         errorMessage ||
         codeMessage ||
-        (status === 429
+        (status === 408
+          ? 'The request timed out. Please try again.'
+          : status === 429
           ? 'You are doing that too fast. Please wait a moment before trying again.'
           : status === 403 && !errorCode
           ? 'Access denied. Unusual activity detected.'

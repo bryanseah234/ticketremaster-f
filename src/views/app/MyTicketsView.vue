@@ -78,7 +78,7 @@ const fallbackTickets = [
 const load = async () => {
   loading.value = true
   try {
-    const { data } = await api.get('/qr/tickets')
+    const { data } = await api.get('/tickets')
     const raw = data?.data?.tickets || data?.data || []
     tickets.value = raw.map((t: any) => ({
       ...t,

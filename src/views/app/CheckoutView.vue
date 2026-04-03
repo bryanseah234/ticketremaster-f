@@ -61,8 +61,19 @@ const releaseHold = async () => {
     const inventoryId = parsed?.inventoryId || route.params.orderId
     const holdToken = parsed?.holdToken || ''
     await api.delete(`/purchase/hold/${inventoryId}`, { data: { holdToken } })
-  } catch {
-    // best-effort
+  } catch (e) {
+    // Log error for debugging but don't block navigation
+    console.error('Failed to release hold:', e)
+    // Optionally retry once after a short delay
+    try {
+      const parsed = JSON.parse(raw)
+      const inventoryId = parsed?.inventoryId || route.params.orderId
+      const holdToken = parsed?.holdToken || ''
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await api.delete(`/purchase/hold/${inventoryId}`, { data: { holdToken } })
+    } catch (retryErr) {
+      console.error('Retry release hold failed:', retryErr)
+    }
   }
   localStorage.removeItem('pendingOrder')
 }
