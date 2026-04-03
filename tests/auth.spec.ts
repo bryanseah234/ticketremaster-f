@@ -1,6 +1,18 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Authentication Flow', () => {
+    test.beforeEach(async ({ page }) => {
+        setupConsoleMonitoring(page);
+    });
+
+    test.afterEach(async () => {
+        assertNoConsoleErrors();
+    });
+
     test('should show login page and handle successful login', async ({ page }) => {
         // Mock successful login response - actual endpoint: POST /auth/login
         await page.route('**/auth/login', async route => {
@@ -18,9 +30,9 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/login');
-        await expect(page.locator('h1')).toHaveText(/Login/);
+        await expect(page.locator('h1')).toHaveText(/Sign In/);
 
-        await page.fill('input[type="email"]', 'test@example.com');
+        await page.fill('input[placeholder*="email"]', 'test@example.com');
         await page.fill('input[type="password"]', 'password123');
         await page.click('button:has-text("Sign In")');
 
@@ -41,13 +53,13 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'wrong@example.com');
+        await page.fill('input[placeholder*="email"]', 'wrong@example.com');
         await page.fill('input[type="password"]', 'wrongpass');
         await page.click('button:has-text("Sign In")');
 
         // Check for toast message
-        const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toBeVisible();
+        const toast = page.locator('.toast.error').first();
+        await expect(toast).toBeVisible({ timeout: 10000 });
         await expect(toast).toContainText(/Invalid|credentials/);
     });
 
@@ -69,14 +81,16 @@ test.describe('Authentication Flow', () => {
 
         await page.goto('/register');
         await page.fill('input[placeholder*="email"]', 'new@example.com');
-        await page.fill('input[placeholder*="phone"]', '+6591234567');
-        await page.fill('input[type="password"]', 'password123');
-        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.fill('input[placeholder*="+65"]', '+6591234567');
+        // Fill both password fields (password + confirm)
+        const passwordInputs = page.locator('input[type="password"]');
+        await passwordInputs.nth(0).fill('password123');
+        await passwordInputs.nth(1).fill('password123');
         await page.click('button:has-text("Create Account")');
 
         // Should redirect to login
-        await expect(page).toHaveURL('/login');
-        await expect(page.locator('text=Account created')).toBeVisible();
+        await expect(page).toHaveURL('/login', { timeout: 10000 });
+        await expect(page.locator('text=Account created')).toBeVisible({ timeout: 5000 });
     });
 
     test('should handle registration validation errors (400)', async ({ page }) => {
@@ -91,14 +105,15 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/register');
-        await page.fill('input[placeholder*="email"]', 'invalid-email');
-        await page.fill('input[placeholder*="phone"]', '+6591234567');
-        await page.fill('input[type="password"]', 'password123');
-        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.fill('input[placeholder*="email"]', 'valid@example.com');
+        await page.fill('input[placeholder*="+65"]', '+6591234567');
+        const passwordInputs = page.locator('input[type="password"]');
+        await passwordInputs.nth(0).fill('password123');
+        await passwordInputs.nth(1).fill('password123');
         await page.click('button:has-text("Create Account")');
 
-        const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toBeVisible();
+        const toast = page.locator('.toast.error').first();
+        await expect(toast).toBeVisible({ timeout: 10000 });
         await expect(toast).toContainText(/validation|Invalid|email/i);
     });
 
@@ -114,19 +129,21 @@ test.describe('Authentication Flow', () => {
 
         await page.goto('/register');
         await page.fill('input[placeholder*="email"]', 'existing@example.com');
-        await page.fill('input[placeholder*="phone"]', '+6591234567');
-        await page.fill('input[type="password"]', 'password123');
-        await page.fill('input[placeholder*="Confirm Password"]', 'password123');
+        await page.fill('input[placeholder*="+65"]', '+6591234567');
+        const passwordInputs = page.locator('input[type="password"]');
+        await passwordInputs.nth(0).fill('password123');
+        await passwordInputs.nth(1).fill('password123');
         await page.click('button:has-text("Create Account")');
 
-        const toast = page.locator('.Vue-Toastification__toast--error');
-        await expect(toast).toBeVisible();
+        const toast = page.locator('.toast.error').first();
+        await expect(toast).toBeVisible({ timeout: 10000 });
         await expect(toast).toContainText(/already registered/);
     });
 
-    test('should redirect unauthenticated user from protected routes', async ({ page }) => {
-        // Clear any stored auth
-        await page.evaluate(() => {
+    test('should redirect unauthenticated user from protected routes', async ({ page, context }) => {
+        // Clear any stored auth by using a fresh context
+        await context.clearCookies();
+        await context.addInitScript(() => {
             localStorage.clear();
         });
 

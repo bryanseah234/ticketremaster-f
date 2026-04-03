@@ -1,21 +1,31 @@
 import { test, expect } from '@playwright/test';
+import {
+    setupConsoleMonitoring,
+    assertNoConsoleErrors,
+} from './setup/console-monitor';
 
 test.describe('Admin Operations', () => {
-    test.beforeEach(async ({ context }) => {
+    test.beforeEach(async ({ page, context }) => {
+        setupConsoleMonitoring(page);
         await context.addInitScript(() => {
             window.localStorage.setItem('access_token', 'admin-token');
             window.localStorage.setItem('refresh_token', 'refresh-token');
+            // Auth store expects 'role' field, not 'is_admin'
             window.localStorage.setItem('user', JSON.stringify({
-                user_id: 'a1',
+                userId: 'a1',
                 email: 'admin@example.com',
-                is_admin: true
+                role: 'admin'
             }));
         });
     });
 
+    test.afterEach(async () => {
+        assertNoConsoleErrors();
+    });
+
     test('should show event dashboard with stats', async ({ page }) => {
-        // Mock dashboard response
-        await page.route('**/api/admin/events/e1/dashboard', async route => {
+        // Mock dashboard response - only intercept API calls (not frontend route)
+        await page.route('**ticketremasterapi.hong-yi.me/admin/events/e1/dashboard', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -32,43 +42,54 @@ test.describe('Admin Operations', () => {
         });
 
         await page.goto('/admin/events/e1/dashboard');
-        await expect(page.locator('h1')).toContainText('Inventory Overview');
-        await expect(page.locator('h3:has-text("150")')).toBeVisible(); // Seats sold
+        // Verify we navigated to the right page
+        await expect(page).toHaveURL('/admin/events/e1/dashboard');
+        // Wait for page to load and data to render
+        await page.waitForLoadState('networkidle');
+        // h1 contains "Inventory Overview — e1"
+        await expect(page.locator('h1')).toContainText('Inventory Overview', { timeout: 15000 });
+        // Check for seats sold metric
+        await expect(page.locator('h3:has-text("150")')).toBeVisible();
+        // Check for attendee email in table
         await expect(page.locator('text=customer@example.com')).toBeVisible();
     });
 
     test('should allow creating a new event', async ({ page }) => {
-        await page.route('**/api/admin/events', async route => {
+        // Mock the POST to /admin/events (no /api/ prefix)
+        await page.route('**/admin/events', async route => {
             await route.fulfill({
                 status: 201,
                 contentType: 'application/json',
-                body: JSON.stringify({ success: true, data: { event_id: 'new-e', seats_created: 500 } })
+                body: JSON.stringify({ success: true, data: { eventId: 'new-e', seatsCreated: 500 } })
             });
         });
 
         await page.goto('/admin/events/new');
-        await page.fill('input[placeholder*="Neon"]', 'New Year Concert');
-        await page.fill('input[type="datetime-local"]', '2026-12-31T20:00');
-        await page.fill('input[placeholder*="Arena"]', 'National Stadium');
-        await page.fill('input[type="number"][min="1"]', '1'); // Total halls
-        await page.locator('input:below(label:has-text("Total seats"))').first().fill('500');
+        await page.waitForLoadState('networkidle');
+        // Fill form using actual placeholders from AdminEventCreateView
+        await page.fill('input[placeholder*="Neon Skyline"]', 'New Year Concert');
+        await page.fill('input[type="datetime-local"]:first-of-type', '2026-12-31T20:00');
+        await page.fill('input[type="datetime-local"]:last-of-type', '2026-12-31T23:00');
+        await page.fill('input[type="number"][min="1"]', '500');
+        await page.fill('input[type="number"][min="1"]:last-of-type', '100');
         await page.click('button:has-text("Create event")');
 
-        await expect(page.locator('text=Created new-e with 500 seats.')).toBeVisible();
+        // Check for success message
+        await expect(page.locator('text=Created new-e with 500 seats')).toBeVisible();
     });
 
-    test('should handle FORBIDDEN (403) for non-admins', async ({ page }) => {
-        // Override session for this specific test
-        await page.addInitScript(() => {
+    test('should handle FORBIDDEN (403) for non-admins', async ({ page, context }) => {
+        // Override session for this specific test - use fresh context
+        await context.addInitScript(() => {
             window.localStorage.setItem('access_token', 'user-token');
             window.localStorage.setItem('user', JSON.stringify({
-                user_id: 'u1',
+                userId: 'u1',
                 email: 'user@example.com',
-                is_admin: false
+                role: 'user'
             }));
         });
 
-        await page.route('**/api/admin/events/e1/dashboard', async route => {
+        await page.route('**/admin/events/e1/dashboard', async route => {
             await route.fulfill({
                 status: 403,
                 contentType: 'application/json',
@@ -77,12 +98,7 @@ test.describe('Admin Operations', () => {
         });
 
         await page.goto('/admin/events/e1/dashboard');
-        // It might redirect to /events because of the router guard, or show a toast if it hits the API.
-        // If the guard runs first, it goes to /events.
-        if (await page.url().endsWith('/events')) {
-            await expect(page).toHaveURL(/\/events/);
-        } else {
-            await expect(page.locator('.Vue-Toastification__toast--error')).toContainText(/Admin access|denied|forbidden/i);
-        }
+        // The router guard should redirect non-admin to /events
+        await expect(page).toHaveURL(/\/events/);
     });
 });

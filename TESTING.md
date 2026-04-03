@@ -2,6 +2,35 @@
 
 This guide covers testing the TicketRemaster frontend, including demo accounts for UI development and debugging.
 
+## Test Structure
+
+The Playwright E2E tests are organized into the following categories:
+
+| Test File | Description |
+|-----------|-------------|
+| `console-monitoring.spec.ts` | Browser console error monitoring for all pages |
+| `demo-mode.spec.ts` | Demo login and mock data rendering for all roles |
+| `rbac.spec.ts` | Role-based access control (admin, staff, user routes) |
+| `validation.spec.ts` | Client-side form validation (login, register) |
+| `local-storage.spec.ts` | LocalStorage persistence (favorites, auth state) |
+| `network-failures.spec.ts` | Simulated network failures (503, 429, 504, offline) |
+| `auth.spec.ts` | Authentication flow tests |
+| `admin.spec.ts` | Admin operations tests |
+| `events.spec.ts` | Events listing and details tests |
+| `purchase.spec.ts` | Purchase flow tests |
+| `marketplace.spec.ts` | Marketplace flow tests |
+| `integration.spec.ts` | Credit top-up and transfer integration tests |
+| `websocket.spec.ts` | WebSocket notification tests |
+
+### Console Monitoring
+
+All tests include browser console monitoring via `tests/setup/console-monitor.ts`. This utility:
+
+- Captures console errors and page errors during test execution
+- Filters out known/expected errors (Sentry/PostHog offline errors, network failures)
+- Fails tests if unexpected console errors occur
+- Helps maintain a clean browser console
+
 ## Demo Accounts
 
 The frontend includes a **Demo Mode** that allows UI development and testing without requiring a backend connection. Access demo accounts at `/demo-login`.

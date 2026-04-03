@@ -25,7 +25,7 @@ const fetchQr = async (notify = false) => {
   if (blockMessage.value) return
   if (notify) toast.push('Loading ticket QR...', 'info', 1400)
   try {
-    const { data } = await api.get(`/qr/tickets/${ticketId}/qr`)
+    const { data } = await api.get(`/tickets/${ticketId}/qr`)
     qrData.value = data?.data
     if (qrData.value?.expiresAt) {
       countdown.value = Math.max(0, Math.floor((new Date(qrData.value.expiresAt).getTime() - Date.now()) / 1000))
