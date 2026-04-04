@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Events Listing | TicketRemaster</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#4c2300",
+                    "surface-container": "#1a1919",
+                    "error-dim": "#d53d18",
+                    "secondary-fixed-dim": "#d6d4d3",
+                    "secondary-container": "#474746",
+                    "outline": "#777575",
+                    "primary": "#ff9153",
+                    "inverse-on-surface": "#565554",
+                    "secondary-dim": "#d6d4d3",
+                    "surface-container-highest": "#262626",
+                    "on-primary": "#511f00",
+                    "primary-fixed": "#ff7a23",
+                    "on-secondary-container": "#d2d0cf",
+                    "on-secondary": "#525151",
+                    "on-surface-variant": "#adaaaa",
+                    "surface-dim": "#0e0e0e",
+                    "surface-container-high": "#201f1f",
+                    "on-error-container": "#ffd2c8",
+                    "tertiary": "#ffa765",
+                    "error": "#ff7351",
+                    "error-container": "#b92902",
+                    "primary-container": "#ff7a23",
+                    "secondary": "#e4e2e1",
+                    "on-tertiary-fixed-variant": "#5d2c00",
+                    "tertiary-fixed": "#ff9742",
+                    "tertiary-container": "#fd933d",
+                    "on-primary-fixed-variant": "#4e1e00",
+                    "inverse-primary": "#9e4400",
+                    "surface": "#0e0e0e",
+                    "primary-fixed-dim": "#f06c0b",
+                    "surface-bright": "#2c2c2c",
+                    "inverse-surface": "#fcf8f8",
+                    "surface-tint": "#ff9153",
+                    "primary-dim": "#fd761a",
+                    "outline-variant": "#494847",
+                    "tertiary-dim": "#ec8731",
+                    "surface-variant": "#262626",
+                    "on-surface": "#ffffff",
+                    "tertiary-fixed-dim": "#f08934",
+                    "surface-container-low": "#131313",
+                    "on-error": "#450900",
+                    "on-secondary-fixed": "#3f3f3f",
+                    "on-background": "#ffffff",
+                    "on-primary-fixed": "#000000",
+                    "on-tertiary-fixed": "#2b1100",
+                    "secondary-fixed": "#e4e2e1",
+                    "on-secondary-fixed-variant": "#5c5b5b",
+                    "background": "#0e0e0e",
+                    "surface-container-lowest": "#000000",
+                    "on-primary-container": "#3f1700",
+                    "on-tertiary": "#5b2c00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Plus Jakarta Sans"],
+                    "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-primary/30 min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-xl shadow-[0_12px_40px_rgba(255,255,255,0.04)] flex justify-between items-center px-8 py-3 z-50">
+<div class="flex items-center gap-6">
+<span class="text-xl font-black tracking-tighter text-white uppercase">TicketRemaster</span>
+</div>
+<div class="hidden md:flex items-center gap-8 flex-grow justify-center">
+<a class="text-primary border-b-2 border-primary pb-1 font-semibold transition-colors duration-300" href="#">Events</a>
+<a class="text-neutral-400 font-medium hover:text-primary transition-colors duration-300" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 transition-transform active:scale-90">
+<span class="material-symbols-outlined text-white" data-icon="notifications">notifications</span>
+</button>
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20 border border-primary/20 transition-transform active:scale-90">
+<span class="material-symbols-outlined text-primary" data-icon="person">person</span>
+</button>
+</div>
+</div>
+</nav>
+<main class="flex-grow pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full">
+<!-- Editorial Header Section (Centered Layout logic from SCREEN_46) -->
+<header class="mb-16 text-center">
+<h1 class="text-5xl md:text-7xl font-extrabold tracking-tighter mb-8 font-headline whitespace-nowrap"><span class="text-white">Curated </span><span class="text-primary">Experiences</span></h1>
+<!-- Search and Filters Container (Centered logic from SCREEN_46) -->
+<div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+<div class="relative w-full md:max-w-md group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-6 text-on-surface focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-neutral-600" placeholder="Search events, artists, or venues..." type="text"/>
+</div>
+<div class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto no-scrollbar md:justify-center justify-center">
+<button class="px-6 py-2 rounded-full bg-primary text-on-primary font-semibold transition-transform active:scale-95 whitespace-nowrap">All Categories</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors active:scale-95">Music</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors active:scale-95">Sports</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors active:scale-95">Theater</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors active:scale-95">Favorites</button>
+</div>
+</div>
+</header>
+<!-- Bento Grid Structure -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Featured Card: Velvet Summer Rooftop (Spans 2 Columns) -->
+<div class="group relative bg-surface-container-low rounded-DEFAULT overflow-hidden transition-all duration-500 hover:-translate-y-2 md:col-span-2 flex flex-col h-[500px]">
+<div class="flex-grow relative h-full">
+<img alt="Velvet Summer Rooftop" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Luxurious rooftop lounge at sunset with warm orange lighting, plush velvet seating, and a view of a modern city skyline at dusk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjeHHRT8Rk-nYPkRiMfUjmf-zBBog59J1cGn4gyYLR-mmGzjelxRCFfD1zA_5I1rRP0wYiGXay31_zMq-ZK3N5Md7zc8YS7GpDD-0_RCtPFPb2hs5wfERYP6SXqCkXCfxCPToPoQ_mHwxKDxN19hXlESkeNpgzVssNxdddvxzEvkzfO2yIya_9LQKA6PCALoS8jSSEEte9n52MB5crzuh-ZehHrBg_tueZwiwUiW6cjxTcReqbbdasYUR3BQmIOfUfOyqFXmV9D88"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-90"></div>
+<div class="absolute bottom-0 left-0 p-8 w-full">
+<div class="flex items-center gap-2 mb-3">
+<span class="px-3 py-1 bg-primary text-on-primary text-xs font-bold uppercase tracking-widest rounded-full">Featured</span>
+<span class="text-white/70 text-sm font-medium">Aug 24 • 8:00 PM</span>
+</div>
+<h2 class="text-3xl md:text-4xl font-bold text-white mb-2 leading-tight">Velvet Summer Rooftop</h2>
+<p class="text-on-surface-variant mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">location_on</span>
+                            Skyline Heights Observatory
+                        </p>
+<button class="px-8 py-3 bg-primary text-on-primary font-bold rounded-md transition-transform hover:scale-105 active:scale-95">
+                            Get Tickets
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 2: Neon Resonance -->
+<div class="group bg-surface-container-low rounded-DEFAULT overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col">
+<div class="aspect-square relative">
+<img alt="Neon Resonance" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Dynamic electronic music concert with vibrant neon blue and pink laser lights, silhouetted crowd, and hazy atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBy1E_tXZXVgaFiB110Z0PBku6mUCgPq6h3upQ7JxT7NEAObjfSMnOS_4cPAB3ZGajPYIzo8FomYHnVv1qlIIWqEfN6ESyPanST6rb6YiUJ6KmG0V-I6IhAGalLQdEfovNbYRi0kaj5luHMspL_-wAuhlpmoFBsXj2dHwOgGxdiqi7PdELGV6KWCk8SaonbsoNAp1vUADPClUI0vE0dSS4elO2jOerc8U1eNMsWN4DXsxob0ijJ11KnCEgOTLXhRMerrMUg7cBGyFs"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<span class="text-primary text-xs font-bold uppercase tracking-widest block mb-2">Electronic</span>
+<h3 class="text-xl font-bold text-white mb-1">Neon Resonance</h3>
+<p class="text-on-surface-variant text-sm mb-6">Sep 12 • The Void Mainstage</p>
+<div class="mt-auto">
+<button class="w-full py-3 bg-white/5 border border-white/10 text-on-surface font-bold rounded-md transition-colors hover:bg-primary hover:text-on-primary hover:border-primary">
+                            Get Tickets
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 3: Obsidian Jazz Night -->
+<div class="group bg-surface-container-low rounded-DEFAULT overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col">
+<div class="aspect-square relative">
+<img alt="Obsidian Jazz Night" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Moody jazz club interior with a spotlight on a vintage saxophone resting on a wooden chair, smoke swirling in the dim light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_P10zPgi3G6wv6DePkpt1ENW7--lEkGYCRat-7cyedBH1xwoVTh8hgdB5_U5ChRPyz5_fYfQtcJQxrt5jwWQyha7s2A_XrkDH-d06i59xDcti1AUhzV3SAL1Mt2XnJyM6oXircUAzPyKJI9VcE5PaDM8HRICV1vsixVPb2Xd0PExm3XzGiuV6OfPeaL4RDPO-aNq7NqBsNbjYMsanpVwrvdT8CRTiRlXmOs1N_D2-Z-WV2NpGM8MkWCt8GN8FhW9Suc5nywN42Ks"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<span class="text-primary text-xs font-bold uppercase tracking-widest block mb-2">Jazz &amp; Soul</span>
+<h3 class="text-xl font-bold text-white mb-1">Obsidian Jazz Night</h3>
+<p class="text-on-surface-variant text-sm mb-6">Sep 15 • The Hearth Lounge</p>
+<div class="mt-auto">
+<button class="w-full py-3 bg-white/5 border border-white/10 text-on-surface font-bold rounded-md transition-colors hover:bg-primary hover:text-on-primary hover:border-primary">
+                            Get Tickets
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 4: Midnight Gallery Walk -->
+<div class="group bg-surface-container-low rounded-DEFAULT overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col">
+<div class="aspect-square relative">
+<img alt="Midnight Gallery Walk" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Minimalist modern art gallery with large abstract paintings on white walls and soft architectural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSiR80TCv8OD1rmnHTHiLCkddcR5dM2Po1oC5CV4VHQZTpUjbdzV2bOtZgdRJoOFkCo5GoiEC6JPtOYIS0nHrnO7uyulbFpHhoOyuAvH_PcqyHk_rJGFK_iWA0QK2oNUKlkzcDeR-7V2Cis5fZKYnGt7ZY0-pjiHIEDR4oH4XoFHWhIYpPpof1BpxffkbN2Ps8t-ucUs2NxumUvA-7XueWCUQOzyGcvmuojokLvc-hJBjcLA6tBLyGHqnh0cjCNxUYnezXO6PDPNs"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<span class="text-primary text-xs font-bold uppercase tracking-widest block mb-2">Arts &amp; Culture</span>
+<h3 class="text-xl font-bold text-white mb-1">Midnight Gallery Walk</h3>
+<p class="text-on-surface-variant text-sm mb-6">Oct 02 • Prism Contemporary</p>
+<div class="mt-auto">
+<button class="w-full py-3 bg-white/5 border border-white/10 text-on-surface font-bold rounded-md transition-colors hover:bg-primary hover:text-on-primary hover:border-primary">
+                            Get Tickets
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 5: Kinetic Summit -->
+<div class="group bg-surface-container-low rounded-DEFAULT overflow-hidden transition-all duration-500 hover:-translate-y-2 flex flex-col">
+<div class="aspect-square relative">
+<img alt="Kinetic Summit" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Professional tech conference stage with high-resolution screens displaying geometric data visualizations and speakers in silhouette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyo3Y1-WtMhxTFKYiozKzgeODb0OtGjisl1SJI1o7AjNdq7ncfEu5yFbMt2ggqCwFOYugL5HSPxBqeTymMhbsQxZQi5_J7bnjO1JjcxbE0budChdFiyxoMuuDxLncigsaNRnPUdBCemr6QYPrcgkL30_3IoFozmG2ttsqP_pFlrdFPSoycaio75y1q089jNFz06orBtO-k-HKHGfayRQ1LEIR847iXVHCmlvyqmOkWi3JqjTlHGHb8NTsWvejnV_09srAQanxDC5k"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/80 to-transparent"></div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<span class="text-primary text-xs font-bold uppercase tracking-widest block mb-2">Conference</span>
+<h3 class="text-xl font-bold text-white mb-1">Kinetic Summit 2024</h3>
+<p class="text-on-surface-variant text-sm mb-6">Oct 10 • Nexus Convention Center</p>
+<div class="mt-auto">
+<button class="w-full py-3 bg-white/5 border border-white/10 text-on-surface font-bold rounded-md transition-colors hover:bg-primary hover:text-on-primary hover:border-primary">
+                            Get Tickets
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-neutral-900 bg-neutral-950 flex flex-col md:flex-row justify-between items-center px-12 py-16">
+<div class="mb-8 md:mb-0">
+<span class="text-lg font-bold text-primary">TicketRemaster</span>
+<p class="text-neutral-500 text-sm mt-2 font-medium">© 2024 TicketRemaster. Crafted in the Obsidian Hearth.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium text-sm" href="#">Terms</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium text-sm" href="#">Privacy</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium text-sm" href="#">Support</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium text-sm" href="#">Contact</a>
+</div>
+</footer>
+</body></html>

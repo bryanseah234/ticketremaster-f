@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#ec8731",
+                    "surface-container-lowest": "#000000",
+                    "on-secondary-container": "#d2d0cf",
+                    "on-secondary-fixed-variant": "#5c5b5b",
+                    "primary-dim": "#fd761a",
+                    "on-surface": "#ffffff",
+                    "on-secondary-fixed": "#3f3f3f",
+                    "inverse-on-surface": "#565554",
+                    "error": "#ff7351",
+                    "on-primary-fixed": "#000000",
+                    "on-secondary": "#525151",
+                    "surface-tint": "#ff9153",
+                    "on-tertiary": "#5b2c00",
+                    "secondary-fixed": "#e4e2e1",
+                    "surface-bright": "#2c2c2c",
+                    "on-tertiary-container": "#4c2300",
+                    "tertiary": "#ffa765",
+                    "inverse-primary": "#9e4400",
+                    "surface-container-highest": "#262626",
+                    "on-error-container": "#ffd2c8",
+                    "tertiary-container": "#fd933d",
+                    "secondary-dim": "#d6d4d3",
+                    "tertiary-fixed": "#ff9742",
+                    "error-container": "#b92902",
+                    "outline": "#777575",
+                    "surface": "#0e0e0e",
+                    "primary-container": "#ff7a23",
+                    "surface-variant": "#262626",
+                    "primary": "#ff9153",
+                    "on-error": "#450900",
+                    "inverse-surface": "#fcf8f8",
+                    "on-primary-container": "#3f1700",
+                    "secondary-fixed-dim": "#d6d4d3",
+                    "secondary": "#e4e2e1",
+                    "surface-container-high": "#201f1f",
+                    "on-tertiary-fixed": "#2b1100",
+                    "on-surface-variant": "#adaaaa",
+                    "outline-variant": "#494847",
+                    "on-primary-fixed-variant": "#4e1e00",
+                    "secondary-container": "#474746",
+                    "error-dim": "#d53d18",
+                    "tertiary-fixed-dim": "#f08934",
+                    "surface-dim": "#0e0e0e",
+                    "surface-container-low": "#131313",
+                    "background": "#0e0e0e",
+                    "primary-fixed": "#ff7a23",
+                    "primary-fixed-dim": "#f06c0b",
+                    "on-tertiary-fixed-variant": "#5d2c00",
+                    "surface-container": "#1a1919",
+                    "on-primary": "#511f00",
+                    "on-background": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Plus Jakarta Sans"],
+                    "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0e0e0e; color: #ffffff; }
+        .glass-panel { background: rgba(38, 38, 38, 0.7); backdrop-filter: blur(24px); }
+        .ember-gradient { background: linear-gradient(135deg, #ff9153 0%, #ff7a23 100%); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col items-center">
+<!-- TopNavBar (Updated from SCREEN_78) -->
+<nav class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 h-16 bg-neutral-900/70 backdrop-blur-xl rounded-full mt-4 mx-auto max-w-4xl shadow-[0_12px_40px_rgba(255,255,255,0.04)] font-['Plus_Jakarta_Sans'] tracking-tight">
+<div class="flex items-center gap-2">
+<span class="text-xl font-bold tracking-tighter text-white">TicketRemaster</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-neutral-400 font-medium transition-colors duration-300 hover:text-white" href="#">Events</a>
+<a class="text-neutral-400 font-medium transition-colors duration-300 hover:text-white" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative p-2 text-orange-500 hover:scale-95 duration-200 ease-in-out">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<button class="p-2 text-neutral-400 hover:text-orange-500 hover:scale-95 duration-200 ease-in-out">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-2xl px-6 pt-40 pb-24 flex flex-col items-center">
+<!-- Header Section (Simplified per request) -->
+<header class="text-center mb-12">
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Incoming Transfer</h1>
+</header>
+<!-- Transfer Card: Glassmorphic Editorial Style -->
+<div class="w-full glass-panel border border-outline-variant/20 rounded-xl overflow-hidden shadow-2xl relative">
+<!-- Asset Preview Image -->
+<div class="h-64 w-full relative">
+<img alt="Event Image" class="w-full h-full object-cover" data-alt="vibrant music festival crowd at night with dramatic orange stage lights and atmospheric smoke" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBl2QFe5ScZ1YcpChYnQim9CbNLCF4oBL2q4YZcrUuV_ZEBUa60Pd5cmsVdZE9nPvjaPdZikYT4y4FjQ0B69Da_XY2NK6PdQu9HC8f4equIMO91ABEqah4Ye7ymVhYMh_TJvf0hvG8qLyt8L2Q8wiAJVo2QyMyWPDyp7mqheAPDowqdT9aFVt8Y8E-J0X6z4QIrza42jPc5-7X5GNdsj2YV8Tcfcibh5vGz1Foj_h6X5AqOvMtUISrqcf8Zlx5XpAuUe1s614XSGY4"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest to-transparent opacity-80"></div>
+<div class="absolute bottom-6 left-8">
+<div class="bg-primary/20 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30 inline-block mb-3">
+<span class="text-primary text-[10px] font-bold tracking-widest uppercase">VIP Access</span>
+</div>
+<h2 class="text-3xl font-bold text-white tracking-tight">Afterlife: Echoes of Eternity</h2>
+</div>
+</div>
+<!-- Card Details -->
+<div class="p-8 space-y-8 bg-surface-container-low/50">
+<!-- Info Grid -->
+<div class="grid grid-cols-2 gap-8">
+<div class="space-y-1">
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Sender</p>
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded-full bg-tertiary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="person">person</span>
+</div>
+<p class="text-white font-medium">Julian Vane</p>
+</div>
+</div>
+<div class="space-y-1">
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Date &amp; Time</p>
+<p class="text-white font-medium">Oct 24 • 10:00 PM</p>
+</div>
+<div class="space-y-1">
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Location</p>
+<p class="text-white font-medium">The Obsidian Dome</p>
+</div>
+<div class="space-y-1">
+<p class="text-on-surface-variant text-[10px] uppercase tracking-widest font-bold">Section / Row</p>
+<p class="text-white font-medium">GA Floor • Row 12</p>
+</div>
+</div>
+<!-- Recessed Logic Area -->
+<div class="bg-surface-container-lowest rounded-DEFAULT p-4 border border-white/5">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary-dim mt-1" data-icon="verified_user">verified_user</span>
+<div>
+<p class="text-sm font-semibold text-white">Authenticity Guaranteed</p>
+<p class="text-xs text-on-surface-variant leading-relaxed">This ticket has been digitally verified via the Remaster Ledger. Transfer is irreversible once accepted.</p>
+</div>
+</div>
+</div>
+<!-- Action Button -->
+<div class="pt-4">
+<button class="w-full ember-gradient py-5 rounded-md text-on-primary font-bold text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-3 group">
+                        Accept Transfer
+                        <span class="material-symbols-outlined transition-transform group-hover:translate-x-1" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="w-full mt-4 py-4 text-on-surface-variant hover:text-white text-sm font-medium transition-colors">
+                        Decline Transfer
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Updated from SCREEN_78) -->
+<footer class="w-full max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center border-t border-neutral-800/50 bg-neutral-950 py-12 font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest mt-auto">
+<div class="mb-6 md:mb-0">
+<span class="text-lg font-bold text-orange-500 tracking-tighter">TicketRemaster</span>
+</div>
+<div class="flex flex-wrap justify-center gap-8 text-neutral-600">
+<a class="hover:text-neutral-300 transition-opacity opacity-80 hover:opacity-100" href="#">Terms</a>
+<a class="hover:text-neutral-300 transition-opacity opacity-80 hover:opacity-100" href="#">Privacy</a>
+<a class="hover:text-neutral-300 transition-opacity opacity-80 hover:opacity-100" href="#">Support</a>
+<a class="hover:text-neutral-300 transition-opacity opacity-80 hover:opacity-100" href="#">Press</a>
+</div>
+<div class="mt-8 md:mt-0 text-neutral-600">
+            © 2024 TicketRemaster. Editorial Excellence.
+        </div>
+</footer>
+</body></html>
