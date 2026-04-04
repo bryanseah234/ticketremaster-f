@@ -94,11 +94,12 @@ Visit `/design` to see a live preview of:
 - badges
 - typography and panel samples
 
-## Design Preview Route
+## New Components (Phase 2)
 
-Visit `/design` to see a live preview of:
-- color tokens
-- form controls
-- button variants
-- badges
-- typography and panel samples
+The following components were added during the UI build:
+
+- `src/components/ui/EventCard.vue` — event summary card with skeleton state
+- `src/components/ui/StatusBadge.vue` — auto-derives variant from status string
+- `src/components/ui/ProfileField.vue` — masked values, nullable CTA, clipboard copy
+- `src/components/common/AppNavbar.vue` — refined with demo pill and logout button
+- `src/components/EventDatePicker/SeatGrid.vue` — updated to accept `SeatWithInventory[]` prop

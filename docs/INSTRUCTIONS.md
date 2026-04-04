@@ -1,9 +1,19 @@
 # TicketRemaster — Frontend Blueprint
 
-> Vue 3 SPA that talks exclusively to the backend via Kong API Gateway (`localhost:8000`).
-> Staff verification uses OutSystems (separate app — see `outsystems/README.md`).
+> **⚠️ OUTDATED BLUEPRINT** — This document was the original design spec. The implementation has diverged significantly.
+> For the current API contract, see [`FRONTEND.md`](../FRONTEND.md).
+> For the current component and view status, see [`docs/frontend-todo.md`](./frontend-todo.md).
+
+**Key corrections from this document:**
+- All API calls go through Kong at `VITE_API_BASE_URL` — **no `/api/` prefix** (routes are `/events`, `/auth/login`, etc.)
+- Registration now requires a two-step flow: `POST /auth/register` → `POST /auth/verify-registration` (OTP)
+- Transfer initiation takes `{ listingId }` only — not `ticketId`/`buyerId`/`creditAmount`
+- Ticket status values are `active`, `used`, `listed`, `cancelled` — not `AVAILABLE`/`HELD`/`SOLD`
+- Event date field is `date` — not `eventDate` or `event_date`
+- The project uses TypeScript strict mode — not JavaScript
 
 ---
+
 
 ## Pages & Routes
 
