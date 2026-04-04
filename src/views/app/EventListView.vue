@@ -1,54 +1,43 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { isDemoMode, mockServices } from '@/services/mockData'
+import EventCard from '@/components/ui/EventCard.vue'
+import type { EventSummary, EventType } from '@/types'
 
-const EVENT_TYPE_IMAGES: Record<string, string> = {
-  concert:   'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=1200',
-  sports:    'https://images.unsplash.com/photo-1471295253337-3ceaaedca402?q=80&w=1200',
-  orchestra: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=1200',
-  classical: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=1200',
-  theatre:   'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=1200',
-  festival:  'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=1200',
-  default:   'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1200',
-}
-
-const getEventImage = (type?: string, image?: string): string => {
-  // Only use the backend image if it's a real URL (not the example.com placeholders)
-  if (image && !image.includes('example.com')) return image
-  return EVENT_TYPE_IMAGES[type?.toLowerCase() ?? ''] ?? EVENT_TYPE_IMAGES.default
-}
-
-interface EventItem {
-  eventId: string
-  name: string
-  eventDate: string
-  venue?: { name?: string; city?: string }
-  pricingTiers?: { category: string; price: number }[]
-  image?: string
-}
+const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
+  { value: 'all', label: 'All Types' },
+  { value: 'concert', label: 'Concert' },
+  { value: 'sports', label: 'Sports' },
+  { value: 'theater', label: 'Theater' },
+  { value: 'conference', label: 'Conference' },
+  { value: 'festival', label: 'Festival' },
+  { value: 'other', label: 'Other' },
+]
 
 const route = useRoute()
+const toast = useToast()
 
 const loading = ref(false)
-const events = ref<EventItem[]>([])
+const events = ref<EventSummary[]>([])
 const page = ref(1)
 const totalPages = ref(1)
-const usingFallback = ref(false)
 
 const search = ref((route.query.search as string) || '')
 const dateFrom = ref('')
 const dateTo = ref('')
+const typeFilter = ref<EventType | 'all'>('all')
 const activeTab = ref<'all' | 'upcoming' | 'favorites'>('all')
 const viewMode = ref<'grid' | 'list'>('grid')
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
-const toast = useToast()
 
 watch(favoriteIds, () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)), { deep: true })
 
-const toggleFavorite = (eventId: string, e: Event) => {
+const toggleFavorite = (eventId: string, e: MouseEvent) => {
   e.preventDefault()
+  e.stopPropagation()
   if (favoriteIds.value.includes(eventId)) {
     favoriteIds.value = favoriteIds.value.filter((id) => id !== eventId)
   } else {
@@ -56,32 +45,48 @@ const toggleFavorite = (eventId: string, e: Event) => {
   }
 }
 
-const buildCacheKey = () => `events_list:${page.value}`
+const buildCacheKey = () => `events_list:${page.value}:${typeFilter.value}`
+
+const mapEvent = (e: any): EventSummary => ({
+  eventId: e.eventId || e.event_id,
+  name: e.name,
+  date: e.date || e.eventDate || e.event_date,
+  venueId: e.venueId || e.venue_id || '',
+  price: e.price ?? 0,
+  type: e.type as EventType,
+  image: e.image,
+  venue: e.venue ? { venueId: e.venue.venueId || '', name: e.venue.name, address: e.venue.address } : undefined,
+  seatsAvailable: e.seatsAvailable,
+})
 
 const load = async () => {
   loading.value = true
-  usingFallback.value = false
   try {
-    const { data } = await api.get('/events', { params: { page: page.value, limit: 20 } })
-    const raw = data?.data?.events || data?.data || []
-    events.value = raw.map((e: any) => ({
-      eventId: e.eventId || e.event_id,
-      name: e.name,
-      eventDate: e.date || e.eventDate || e.event_date,
-      image: getEventImage(e.type, e.image),
-      venue: e.venue ? { name: e.venue.name, city: e.venue.city || e.venue.address } : undefined,
-      pricingTiers: e.pricingTiers || e.pricing_tiers || (e.price != null ? [{ category: 'GA', price: e.price }] : []),
-    }))
-    const pagination = data?.data?.pagination || data?.pagination || {}
-    totalPages.value = pagination.totalPages || pagination.total_pages || 1
-    localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
+    const params: Record<string, unknown> = { page: page.value, limit: 10 }
+    if (typeFilter.value !== 'all') params.type = typeFilter.value
+
+    if (isDemoMode()) {
+      const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
+      events.value = result.events
+      const total = result.pagination.total
+      totalPages.value = Math.max(1, Math.ceil(total / 10))
+    } else {
+      const { data } = await api.get('/events', { params })
+      const raw: any[] = data?.data?.events || data?.data || []
+      events.value = raw.map(mapEvent)
+      const pagination = data?.data?.pagination || data?.pagination || {}
+      const total = pagination.total || 0
+      const limit = pagination.limit || 10
+      totalPages.value = pagination.totalPages || pagination.total_pages || Math.max(1, Math.ceil(total / limit))
+      localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
+    }
   } catch {
     const cached = localStorage.getItem(buildCacheKey())
     if (cached) {
       const parsed = JSON.parse(cached)
       events.value = parsed.items || []
       totalPages.value = parsed.totalPages || 1
-      usingFallback.value = true
+      toast.push('Showing cached events.', 'info', 3200)
     } else {
       toast.push('Backend unavailable. No events could be loaded.', 'error', 3200)
       events.value = []
@@ -98,7 +103,7 @@ const filteredEvents = computed(() => {
   return events.value.filter((e) => {
     const text = `${e.name} ${e.venue?.name || ''}`.toLowerCase()
     if (needle && !text.includes(needle)) return false
-    const d = e.eventDate?.slice(0, 10) || ''
+    const d = e.date?.slice(0, 10) || ''
     if (dateFrom.value && d < dateFrom.value) return false
     if (dateTo.value && d > dateTo.value) return false
     if (activeTab.value === 'upcoming' && d < today) return false
@@ -115,9 +120,9 @@ const dateRangeLabel = computed(() => {
   return `Until ${fmt(dateTo.value)}`
 })
 
-const formatDate = (d: string) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })
+const onTypeChange = () => {
+  page.value = 1
+  load()
 }
 
 onMounted(load)
@@ -135,6 +140,11 @@ onMounted(load)
       </div>
 
       <div class="toolbar-right">
+        <!-- Type filter -->
+        <select v-model="typeFilter" class="type-select" @change="onTypeChange" aria-label="Filter by event type">
+          <option v-for="t in EVENT_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        </select>
+
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input v-model="search" placeholder="Search events…" class="search-input" />
@@ -165,10 +175,9 @@ onMounted(load)
       <button class="clear-date" @click="dateFrom=''; dateTo=''">✕</button>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="loading-row">
-      <div class="spinner" />
-      <span class="small muted">Loading events…</span>
+    <!-- Loading skeletons -->
+    <div v-if="loading" class="events-grid">
+      <EventCard v-for="n in 6" :key="n" />
     </div>
 
     <!-- Empty -->
@@ -176,76 +185,47 @@ onMounted(load)
 
     <!-- Grid view -->
     <div v-else-if="viewMode === 'grid'" class="events-grid">
-      <RouterLink
-        v-for="event in filteredEvents"
-        :key="event.eventId"
-        :to="`/events/${event.eventId}`"
-        class="event-card-link"
-      >
-        <article class="event-card">
-          <div class="img-wrap">
-            <img
-              class="event-img"
-              :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'"
-              :alt="event.name"
-              @error="(e: any) => e.target.src = 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800'"
-            />
-            <div class="img-overlay" />
-            <button
-              class="fav-btn"
-              :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
-              @click="toggleFavorite(event.eventId, $event)"
-              aria-label="Toggle favourite"
-            >
-              <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
-            </button>
-          </div>
-          <div class="card-body">
-            <p class="card-date">{{ formatDate(event.eventDate) }}</p>
-            <p class="card-name">{{ event.name }}</p>
-            <p v-if="event.venue?.name" class="card-venue">{{ event.venue.name }}</p>
-            <div class="card-tiers">
-              <template v-if="Array.isArray(event.pricingTiers)">
-                <span v-for="tier in event.pricingTiers.slice(0, 2)" :key="tier.category" class="tier-badge">{{ tier.category }} · ${{ tier.price }}</span>
-              </template>
-            </div>
-          </div>
-        </article>
-      </RouterLink>
+      <div v-for="event in filteredEvents" :key="event.eventId" class="event-card-wrap">
+        <EventCard :event="event" />
+        <button
+          class="fav-btn"
+          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
+          @click="toggleFavorite(event.eventId, $event)"
+          aria-label="Toggle favourite"
+        >
+          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- List view -->
     <div v-else class="events-list">
-      <RouterLink
+      <div
         v-for="event in filteredEvents"
         :key="event.eventId"
-        :to="`/events/${event.eventId}`"
         class="list-row"
+        role="button"
+        tabindex="0"
+        @click="$router.push(`/events/${event.eventId}`)"
+        @keydown.enter="$router.push(`/events/${event.eventId}`)"
       >
-        <img
-          class="list-img"
-          :src="event.image || 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=400'"
-          :alt="event.name"
-          @error="(e: any) => e.target.src = 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=400'"
-        />
-        <div class="list-info">
-          <p class="card-date">{{ formatDate(event.eventDate) }}</p>
-          <p class="card-name">{{ event.name }}</p>
-          <p v-if="event.venue?.name" class="card-venue">{{ event.venue.name }}</p>
-        </div>
-        <div class="list-tiers">
-          <template v-if="Array.isArray(event.pricingTiers)">
-            <span v-for="tier in event.pricingTiers.slice(0, 2)" :key="tier.category" class="tier-badge">{{ tier.category }} · ${{ tier.price }}</span>
-          </template>
-        </div>
-      </RouterLink>
+        <EventCard :event="event" compact class="list-card" />
+        <button
+          class="fav-btn fav-btn-list"
+          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
+          @click.stop="toggleFavorite(event.eventId, $event)"
+          aria-label="Toggle favourite"
+        >
+          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Pagination -->
     <div v-if="totalPages > 1" class="pagination">
-      <button class="secondary" :disabled="page <= 1 || usingFallback" @click="page--; load()">Previous</button>
+      <button class="secondary" :disabled="page <= 1" @click="page--; load()">Previous</button>
       <span class="small muted">Page {{ page }} of {{ totalPages }}</span>
-      <button class="secondary" :disabled="page >= totalPages || usingFallback" @click="page++; load()">Next</button>
+      <button class="secondary" :disabled="page >= totalPages" @click="page++; load()">Next</button>
     </div>
 
   </section>
@@ -264,7 +244,6 @@ onMounted(load)
   flex-wrap: wrap;
 }
 
-/* Tabs — pill style with orange accent */
 .tabs { display: flex; gap: .35rem; }
 .tab {
   padding: .38rem 1.1rem;
@@ -284,8 +263,19 @@ onMounted(load)
   color: var(--accent-ink, #fff);
 }
 
-/* Search + date + view toggle */
 .toolbar-right { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+
+/* Type select */
+.type-select {
+  width: auto;
+  padding: .38rem 2.4rem .38rem .75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: .85rem;
+  cursor: pointer;
+}
 
 .search-wrap { position: relative; display: flex; align-items: center; }
 .search-icon {
@@ -363,132 +353,48 @@ onMounted(load)
   margin-bottom: 1.5rem;
 }
 
-/* Glass card */
-.event-card-link { text-decoration: none; color: inherit; display: block; height: 100%; }
-.event-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  border-radius: 1.1rem;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.event-card-link:hover .event-card {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0,0,0,.35);
-  border-color: var(--accent);
-}
-
-/* Image with overlay gradient */
-.img-wrap {
+.event-card-wrap {
   position: relative;
-  width: 100%;
-  aspect-ratio: 16/9;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.event-img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  transition: transform .3s ease;
-  display: block;
-}
-.event-card-link:hover .event-img { transform: scale(1.06); }
-
-/* Overlay: dark gradient at bottom of image */
-.img-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.1) 55%, transparent 100%);
-  pointer-events: none;
 }
 
 /* Favourite button */
 .fav-btn {
-  position: absolute; top: .8rem; right: .8rem;
-  width: 3rem; height: 3rem;
-  border-radius: 50%; border: none;
+  position: absolute;
+  top: .8rem;
+  right: .8rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: none;
   background: rgba(0,0,0,.45);
   backdrop-filter: blur(6px);
-  display: grid; place-items: center;
+  -webkit-backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
   cursor: pointer;
   transition: background .15s, transform .15s;
+  z-index: 2;
+  padding: 0;
 }
 .fav-btn:hover { background: rgba(0,0,0,.7); transform: scale(1.1); }
-.fav-btn svg { width: 2rem; height: 2rem; fill: rgba(255,255,255,.5); transition: fill .15s; }
+.fav-btn svg { width: 1.2rem; height: 1.2rem; fill: rgba(255,255,255,.5); transition: fill .15s; }
 .fav-btn.fav-active svg { fill: var(--accent, #f97316); }
 
-/* Card body */
-.card-body {
-  padding: .85rem 1rem .9rem;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-.card-date {
-  font-size: .73rem;
-  color: var(--accent);
-  font-weight: 600;
-  letter-spacing: .045em;
-  text-transform: uppercase;
-  margin-bottom: .3rem;
-}
-.card-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.3;
-  margin-bottom: .3rem;
-}
-.card-venue {
-  font-size: .78rem;
-  color: var(--muted);
-  margin-bottom: .8rem;
-  display: flex; align-items: center; gap: .25rem;
-}
-.card-tiers { margin-top: auto; display: flex; flex-wrap: wrap; gap: .3rem; }
-.tier-badge {
-  font-size: .7rem;
-  padding: .18rem .6rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  background: rgba(255,255,255,.05);
-}
-
 /* ── List view ── */
-.events-list { display: grid; gap: 0; margin-bottom: 1.5rem; border-top: 1px solid var(--border); }
+.events-list { display: grid; gap: .75rem; margin-bottom: 1.5rem; }
 .list-row {
-  display: flex; align-items: center; gap: 1rem;
-  padding: .9rem 0;
-  border-bottom: 1px solid var(--border);
-  text-decoration: none; color: inherit;
-  transition: background .15s;
+  position: relative;
+  cursor: pointer;
 }
-.list-row:hover { background: rgba(255,255,255,.03); }
-.list-img {
-  width: 90px; height: 64px;
-  object-fit: cover;
-  border-radius: .75rem;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
+.list-card {
+  pointer-events: none;
 }
-.list-info { flex: 1; min-width: 0; }
-.list-tiers { display: flex; flex-wrap: wrap; gap: .3rem; flex-shrink: 0; }
+.fav-btn-list {
+  top: .6rem;
+  right: .6rem;
+}
 
 /* ── Misc ── */
-.loading-row { display: flex; align-items: center; gap: .75rem; padding: 2.5rem 0; color: var(--muted); }
-.spinner {
-  width: 1.6rem; height: 1.6rem;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-top: .5rem; }
 
 @media (max-width: 900px) {

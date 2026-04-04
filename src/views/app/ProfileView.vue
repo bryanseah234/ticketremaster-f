@@ -3,42 +3,69 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
-import { mockEvents } from '@/data/mockEvents'
+import { isDemoMode } from '@/services/mockData'
+import ProfileField from '@/components/ui/ProfileField.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+
 const auth = useAuthStore()
 const router = useRouter()
 
 const balance = ref<number | null>(null)
-const profile = ref<any>(null)
+const profile = ref<Record<string, unknown> | null>(null)
 const transactions = ref<any[]>([])
 const loadingProfile = ref(false)
 const loadingTxns = ref(false)
 
-const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
-const favoriteEvents = computed(() => {
-  const byId = new Map(mockEvents.map((e) => [e.eventId, e]))
-  return favoriteIds.value.map((id) => byId.get(id) || { eventId: id, name: 'Unknown event', eventDate: '' })
-})
-
+// Merged display user: prefer fetched profile, fall back to auth store
 const displayUser = computed(() => profile.value || auth.state.user)
 
-const roleLabel = computed(() => {
-  const role = displayUser.value?.role
-  if (role === 'admin') return 'Admin'
-  if (role === 'staff') return 'Staff'
-  return 'Member'
+// ── Relative timestamp ─────────────────────────────────────────────
+
+function relativeTime(isoDate: string | null | undefined): string {
+  if (!isoDate) return '—'
+  const diff = Date.now() - new Date(isoDate).getTime()
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
+  if (years >= 1) return `${years} year${years > 1 ? 's' : ''} ago`
+  if (months >= 1) return `${months} month${months > 1 ? 's' : ''} ago`
+  if (days >= 1) return `${days} day${days > 1 ? 's' : ''} ago`
+  if (hours >= 1) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+  if (minutes >= 1) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+  return 'just now'
+}
+
+const createdAtRelative = computed(() => relativeTime((displayUser.value as Record<string, unknown>)?.createdAt as string | null))
+const createdAtISO = computed(() => {
+  const d = (displayUser.value as Record<string, unknown>)?.createdAt as string | null
+  if (!d) return ''
+  return new Date(d).toISOString()
 })
 
-const memberSince = computed(() => {
-  const date = profile.value?.createdAt
-  if (!date) return null
-  return new Date(date).toLocaleDateString('en-SG', { year: 'numeric', month: 'long' })
+// ── Role label ─────────────────────────────────────────────────────
+
+const roleLabel = computed(() => {
+  const role = displayUser.value?.role as string | undefined
+  if (role === 'admin') return 'admin'
+  if (role === 'staff') return 'staff'
+  return 'user'
 })
+
+// ── Data loading ───────────────────────────────────────────────────
 
 const loadProfile = async () => {
+  // In demo mode, auth.state.user is already populated by demoLogin — skip API call
+  if (isDemoMode()) {
+    profile.value = null // rely on displayUser computed falling back to auth.state.user
+    return
+  }
   if (!auth.state.user?.userId) return
   loadingProfile.value = true
   try {
-    const { data } = await api.get(`/users/${auth.state.user.userId}`)
+    const { data } = await api.get('/auth/me')
     profile.value = data?.data || data || null
   } catch {
     // fall back to auth store user
@@ -91,16 +118,15 @@ onMounted(() => {
 
 <template>
   <section class="page">
-    <!-- Header: Full-width User Profile section -->
+    <!-- Header -->
     <article class="profile-header glass card">
       <div class="profile-content">
-        <div class="avatar">{{ displayUser?.email?.[0]?.toUpperCase() || '?' }}</div>
+        <div class="avatar">{{ (displayUser?.email as string)?.[0]?.toUpperCase() || '?' }}</div>
         <div class="profile-info">
           <h1 class="profile-email">{{ displayUser?.email || '—' }}</h1>
           <div class="profile-badges">
-            <span class="badge">{{ roleLabel }}</span>
-            <span v-if="memberSince" class="small muted">Member since {{ memberSince }}</span>
-            <span v-if="displayUser?.isFlagged" class="badge flagged">Flagged</span>
+            <StatusBadge :label="roleLabel" />
+            <span v-if="(displayUser?.isFlagged as boolean)" class="badge flagged">⚠ Flagged</span>
           </div>
         </div>
         <div class="profile-actions">
@@ -112,26 +138,49 @@ onMounted(() => {
       </div>
     </article>
 
-    <!-- Account Details: Full-width horizontal bar -->
-    <article class="account-bar glass card">
-      <div class="account-item">
-        <span class="account-label">Email</span>
-        <span class="account-value">{{ displayUser?.email || '—' }}</span>
+    <!-- Account Details -->
+    <article class="glass card account-details">
+      <h2 class="card-title">Account Details</h2>
+
+      <!-- Email: read-only identifier -->
+      <ProfileField
+        label="Email"
+        :value="(displayUser?.email as string) || null"
+      />
+
+      <!-- Phone: masked, Add CTA when null -->
+      <ProfileField
+        label="Phone"
+        :value="((displayUser?.phoneNumber as string) || (displayUser?.phone as string)) || null"
+        :masked="true"
+        addLabel="phone"
+      />
+
+      <!-- Role: StatusBadge -->
+      <div class="profile-field">
+        <span class="field-label">Role</span>
+        <div class="field-value-wrap">
+          <StatusBadge :label="roleLabel" />
+        </div>
       </div>
-      <div class="account-divider"></div>
-      <div class="account-item">
-        <span class="account-label">Phone</span>
-        <span class="account-value">{{ displayUser?.phone || displayUser?.phoneNumber || '—' }}</span>
+
+      <!-- Created At: relative + ISO tooltip -->
+      <div class="profile-field">
+        <span class="field-label">Member since</span>
+        <div class="field-value-wrap">
+          <span
+            class="field-value"
+            :title="createdAtISO"
+          >{{ createdAtRelative }}</span>
+        </div>
       </div>
-      <div class="account-divider"></div>
-      <div class="account-item">
-        <span class="account-label">Role</span>
-        <span class="account-value">{{ roleLabel }}</span>
-      </div>
-      <div class="account-divider"></div>
-      <div class="account-item" v-if="balance !== null && !auth.isStaff && !auth.isAdmin">
-        <span class="account-label">Balance</span>
-        <span class="account-value balance">${{ balance.toLocaleString() }}</span>
+
+      <!-- isFlagged: warning badge only when true -->
+      <div v-if="(displayUser?.isFlagged as boolean) === true" class="profile-field">
+        <span class="field-label">Account status</span>
+        <div class="field-value-wrap">
+          <span class="badge flagged">⚠ Account flagged</span>
+        </div>
       </div>
     </article>
 
@@ -140,6 +189,10 @@ onMounted(() => {
       <div class="left-col">
         <article v-if="!auth.isStaff && !auth.isAdmin" class="glass card">
           <h2 class="card-title">Credit History</h2>
+          <div v-if="balance !== null" class="balance-row">
+            <span class="balance-label">Balance</span>
+            <span class="balance-value">${{ balance.toLocaleString() }}</span>
+          </div>
           <div v-if="loadingTxns" class="muted small">Loading...</div>
           <div v-else-if="transactions.length === 0" class="muted small">No transactions yet.</div>
           <div v-else class="txn-list">
@@ -156,47 +209,12 @@ onMounted(() => {
         </article>
       </div>
 
-      <!-- Right column: My Tickets and Favourite Events (2-column grid) -->
+      <!-- Right column -->
       <div v-if="!auth.isAdmin" class="right-col">
-        <!-- My Tickets -->
-        <article class="glass card tickets-card">
-          <h2 class="card-title">My Tickets</h2>
-          <div class="tickets-grid">
-            <div class="ticket-item placeholder">
-              <div class="ticket-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                  <path d="M9 9h6M9 13h6"/>
-                </svg>
-              </div>
-              <span class="ticket-label">No tickets yet</span>
-              <RouterLink to="/events" class="ticket-link">Browse Events →</RouterLink>
-            </div>
-            <!-- Example ticket item (shown when tickets exist) -->
-            <div class="ticket-item">
-              <div class="ticket-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                  <path d="M9 9h6M9 13h6"/>
-                </svg>
-              </div>
-              <span class="ticket-label">Your tickets appear here</span>
-            </div>
-          </div>
-        </article>
-
-        <!-- Favourite Events -->
         <article class="glass card">
-          <h2 class="card-title">Favourite Events</h2>
-          <div v-if="favoriteEvents.length === 0" class="muted small">No favourites saved yet.</div>
-          <div v-else class="txn-list">
-            <div v-for="event in favoriteEvents" :key="event.eventId" class="txn-row">
-              <div>
-                <p class="txn-label">{{ event.name }}</p>
-                <p v-if="event.eventDate" class="small muted">{{ new Date(event.eventDate).toLocaleDateString() }}</p>
-              </div>
-              <RouterLink :to="`/events/${event.eventId}`"><button class="secondary" style="padding:.3rem .8rem;font-size:.82rem;">View</button></RouterLink>
-            </div>
+          <h2 class="card-title">My Tickets</h2>
+          <div class="muted small">
+            <RouterLink to="/tickets" class="ticket-link">View your tickets →</RouterLink>
           </div>
         </article>
       </div>
@@ -205,7 +223,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Profile Header - Full width top row */
+/* Profile Header */
 .profile-header {
   padding: 1.5rem;
   margin-bottom: 1.2rem;
@@ -273,64 +291,73 @@ onMounted(() => {
   color: var(--accent-ink);
 }
 
-.profile-actions .primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
 .profile-actions .danger {
-  background: rgba(239,68,68,.15);
-  border: 1px solid rgba(239,68,68,.4);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   color: #f87171;
 }
 
 .profile-actions .danger:hover {
-  background: rgba(239,68,68,.25);
+  background: rgba(239, 68, 68, 0.25);
 }
 
-/* Account Details - Full-width horizontal bar */
-.account-bar {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  padding: 1.2rem 1.5rem;
+/* Account Details */
+.account-details {
   margin-bottom: 1.2rem;
-  border-radius: 1rem;
 }
 
-.account-item {
+/* Shared profile-field row (mirrors ProfileField.vue layout for custom rows) */
+.profile-field {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0 1rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.account-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.profile-field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.field-value-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.field-value {
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: default;
+}
+
+/* Balance row inside credit card */
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.balance-label {
+  font-size: 0.82rem;
   color: var(--muted);
 }
 
-.account-value {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-value.balance {
+.balance-value {
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--accent);
-}
-
-.account-divider {
-  width: 1px;
-  background: var(--border);
-  align-self: stretch;
 }
 
 /* Layout */
@@ -345,7 +372,8 @@ onMounted(() => {
   grid-template-columns: 1fr;
 }
 
-.left-col, .right-col {
+.left-col,
+.right-col {
   display: grid;
   gap: 1.2rem;
 }
@@ -354,7 +382,7 @@ onMounted(() => {
 .card {
   padding: 1.2rem;
   display: grid;
-  gap: 0.9rem;
+  gap: 0;
   border-radius: 1rem;
 }
 
@@ -364,60 +392,15 @@ onMounted(() => {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 0;
-}
-
-/* Tickets Grid - 2 columns */
-.tickets-card {
-  grid-column: span 1;
-}
-
-.tickets-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.8rem;
-}
-
-.ticket-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1rem;
-  background: var(--surface-2);
-  border-radius: 0.75rem;
-  gap: 0.5rem;
-}
-
-.ticket-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  color: var(--muted);
-}
-
-.ticket-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.ticket-label {
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.ticket-link {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.ticket-link:hover {
-  text-decoration: underline;
+  margin: 0 0 0.75rem 0;
 }
 
 /* Transaction List */
-.txn-list { display: grid; gap: 0; }
+.txn-list {
+  display: grid;
+  gap: 0;
+}
+
 .txn-row {
   display: flex;
   justify-content: space-between;
@@ -425,59 +408,65 @@ onMounted(() => {
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
 }
-.txn-row:last-child { border-bottom: none; }
-.txn-label { font-size: 0.92rem; margin-bottom: 0.15rem; }
-.txn-amount { font-weight: 600; font-size: 0.95rem; }
+
+.txn-row:last-child {
+  border-bottom: none;
+}
+
+.txn-label {
+  font-size: 0.92rem;
+  margin-bottom: 0.15rem;
+}
+
+.txn-amount {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
 .positive { color: var(--success); }
 .negative { color: #f87171; }
 
 .muted { color: var(--muted); }
 .small { font-size: 0.82rem; }
+
 .badge {
   display: inline-block;
   padding: 0.2rem 0.6rem;
   font-size: 0.72rem;
   font-weight: 600;
   border-radius: 999px;
-  background: rgba(249,115,22,.15);
+  background: rgba(249, 115, 22, 0.15);
   color: var(--accent);
-  border: 1px solid rgba(249,115,22,.3);
-}
-.badge.flagged {
-  background: rgba(239,68,68,.2);
-  color: #f87171;
-  border-color: rgba(239,68,68,.3);
+  border: 1px solid rgba(249, 115, 22, 0.3);
 }
 
-/* Responsive */
+.badge.flagged {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ticket-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ticket-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
-  
+
   .profile-content {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .profile-actions {
     width: 100%;
     justify-content: center;
-  }
-  
-  .account-bar {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-  }
-  
-  .account-divider {
-    display: none;
-  }
-  
-  .account-item {
-    padding: 0;
-  }
-  
-  .tickets-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>
