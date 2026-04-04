@@ -54,26 +54,28 @@ Treat this as a local or controlled-environment gateway detail. Do not hardcode 
 
 ## Authentication matrix
 
-|| Route or route group | JWT required | Kong `apikey` required | Idempotency Key | Notes |
-|| --- | --- | --- | --- | --- |
-|| `POST /auth/register` | no | no | no | public |
-|| `POST /auth/login` | no | no | no | public |
-|| `GET /auth/me` | yes | no | no | authenticated profile |
-|| `GET /venues` | no | no | no | public |
-|| `GET /events` | no | no | no | public |
-|| `GET /events/{eventId}` | no | no | no | public |
-|| `GET /events/{eventId}/seats` | no | no | no | public |
-|| `GET /events/{eventId}/seats/{inventoryId}` | no | no | no | public |
-|| `POST /admin/events` | admin JWT | no | no | event creation now requires an admin token in the orchestrator |
-|| `/credits/topup/*` | yes | yes | **yes** | webhook is backend-to-backend only; use idempotency keys |
-|| `/purchase/*` | yes | yes | **yes** | purchase operations; distributed locks on holds |
-|| `/tickets/*` | yes | yes | no | these routes are served by `qr-orchestrator` at the gateway |
-|| `GET /marketplace` | no | no | no | public browse route |
-|| `POST /marketplace/list` | yes | yes | no | listing creation |
-|| `DELETE /marketplace/{listingId}` | yes | yes | no | delist |
-|| `/transfer/*/verify` | yes | yes | no | **rate limited**: max 3 OTP attempts per 15 min |
-|| `/transfer/*` (other) | yes | yes | no | buyer and seller transfer flows; auto-cancel after 24h |
-|| `/verify/*` | staff JWT | yes | no | JWT must contain `role=staff`; `venueId` is also used if present |
+| Route or route group | JWT required | Kong `apikey` required | Idempotency Key | Notes |
+| --- | --- | --- | --- | --- |
+| `POST /auth/register` | no | no | no | public — returns userId, no token |
+| `POST /auth/verify-registration` | no | no | no | OTP phone verification after register — returns JWT |
+| `POST /auth/login` | no | no | no | public |
+| `GET /auth/me` | yes | no | no | authenticated profile |
+| `GET /venues` | no | no | no | public |
+| `GET /events` | no | no | no | public |
+| `GET /events/{eventId}` | no | no | no | public |
+| `GET /events/{eventId}/seats` | no | no | no | public |
+| `GET /events/{eventId}/seats/{inventoryId}` | no | no | no | public |
+| `POST /admin/events` | admin JWT | no | no | event creation requires admin token |
+| `/credits/topup/*` | yes | yes | **yes** | webhook is backend-to-backend only; use idempotency keys |
+| `/purchase/*` | yes | yes | **yes** | purchase operations; distributed locks on holds |
+| `/tickets/*` | yes | yes | no | served by `qr-orchestrator` at the gateway |
+| `GET /marketplace` | no | no | no | public browse route |
+| `POST /marketplace/list` | yes | yes | no | listing creation |
+| `DELETE /marketplace/{listingId}` | yes | yes | no | delist |
+| `/transfer/*/buyer-verify` | yes | yes | no | **rate limited**: max 3 OTP attempts per 15 min |
+| `/transfer/*/seller-verify` | yes | yes | no | **rate limited**: max 3 OTP attempts per 15 min |
+| `/transfer/*` (other) | yes | yes | no | buyer and seller transfer flows; auto-cancel after 24h |
+| `/verify/*` | staff JWT | yes | no | JWT must contain `role=staff`; `venueId` also used if present |
 
 ## Route map used by the frontend
 
@@ -105,9 +107,15 @@ Treat this as a local or controlled-environment gateway detail. Do not hardcode 
 
 | Method | Path | Request body | Success shape |
 | --- | --- | --- | --- |
-| `POST` | `/auth/register` | `email`, `password`, `phoneNumber`, optional `role`, optional `venueId` | `{ "data": { "userId", "email", "role", "createdAt" } }` |
+| `POST` | `/auth/register` | `email`, `password`, `phoneNumber`, optional `role`, optional `venueId` | `{ "data": { "userId", "email", "role", "createdAt" } }` — **no token returned** |
+| `POST` | `/auth/verify-registration` | `userId`, `otpCode` | `{ "data": { "token", "expiresAt", "user": { "userId", "email", "role" } } }` |
 | `POST` | `/auth/login` | `email`, `password` | `{ "data": { "token", "expiresAt", "user": { "userId", "email", "role" } } }` |
 | `GET` | `/auth/me` | none | `{ "data": { "userId", "email", "phoneNumber", "role", "isFlagged", "createdAt" } }` |
+
+Registration flow:
+1. `POST /auth/register` → returns `userId` (no token yet)
+2. User receives OTP via SMS
+3. `POST /auth/verify-registration` with `{ userId, otpCode }` → returns JWT token
 
 Register example:
 
