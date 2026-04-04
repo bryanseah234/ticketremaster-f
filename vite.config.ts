@@ -11,15 +11,16 @@ export default defineConfig(({ mode }): UserConfig => {
   
   const plugins = [
     vue(),
-    vueDevTools(),
+    // Only load devtools in development
+    ...(mode !== 'production' ? [vueDevTools()] : []),
   ]
   
-  // Add bundle analyzer in build mode
+  // Add bundle analyzer in build mode (no auto-open in CI)
   if (mode === 'production') {
     plugins.push(
       visualizer({
         filename: 'dist/stats.html',
-        open: true,
+        open: false,
         gzipSize: true,
         brotliSize: true
       })
@@ -59,21 +60,12 @@ export default defineConfig(({ mode }): UserConfig => {
       sourcemap: true, // Enable source maps for Sentry
       rollupOptions: {
         output: {
-          manualChunks: {
-            // Framework core (rarely changes)
-            'vendor-vue': ['vue', 'vue-router', 'pinia'],
-            
-            // UI libraries (change occasionally)
-            'vendor-ui': ['bootstrap', 'lucide-vue-next', '@heroicons/vue'],
-            
-            // Heavy dependencies (change rarely)
-            'vendor-three': ['three'],
-            
-            // Payment & QR (change rarely)
-            'vendor-payment': ['@stripe/stripe-js', 'qrcode', '@chenfengyuan/vue-qrcode'],
-            
-            // Utilities (change frequently)
-            'vendor-utils': ['axios', 'dayjs', 'socket.io-client']
+          manualChunks: (id) => {
+            if (['vue', 'vue-router', 'pinia'].some(pkg => id.includes(`/node_modules/${pkg}/`))) return 'vendor-vue'
+            if (['bootstrap', 'lucide-vue-next', '@heroicons/vue'].some(pkg => id.includes(`/node_modules/${pkg}/`))) return 'vendor-ui'
+            if (id.includes('/node_modules/three/')) return 'vendor-three'
+            if (['@stripe/stripe-js', 'qrcode', '@chenfengyuan/vue-qrcode'].some(pkg => id.includes(`/node_modules/${pkg}/`))) return 'vendor-payment'
+            if (['axios', 'dayjs', 'socket.io-client'].some(pkg => id.includes(`/node_modules/${pkg}/`))) return 'vendor-utils'
           }
         }
       },
