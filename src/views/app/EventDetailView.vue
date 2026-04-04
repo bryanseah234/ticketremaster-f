@@ -58,8 +58,12 @@ const load = async () => {
     const eventId = route.params.eventId as string
 
     if (isDemoMode()) {
-      const raw = await mockServices.getEvent(eventId)
-      eventData.value = raw
+      try {
+        const raw = await mockServices.getEvent(eventId)
+        eventData.value = raw
+      } catch {
+        notFound.value = true
+      }
     } else {
       const { data } = await api.get(`/events/${eventId}`)
       const raw = data?.data
@@ -85,6 +89,7 @@ const load = async () => {
           eventData.value = raw
           toast.push('Backend unavailable. Showing demo event.', 'info', 3200)
         } catch {
+          notFound.value = true
           toast.push('Could not load event details.', 'error', 3200)
         }
       }
