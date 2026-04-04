@@ -89,7 +89,15 @@ const loadListings = async (page = currentPage.value) => {
     totalListings.value = data?.pagination?.total ?? listings.value.length
     currentPage.value = page
   } catch {
-    listings.value = []
+    try {
+      const res = await mockServices.getMarketplaceListings({ page, limit: pageSize })
+      listings.value = res.listings
+      totalListings.value = res.pagination.total
+      currentPage.value = page
+      toast.push('Backend unavailable. Showing demo listings.', 'info', 3200)
+    } catch {
+      listings.value = []
+    }
   } finally {
     loading.value = false
   }

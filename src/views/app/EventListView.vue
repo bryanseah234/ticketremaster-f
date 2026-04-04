@@ -88,9 +88,16 @@ const load = async () => {
       totalPages.value = parsed.totalPages || 1
       toast.push('Showing cached events.', 'info', 3200)
     } else {
-      toast.push('Backend unavailable. No events could be loaded.', 'error', 3200)
-      events.value = []
-      totalPages.value = 1
+      try {
+        const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
+        events.value = result.events
+        totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
+        toast.push('Backend unavailable. Showing demo events.', 'info', 3200)
+      } catch {
+        events.value = []
+        totalPages.value = 1
+        toast.push('Could not load events.', 'error', 3200)
+      }
     }
   } finally {
     loading.value = false

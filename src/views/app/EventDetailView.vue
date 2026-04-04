@@ -79,7 +79,14 @@ const load = async () => {
         eventData.value = JSON.parse(cached)
         toast.push('Offline mode: showing cached event details.', 'info', 3200)
       } else {
-        toast.push('Could not load event details.', 'error', 3200)
+        try {
+          const eventId = route.params.eventId as string
+          const raw = await mockServices.getEvent(eventId)
+          eventData.value = raw
+          toast.push('Backend unavailable. Showing demo event.', 'info', 3200)
+        } catch {
+          toast.push('Could not load event details.', 'error', 3200)
+        }
       }
     }
   } finally {
