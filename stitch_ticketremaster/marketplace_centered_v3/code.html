@@ -1,0 +1,279 @@
+<html class="dark" lang="en"><head></head><body class="bg-background text-on-surface min-h-screen selection:bg-primary/30 selection:text-primary">```html
+
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#4c2300",
+                        "surface-container": "#1a1919",
+                        "error-dim": "#d53d18",
+                        "secondary-fixed-dim": "#d6d4d3",
+                        "secondary-container": "#474746",
+                        "outline": "#777575",
+                        "primary": "#ff9153",
+                        "inverse-on-surface": "#565554",
+                        "secondary-dim": "#d6d4d3",
+                        "surface-container-highest": "#262626",
+                        "on-primary": "#511f00",
+                        "primary-fixed": "#ff7a23",
+                        "on-secondary-container": "#d2d0cf",
+                        "on-secondary": "#525151",
+                        "on-surface-variant": "#adaaaa",
+                        "surface-dim": "#0e0e0e",
+                        "surface-container-high": "#201f1f",
+                        "on-error-container": "#ffd2c8",
+                        "tertiary": "#ffa765",
+                        "error": "#ff7351",
+                        "error-container": "#b92902",
+                        "primary-container": "#ff7a23",
+                        "secondary": "#e4e2e1",
+                        "on-tertiary-fixed-variant": "#5d2c00",
+                        "tertiary-fixed": "#ff9742",
+                        "tertiary-container": "#fd933d",
+                        "on-primary-fixed-variant": "#4e1e00",
+                        "inverse-primary": "#9e4400",
+                        "surface": "#0e0e0e",
+                        "primary-fixed-dim": "#f06c0b",
+                        "surface-bright": "#2c2c2c",
+                        "inverse-surface": "#fcf8f8",
+                        "surface-tint": "#ff9153",
+                        "primary-dim": "#fd761a",
+                        "outline-variant": "#494847",
+                        "tertiary-dim": "#ec8731",
+                        "surface-variant": "#262626",
+                        "on-surface": "#ffffff",
+                        "tertiary-fixed-dim": "#f08934",
+                        "surface-container-low": "#131313",
+                        "on-error": "#450900",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "on-background": "#ffffff",
+                        "on-primary-fixed": "#000000",
+                        "on-tertiary-fixed": "#2b1100",
+                        "secondary-fixed": "#e4e2e1",
+                        "on-secondary-fixed-variant": "#5c5b5b",
+                        "background": "#0e0e0e",
+                        "surface-container-lowest": "#000000",
+                        "on-primary-container": "#3f1700",
+                        "on-tertiary": "#5b2c00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-panel { background: rgba(38, 38, 38, 0.7); backdrop-filter: blur(24px); }
+        .primary-gradient { background: linear-gradient(135deg, #ff9153 0%, #ff7a23 100%); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .text-glow { text-shadow: 0 0 20px rgba(255, 145, 83, 0.3); }
+    </style>
+<!-- Top Navigation Bar -->
+<nav class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl z-50 rounded-full bg-neutral-900/60 backdrop-blur-xl border border-white/10 shadow-[0_12px_40px_rgba(255,255,255,0.04)] flex justify-between items-center px-8 py-3 transition-all duration-300">
+<div class="text-xl font-black tracking-tighter text-white uppercase font-headline">TicketRemaster</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300 scale-95 active:scale-90 transition-transform" href="#">Events</a>
+<a class="text-orange-500 border-b-2 border-orange-500 pb-1 font-medium hover:text-orange-400 transition-colors duration-300 scale-95 active:scale-90 transition-transform" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-white hover:text-orange-400 transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-white hover:text-orange-400 transition-colors scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+</button>
+</div>
+</nav>
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
+<!-- Hero Section -->
+<header class="mb-16 text-center">
+<h1 class="text-5xl md:text-7xl font-extrabold tracking-tighter mb-6 font-headline bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent mx-auto"><span class="text-primary">Authentic</span> Access.</h1>
+<!-- Search and Filters Container -->
+<div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+<div class="relative w-full md:max-w-md group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-highest border-none rounded-full py-4 pl-12 pr-6 text-on-surface focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-neutral-600" placeholder="Search events, artists, or venues..." type="text"/>
+</div>
+<div class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto no-scrollbar md:justify-center justify-center">
+<button class="px-6 py-2 rounded-full bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">All Categories</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors">Music</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors">Sports</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant border border-white/5 whitespace-nowrap hover:bg-surface-bright transition-colors">Theater</button>
+</div>
+</div>
+</header>
+<!-- Main Marketplace Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Listings Grid -->
+<div class="lg:col-span-8 space-y-6">
+<h2 class="text-xl font-bold tracking-tight text-white/80 uppercase label-md mb-4">Verified Listings</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+<!-- Card 1 -->
+<div class="group bg-surface-container rounded-lg overflow-hidden hover:bg-surface-container-high transition-all duration-300 border border-white/5">
+<div class="relative h-48 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="vibrant neon concert stage with crowds and dramatic laser lighting in a dark stadium" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSsVEYl6aaptvjmnbfwZk4ph6GJRWr6bFbqw4f2wvy0bcSZlmflTM9ZdolmWmdCcGiP1VrOo2K-67RLRy3U6cvrRyhAenX9GSOTzjeFFYHIeqkCESgzmOY7jWAhI3vMnwMY3Sjt5QOZxx0DGaZ-OfpHCXRSdwcO_stvz8J4DtidB-qhNRULzwc_ELjbQ10dFTWB0-GVh0NXhV5TuoPqxqCKJVFHaylFqM8KPVb5yO3Y-7xS_EBPxo9iZzmtF7PXRttXtpFW0m4tSc"/>
+<div class="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Verified Seller</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-bold text-white">Neon Horizon Tour</h3>
+<span class="text-primary font-bold text-xl">$142</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4">Madison Square Garden • Oct 14</p>
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-neutral-500 text-sm">confirmation_number</span>
+<span class="text-neutral-500 text-xs uppercase tracking-widest font-semibold">Row 12, Seat 4A</span>
+</div>
+<button class="w-full py-3 rounded-md primary-gradient text-on-primary font-bold hover:brightness-110 active:scale-[0.98] transition-all">Buy Ticket</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group bg-surface-container rounded-lg overflow-hidden hover:bg-surface-container-high transition-all duration-300 border border-white/5">
+<div class="relative h-48 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="professional sports stadium under bright stadium lights with a deep green pitch and dark night sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBa-nPUefph-FgW6GvLJ_NldGRCYpRcY_ON9bl-foDJnJwfBFUbXiC6-ce7glUIQfzcdb96po-Z0OjP3hXf_11fq-oM-hCLGcFpZAtIZ7fDoOksJg5ROm94AOKLtxsbCjeFThjjHDRcRsucEMxRHexKF-CaFVPsW9-plWQb-0EVPzXkASdrFal6bhhOmg-Ws2aiEcGgoxhBBw2gYVZvJHev7TmGU4Dwnn9AFlZLC8pZovwyJ7uifESXe_Nca1QWsbQcCQePR7DgBo"/>
+<div class="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Verified Seller</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-bold text-white">Championship Finals</h3>
+<span class="text-primary font-bold text-xl">$290</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4">Wembley Stadium • Nov 02</p>
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-neutral-500 text-sm">confirmation_number</span>
+<span class="text-neutral-500 text-xs uppercase tracking-widest font-semibold">Section 104, VIP Row</span>
+</div>
+<button class="w-full py-3 rounded-md primary-gradient text-on-primary font-bold hover:brightness-110 active:scale-[0.98] transition-all">Buy Ticket</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group bg-surface-container rounded-lg overflow-hidden hover:bg-surface-container-high transition-all duration-300 border border-white/5">
+<div class="relative h-48 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="close up of an electric guitar on stage with colorful atmospheric stage fog and backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBajBW0hNSV9QqEEudlSKcGELvCdsYxdABUB0UJkPbNM9G1AOAyPMiCwcL_865OAbDiR0tS11FZbZ7xfibNjm4EozzIi3o2CDXPYUPXicxAAF9TpeRlIqVu13aolS9AnTAqq8GElmW7mXF22H_AhOszhVTlPGXzzaWl5PSVnzy8sN5aaGudzByyBXe6kjVUsVnDFQgoqA4s3pRKmVLyX3h-kuG5z6i_G6xVmRGF2ai-syJKkGtbVy6FDvaSFZE8CAeFWFUDSn1FjCg"/>
+<div class="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Verified Seller</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-bold text-white">The Midnight Jazz</h3>
+<span class="text-primary font-bold text-xl">$85</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4">Blue Note • Oct 28</p>
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-neutral-500 text-sm">confirmation_number</span>
+<span class="text-neutral-500 text-xs uppercase tracking-widest font-semibold">General Admission</span>
+</div>
+<button class="w-full py-3 rounded-md primary-gradient text-on-primary font-bold hover:brightness-110 active:scale-[0.98] transition-all">Buy Ticket</button>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group bg-surface-container rounded-lg overflow-hidden hover:bg-surface-container-high transition-all duration-300 border border-white/5">
+<div class="relative h-48 overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="opulent theater interior with red velvet seats and gold leaf decorations under soft amber lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJ2RcsItH6g2R9qqjkK01jZIDSzn75Xn1lIGvWzUjArH2SUfYKvM8ler2xpGXye9XNzxWAF9n9F-tkRlsIdVYtvJUChdWV0vu9dho6MtPU8ga7Ga4L1uLgDl9lBmVbOr1KyKWtlFJszJKqYinFS2-C5hcHABxZXHHv8Z34NsXUyGU0b9GYZ9UK7s4xTiggyv8EQngfsugHUZmibs5cBqkIWLbX0G1VDPQeH8lzVduFBXFCviQGY_SQwpos49Me6m0n-MyAMaLe4dc"/>
+<div class="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30">
+<span class="material-symbols-outlined text-[14px] text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Verified Seller</span>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-2">
+<h3 class="text-xl font-bold text-white">Hamlet - Live</h3>
+<span class="text-primary font-bold text-xl">$120</span>
+</div>
+<p class="text-on-surface-variant text-sm mb-4">Royal Court • Dec 15</p>
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-neutral-500 text-sm">confirmation_number</span>
+<span class="text-neutral-500 text-xs uppercase tracking-widest font-semibold">Balcony Row B</span>
+</div>
+<button class="w-full py-3 rounded-md primary-gradient text-on-primary font-bold hover:brightness-110 active:scale-[0.98] transition-all">Buy Ticket</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar -->
+<aside class="lg:col-span-4 space-y-8">
+<!-- Sell Tickets CTA Card -->
+<div class="bg-surface-container-high p-8 rounded-lg border border-white/10 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[60px] rounded-full group-hover:bg-primary/20 transition-all"></div>
+<h3 class="text-2xl font-bold mb-4 font-headline leading-tight">Got extra tickets?</h3>
+<p class="text-on-surface-variant mb-8 leading-relaxed">List your tickets in minutes. We verify your purchase automatically for a secure sale.</p>
+<ul class="space-y-4 mb-10">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="text-sm font-medium">Automatic Transfer</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="text-sm font-medium">Zero-Fraud Policy</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+<span class="text-sm font-medium">Instant Payouts</span>
+</li>
+</ul>
+<button class="w-full py-4 rounded-md bg-surface-variant text-white font-bold border border-white/10 hover:bg-surface-bright active:scale-95 transition-all text-center">Start Listing</button>
+</div>
+<!-- Market Stats -->
+<div class="bg-surface-container-low p-8 rounded-lg border border-white/5">
+<h4 class="text-xs font-bold uppercase tracking-[0.2em] text-neutral-500 mb-6">Market Insights</h4>
+<div class="space-y-6">
+<div class="flex justify-between items-center">
+<span class="text-sm text-neutral-400">Total Listings</span>
+<span class="text-sm font-bold">12,842</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm text-neutral-400">Avg. Resale Price</span>
+<span class="text-sm font-bold">$104.20</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm text-neutral-400">Demand Index</span>
+<span class="text-sm font-bold text-primary">High</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-neutral-950 border-t border-neutral-900 w-full">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-7xl mx-auto">
+<div class="mb-8 md:mb-0">
+<div class="text-lg font-bold text-orange-500 mb-2">TicketRemaster</div>
+<p class="text-neutral-500 label-md font-medium">© 2024 TicketRemaster. Crafted in the Obsidian Hearth.</p>
+</div>
+<div class="flex gap-8">
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium label-md" href="#">Terms</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium label-md" href="#">Privacy</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium label-md" href="#">Support</a>
+<a class="text-neutral-500 hover:text-white transition-colors opacity-80 hover:opacity-100 font-medium label-md" href="#">Contact</a>
+</div>
+</div>
+</footer>
+```</body></html>

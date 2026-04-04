@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-tertiary-container": "#4c2300",
+                      "surface-container": "#1a1919",
+                      "error-dim": "#d53d18",
+                      "secondary-fixed-dim": "#d6d4d3",
+                      "secondary-container": "#474746",
+                      "outline": "#777575",
+                      "primary": "#f97316",
+                      "inverse-on-surface": "#565554",
+                      "secondary-dim": "#d6d4d3",
+                      "surface-container-highest": "#262626",
+                      "on-primary": "#511f00",
+                      "primary-fixed": "#ff7a23",
+                      "on-secondary-container": "#d2d0cf",
+                      "on-secondary": "#525151",
+                      "on-surface-variant": "#adaaaa",
+                      "surface-dim": "#0e0e0e",
+                      "surface-container-high": "#201f1f",
+                      "on-error-container": "#ffd2c8",
+                      "tertiary": "#ffa765",
+                      "error": "#ff7351",
+                      "error-container": "#b92902",
+                      "primary-container": "#ff7a23",
+                      "secondary": "#e4e2e1",
+                      "on-tertiary-fixed-variant": "#5d2c00",
+                      "tertiary-fixed": "#ff9742",
+                      "tertiary-container": "#fd933d",
+                      "on-primary-fixed-variant": "#4e1e00",
+                      "inverse-primary": "#9e4400",
+                      "surface": "#0e0e0e",
+                      "primary-fixed-dim": "#f06c0b",
+                      "surface-bright": "#2c2c2c",
+                      "inverse-surface": "#fcf8f8",
+                      "surface-tint": "#ff9153",
+                      "primary-dim": "#fd761a",
+                      "outline-variant": "#494847",
+                      "tertiary-dim": "#ec8731",
+                      "surface-variant": "#262626",
+                      "on-surface": "#ffffff",
+                      "tertiary-fixed-dim": "#f08934",
+                      "surface-container-low": "#131313",
+                      "on-error": "#450900",
+                      "on-secondary-fixed": "#3f3f3f",
+                      "on-background": "#ffffff",
+                      "on-primary-fixed": "#000000",
+                      "on-tertiary-fixed": "#2b1100",
+                      "secondary-fixed": "#e4e2e1",
+                      "on-secondary-fixed-variant": "#5c5b5b",
+                      "background": "#0e0e0e",
+                      "surface-container-lowest": "#000000",
+                      "on-primary-container": "#3f1700",
+                      "on-tertiary": "#5b2c00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Plus Jakarta Sans"],
+                      "body": ["Plus Jakarta Sans"],
+                      "label": ["Plus Jakarta Sans"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0e0e0e; color: white; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(38, 38, 38, 0.4); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        .ember-gradient { background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%); }
+        .ember-text-gradient { background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-primary/30 antialiased">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-xl flex justify-between items-center px-8 py-3 z-50 shadow-[0_12px_40px_rgba(255,255,255,0.04)]">
+<div class="flex items-center">
+<span class="text-xl font-black tracking-tighter text-white uppercase">TicketRemaster</span>
+</div>
+<div class="hidden md:flex gap-8 absolute left-1/2 -translate-x-1/2">
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Events</a>
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="hover:text-orange-400 transition-colors duration-300 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-neutral-400" style="font-variation-settings: 'FILL' 1;">notifications</span>
+</button>
+<button class="text-orange-500 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+</button>
+</div>
+</nav>
+<div class="min-h-screen pt-32 pb-24 px-6 max-w-7xl mx-auto">
+<!-- Header Area -->
+<header class="mb-16 text-center">
+<h1 class="text-5xl md:text-6xl font-extrabold tracking-tight">Account <span class="text-[#f97316]">Credits</span></h1>
+</header>
+<div class="flex flex-col lg:flex-row gap-12 max-w-6xl mx-auto">
+<!-- Sidebar Navigation (Repositioned below title) -->
+<aside class="w-full lg:w-64 flex-shrink-0">
+<div class="glass-panel p-2 rounded-2xl border border-white/5 sticky top-32">
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-white transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-semibold">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="font-bold">Credits</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-white transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">confirmation_number</span>
+<span class="font-semibold">Tickets</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 w-full space-y-16">
+<!-- Balance Card -->
+<section>
+<div class="relative p-10 rounded-lg bg-surface-container-highest/30 glass-panel border border-white/5 shadow-2xl overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<span class="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80 mb-4 block">Current Balance</span>
+<div class="text-6xl md:text-7xl font-black tracking-tighter ember-text-gradient">$1,240.50</div>
+</div>
+<div class="flex flex-col gap-2 items-start md:items-end">
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest">Last active 2 hours ago</span>
+<div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Secured Obsidian Vault</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Top-up Section -->
+<section>
+<h2 class="text-2xl font-bold mb-8 flex items-center gap-3 tracking-tight">
+<span class="material-symbols-outlined text-primary">add_circle</span>
+                    Select Top-up Amount
+                </h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+<button class="glass-panel p-8 rounded-xl border border-white/5 hover:border-primary/50 hover:bg-white/5 transition-all duration-300 flex flex-col items-center justify-center gap-2 group shadow-lg">
+<span class="text-2xl font-extrabold group-hover:text-primary transition-colors">$25</span>
+</button>
+<button class="glass-panel p-8 rounded-xl border border-white/5 hover:border-primary/50 hover:bg-white/5 transition-all duration-300 flex flex-col items-center justify-center gap-2 group shadow-lg">
+<span class="text-2xl font-extrabold group-hover:text-primary transition-colors">$50</span>
+</button>
+<button class="glass-panel p-8 rounded-xl border-2 border-primary bg-primary/10 transition-all duration-300 flex flex-col items-center justify-center gap-2 shadow-[0_0_30px_rgba(249,115,22,0.15)]">
+<span class="text-2xl font-extrabold text-white">$100</span>
+</button>
+<!-- Custom Amount Styled as Liquid Glass Card -->
+<div class="glass-panel p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group focus-within:border-primary/50 transition-all duration-300 shadow-lg bg-white/5 backdrop-blur-2xl">
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Custom</span>
+<div class="flex items-center w-full">
+<span class="text-lg font-extrabold mr-1 text-primary">$</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 text-xl font-extrabold w-full text-center placeholder:text-neutral-700" placeholder="0.00" type="number"/>
+</div>
+</div>
+</div>
+<div class="p-8 rounded-lg bg-surface-container-low glass-panel border border-white/5">
+<h3 class="text-lg font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant">credit_card</span>
+                        Payment Method
+                    </h3>
+<div class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest px-1">Cardholder Name</label>
+<input class="bg-surface-container-highest/50 border border-white/5 rounded-DEFAULT px-4 py-3 focus:ring-1 focus:ring-primary/50 placeholder:text-neutral-600 font-medium" placeholder="ALEXANDER VANCE" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest px-1">Card Number</label>
+<div class="relative">
+<input class="bg-surface-container-highest/50 border border-white/5 rounded-DEFAULT px-4 py-3 focus:ring-1 focus:ring-primary/50 placeholder:text-neutral-600 font-medium w-full" placeholder="•••• •••• •••• ••••" type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
+<div class="w-8 h-5 bg-neutral-800 rounded flex items-center justify-center text-[8px] font-bold text-neutral-400">VISA</div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+<div class="flex flex-col gap-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest px-1">Expiry Date</label>
+<input class="bg-surface-container-highest/50 border border-white/5 rounded-DEFAULT px-4 py-3 focus:ring-1 focus:ring-primary/50 placeholder:text-neutral-600 font-medium" placeholder="MM / YY" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest px-1">CVC</label>
+<div class="relative">
+<input class="bg-surface-container-highest/50 border border-white/5 rounded-DEFAULT px-4 py-3 focus:ring-1 focus:ring-primary/50 placeholder:text-neutral-600 font-medium w-full" placeholder="•••" type="password"/>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">help</span>
+</div>
+</div>
+<div class="hidden md:flex flex-col justify-end">
+<p class="text-[10px] text-on-surface-variant leading-relaxed font-medium">Payments are encrypted and processed securely via Obsidian Guard.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-10 flex flex-col items-center gap-6">
+<button class="ember-gradient w-full md:w-80 py-4 rounded-md text-on-primary font-bold text-lg shadow-[0_10px_30px_rgba(249,115,22,0.3)] hover:shadow-[0_15px_40px_rgba(249,115,22,0.5)] transition-all active:scale-[0.98]">
+                        Complete Top-up
+                    </button>
+<p class="text-[10px] font-bold uppercase tracking-[0.15em] text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">lock</span>
+                        PCI-DSS Compliant Infrastructure
+                    </p>
+</div>
+</section>
+<!-- History Summary -->
+<section>
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold tracking-tight">Recent Ledger</h2>
+<button class="text-sm font-bold text-primary hover:underline underline-offset-4">View All Activity</button>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-4 rounded-xl glass-panel border border-white/5 hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-emerald-500">add</span>
+</div>
+<div>
+<div class="font-bold">Top-up Successful</div>
+<div class="text-xs text-on-surface-variant">Dec 24, 2023 • Visa •••• 4242</div>
+</div>
+</div>
+<div class="text-emerald-500 font-bold">+$100.00</div>
+</div>
+<div class="flex items-center justify-between p-4 rounded-xl glass-panel border border-white/5 hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-red-500">remove</span>
+</div>
+<div>
+<div class="font-bold">Ticket Purchase: Neo-Tokyo Live</div>
+<div class="text-xs text-on-surface-variant">Dec 20, 2023 • Event ID #8841</div>
+</div>
+</div>
+<div class="text-white font-bold">-$450.00</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-neutral-950 flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full border-t border-neutral-900 mt-20">
+<div class="mb-8 md:mb-0">
+<span class="text-lg font-bold text-orange-500 uppercase tracking-tighter">TicketRemaster</span>
+<p class="text-neutral-500 text-xs mt-2 font-medium tracking-wide">© 2024 TicketRemaster. Crafted in the Obsidian Hearth. All rights reserved.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-8 md:gap-12">
+<div class="flex flex-col gap-3">
+<span class="text-[10px] font-bold text-white uppercase tracking-widest mb-1">Company</span>
+<a class="text-neutral-500 hover:text-white transition-colors text-sm font-medium" href="#">Terms</a>
+<a class="text-neutral-500 hover:text-white transition-colors text-sm font-medium" href="#">Privacy</a>
+</div>
+<div class="flex flex-col gap-3">
+<span class="text-[10px] font-bold text-white uppercase tracking-widest mb-1">Support</span>
+<a class="text-neutral-500 hover:text-white transition-colors text-sm font-medium" href="#">Support</a>
+<a class="text-neutral-500 hover:text-white transition-colors text-sm font-medium" href="#">Contact</a>
+</div>
+<div class="flex flex-col gap-3">
+<span class="text-[10px] font-bold text-white uppercase tracking-widest mb-1">Connect</span>
+<div class="flex gap-4">
+<a class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-neutral-400 hover:text-primary transition-colors border border-white/5" href="#">
+<span class="material-symbols-outlined text-sm">public</span>
+</a>
+<a class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-neutral-400 hover:text-primary transition-colors border border-white/5" href="#">
+<span class="material-symbols-outlined text-sm">chat</span>
+</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>My Tickets - TicketRemaster</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#494847",
+                        "surface-bright": "#2c2c2c",
+                        "on-tertiary-container": "#4c2300",
+                        "on-surface-variant": "#adaaaa",
+                        "tertiary": "#ffa765",
+                        "surface-tint": "#ff9153",
+                        "on-secondary-container": "#d2d0cf",
+                        "inverse-surface": "#fcf8f8",
+                        "error-container": "#b92902",
+                        "secondary-fixed-dim": "#d6d4d3",
+                        "on-background": "#ffffff",
+                        "secondary-dim": "#d6d4d3",
+                        "on-tertiary-fixed": "#2b1100",
+                        "error": "#ff7351",
+                        "surface-container-highest": "#262626",
+                        "surface-container-low": "#131313",
+                        "surface": "#0e0e0e",
+                        "tertiary-fixed": "#ff9742",
+                        "primary-dim": "#fd761a",
+                        "on-tertiary": "#5b2c00",
+                        "on-surface": "#ffffff",
+                        "inverse-primary": "#9e4400",
+                        "primary-fixed": "#ff7a23",
+                        "on-secondary-fixed": "#3f3f3f",
+                        "tertiary-fixed-dim": "#f08934",
+                        "secondary": "#e4e2e1",
+                        "error-dim": "#d53d18",
+                        "on-secondary-fixed-variant": "#5c5b5b",
+                        "surface-variant": "#262626",
+                        "on-tertiary-fixed-variant": "#5d2c00",
+                        "primary": "#f97316",
+                        "on-primary": "#511f00",
+                        "outline": "#777575",
+                        "secondary-fixed": "#e4e2e1",
+                        "inverse-on-surface": "#565554",
+                        "on-error": "#450900",
+                        "tertiary-dim": "#ec8731",
+                        "on-error-container": "#ffd2c8",
+                        "tertiary-container": "#fd933d",
+                        "secondary-container": "#474746",
+                        "surface-container": "#1a1919",
+                        "on-secondary": "#525151",
+                        "background": "#0e0e0e",
+                        "surface-container-lowest": "#000000",
+                        "on-primary-fixed-variant": "#4e1e00",
+                        "surface-dim": "#0e0e0e",
+                        "primary-fixed-dim": "#f06c0b",
+                        "primary-container": "#ff7a23",
+                        "on-primary-fixed": "#000000",
+                        "surface-container-high": "#201f1f",
+                        "on-primary-container": "#3f1700"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0e0e0e; color: #ffffff; }
+        .glass-panel {
+            background: rgba(38, 38, 38, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .ember-gradient {
+            background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-background selection:bg-primary/30 antialiased">
+<!-- TopNavBar -->
+<nav class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-xl flex justify-between items-center px-8 py-3 z-50 shadow-[0_12px_40px_rgba(255,255,255,0.04)]">
+<div class="flex items-center">
+<span class="text-xl font-black tracking-tighter text-white uppercase">TicketRemaster</span>
+</div>
+<div class="hidden md:flex gap-8 absolute left-1/2 -translate-x-1/2">
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Events</a>
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="hover:text-orange-400 transition-colors duration-300 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-neutral-400">notifications</span>
+</button>
+<button class="text-orange-500 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+</button>
+</div>
+</nav>
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
+<!-- Header Section -->
+<header class="mb-16 text-center">
+<h1 class="text-5xl md:text-7xl font-extrabold tracking-tight">My <span class="text-[#f97316]">Tickets</span></h1>
+</header>
+<div class="flex flex-col lg:flex-row gap-12">
+<!-- Sidebar Navigation -->
+<aside class="w-full lg:w-72 flex-shrink-0">
+<div class="glass-panel p-3 rounded-2xl border border-white/5 sticky top-32">
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-white transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-semibold">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-white transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-semibold">Credits</span>
+</a>
+<!-- Tickets Highlighted in Orange (Active State) -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/20 text-primary border border-primary/20 shadow-[0_0_20px_rgba(249,115,22,0.1)] transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">confirmation_number</span>
+<span class="font-bold">Tickets</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content Area (Right Side) -->
+<div class="flex-1">
+<!-- My Passes Section -->
+<section class="mb-20">
+<div class="flex items-center justify-between mb-8">
+<h2 class="text-2xl font-bold tracking-tight">My Passes</h2>
+<span class="text-primary font-bold text-xs uppercase tracking-widest">2 Active Tickets</span>
+</div>
+<div class="grid grid-cols-1 gap-6">
+<!-- Ticket Card 1 -->
+<div class="glass-panel group flex flex-col sm:flex-row overflow-hidden rounded-2xl border border-white/10 transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_rgba(249,115,22,0.15)]">
+<div class="w-full sm:w-56 h-56 sm:h-auto overflow-hidden">
+<img alt="Electronic Dance Music Concert" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOabEazM8wExUPq5GRJvArUQ5BI3fyohnZXc0niaQ8juGg0T36r4vmFhsd6-j6QOQuDnTlLIEr94yObai3rBFFgJKIrdF9pmH-r3njfe1xi0gVT8IIkWWkV0L_v-wkYGprc3ciJ_7WlOrv2nJRIJIjJxnKi2zZapBqq7jmiWHJl2iYJrQ6mn4X3akOnbrBAOVoyYzUjMwFZwaOrHzoWkmJJ_rwlVgjMGtm7kBSG1YaZSn0kOjupsQOWFIgFpWCYHLsGiNeO9Z_Peo"/>
+</div>
+<div class="flex-1 p-8 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] uppercase tracking-[0.2em] text-primary font-black">Mainstage Access</span>
+<span class="text-[10px] text-on-surface-variant font-mono opacity-60">#TR-8829-X</span>
+</div>
+<h3 class="text-2xl font-bold mb-1 group-hover:text-primary transition-colors">Illuminated Nights: Vol 3</h3>
+<p class="text-on-surface-variant text-sm mb-6">Metropolis Arena • Oct 24, 2024</p>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+<span class="text-xs font-bold text-emerald-500 tracking-wide uppercase">Ready for Scan</span>
+</div>
+<button class="ember-gradient text-white px-6 py-2.5 rounded-lg text-sm font-bold scale-95 active:scale-90 transition-all shadow-lg shadow-primary/20">VIEW QR</button>
+</div>
+</div>
+</div>
+<!-- Ticket Card 2 -->
+<div class="glass-panel group flex flex-col sm:flex-row overflow-hidden rounded-2xl border border-white/10 transition-all duration-500 hover:border-primary/30 hover:shadow-[0_20px_60px_rgba(249,115,22,0.15)]">
+<div class="w-full sm:w-56 h-56 sm:h-auto overflow-hidden">
+<img alt="Techno Warehouse Party" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYT68AB8fFwy-YWDUprJTHs-UIDrYJI8rErji_9Nl09byZ2YmEEqD_GXhYsdqLQQm9FPoSEOS28pIx3YdYiLWlMaH8kRGniwJUcVi744jfBT3xM0JdWh4MNOa4TBfZHrtC1qeaBC3LHmp1NSXb8yu6WXBjDvdIgqMotR5WqtMI0ik4X9IKmQ6h_sUNTSdkYd6Vey-aavseKlqkrx743NiIxaJJv-MA91PQeN0Ka1Lz3eyW3SbrJt1ns9pyYM-hs8glDVXSIYpPvCQ"/>
+</div>
+<div class="flex-1 p-8 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] uppercase tracking-[0.2em] text-primary font-black">VIP Lounge</span>
+<span class="text-[10px] text-on-surface-variant font-mono opacity-60">#TR-1194-Z</span>
+</div>
+<h3 class="text-2xl font-bold mb-1 group-hover:text-primary transition-colors">Synthetica Underground</h3>
+<p class="text-on-surface-variant text-sm mb-6">The Obsidian Vault • Nov 12, 2024</p>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span class="text-xs font-bold uppercase tracking-wide">Valid in 18 days</span>
+</div>
+<button class="bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-lg text-sm font-bold scale-95 active:scale-90 transition-all border border-white/10">TRANSFER</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Past & Transferred Section (Table) -->
+<section class="mb-20">
+<h2 class="text-2xl font-bold tracking-tight mb-8">Past &amp; Transferred</h2>
+<div class="glass-panel rounded-2xl overflow-hidden border border-white/10">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-white/5">
+<th class="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant/70">Event</th>
+<th class="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant/70">Date</th>
+<th class="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant/70">Action</th>
+<th class="px-8 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant/70">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-8 py-6">
+<div class="flex flex-col">
+<span class="font-bold text-white text-lg">Prism Theory Tour</span>
+<span class="text-xs text-on-surface-variant font-medium">Standard Entry • Row B, Seat 12</span>
+</div>
+</td>
+<td class="px-8 py-6 text-sm font-semibold text-on-surface-variant">Sep 15, 2024</td>
+<td class="px-8 py-6 text-sm font-semibold text-on-surface-variant">Purchased</td>
+<td class="px-8 py-6">
+<span class="px-4 py-1.5 rounded-full bg-white/5 text-on-surface-variant text-[10px] font-black uppercase tracking-widest border border-white/5">Expired</span>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-8 py-6">
+<div class="flex flex-col">
+<span class="font-bold text-white text-lg">Cybernetic Dreams Expo</span>
+<span class="text-xs text-on-surface-variant font-medium">VIP Week Pass</span>
+</div>
+</td>
+<td class="px-8 py-6 text-sm font-semibold text-on-surface-variant">Aug 28, 2024</td>
+<td class="px-8 py-6 text-sm font-semibold text-primary">Transferred</td>
+<td class="px-8 py-6">
+<span class="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/20">Sent to @User99</span>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.03] transition-colors group">
+<td class="px-8 py-6">
+<div class="flex flex-col">
+<span class="font-bold text-white text-lg">Neo-Soul Summer Fest</span>
+<span class="text-xs text-on-surface-variant font-medium">Group Ticket Bundle</span>
+</div>
+</td>
+<td class="px-8 py-6 text-sm font-semibold text-on-surface-variant">Jul 02, 2024</td>
+<td class="px-8 py-6 text-sm font-semibold text-on-surface-variant">Purchased</td>
+<td class="px-8 py-6">
+<span class="px-4 py-1.5 rounded-full bg-white/5 text-on-surface-variant text-[10px] font-black uppercase tracking-widest border border-white/5">Expired</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-neutral-950 flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full border-t border-neutral-900">
+<div class="mb-8 md:mb-0">
+<span class="text-lg font-bold text-orange-500 uppercase tracking-tighter">TicketRemaster</span>
+<p class="text-neutral-500 text-xs mt-2 font-medium tracking-wide">© 2024 TicketRemaster. Crafted in the Obsidian Hearth.</p>
+</div>
+<div class="flex gap-8">
+<a class="text-neutral-500 font-medium hover:text-white transition-colors duration-300 opacity-80 hover:opacity-100 text-sm" href="#">Terms</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors duration-300 opacity-80 hover:opacity-100 text-sm" href="#">Privacy</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors duration-300 opacity-80 hover:opacity-100 text-sm" href="#">Support</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors duration-300 opacity-80 hover:opacity-100 text-sm" href="#">Contact</a>
+</div>
+</footer>
+</body></html>
