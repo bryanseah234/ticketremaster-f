@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-on-surface": "#565554",
+                    "on-tertiary-fixed": "#2b1100",
+                    "tertiary": "#ffa765",
+                    "inverse-primary": "#9e4400",
+                    "secondary-container": "#474746",
+                    "primary-fixed": "#ff7a23",
+                    "error-container": "#b92902",
+                    "background": "#0e0e0e",
+                    "surface-bright": "#2c2c2c",
+                    "outline-variant": "#494847",
+                    "on-error-container": "#ffd2c8",
+                    "on-primary": "#511f00",
+                    "on-background": "#ffffff",
+                    "secondary-dim": "#d6d4d3",
+                    "on-secondary": "#525151",
+                    "tertiary-fixed": "#ff9742",
+                    "surface-variant": "#262626",
+                    "tertiary-fixed-dim": "#f08934",
+                    "on-tertiary": "#5b2c00",
+                    "error": "#ff7351",
+                    "primary": "#ff9153",
+                    "error-dim": "#d53d18",
+                    "secondary": "#e4e2e1",
+                    "primary-fixed-dim": "#f06c0b",
+                    "surface-dim": "#0e0e0e",
+                    "surface-container-lowest": "#000000",
+                    "surface-tint": "#ff9153",
+                    "secondary-fixed": "#e4e2e1",
+                    "surface": "#0e0e0e",
+                    "on-secondary-container": "#d2d0cf",
+                    "primary-container": "#ff7a23",
+                    "on-secondary-fixed": "#3f3f3f",
+                    "on-primary-fixed-variant": "#4e1e00",
+                    "on-secondary-fixed-variant": "#5c5b5b",
+                    "inverse-surface": "#fcf8f8",
+                    "outline": "#777575",
+                    "surface-container-high": "#201f1f",
+                    "on-primary-container": "#3f1700",
+                    "tertiary-container": "#fd933d",
+                    "surface-container": "#1a1919",
+                    "on-tertiary-container": "#4c2300",
+                    "on-surface-variant": "#adaaaa",
+                    "tertiary-dim": "#ec8731",
+                    "on-surface": "#ffffff",
+                    "on-primary-fixed": "#000000",
+                    "surface-container-highest": "#262626",
+                    "secondary-fixed-dim": "#d6d4d3",
+                    "primary-dim": "#fd761a",
+                    "on-tertiary-fixed-variant": "#5d2c00",
+                    "on-error": "#450900",
+                    "surface-container-low": "#131313"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Plus Jakarta Sans"],
+                    "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-panel {
+        background: rgba(38, 38, 38, 0.7);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+      }
+      .ember-gradient {
+        background: linear-gradient(135deg, #ff9153 0%, #ff7a23 100%);
+      }
+      .ghost-border {
+        border: 1px solid rgba(73, 72, 71, 0.2);
+      }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body min-h-screen flex flex-col selection:bg-primary/30">
+<!-- Top Navigation Bar (Pill-shaped standardized match SCREEN_47) -->
+<nav class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-xl shadow-[0_12px_40px_rgba(255,255,255,0.04)] flex justify-between items-center px-8 py-3 z-50">
+<div class="text-xl font-black tracking-tighter text-white uppercase">TicketRemaster</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Events</a>
+<a class="text-neutral-400 font-medium hover:text-orange-400 transition-colors duration-300" href="#">Marketplace</a>
+</div>
+<div class="flex items-center gap-5">
+<button class="text-neutral-400 hover:text-white transition-colors scale-95 active:scale-90">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-orange-500 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Grid -->
+<main class="pt-32 pb-24 px-6 max-w-6xl mx-auto w-full flex-grow">
+<header class="mb-16 text-center">
+<h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter mb-2 text-white uppercase">Verification <span class="text-primary">Successful</span></h1>
+<p class="text-on-surface-variant text-lg">Ticket authenticated and granted access</p>
+</header><div class="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
+<!-- Left Column: Sidebar (Match SCREEN_47 structure) -->
+<aside class="md:col-span-3 sticky top-32 space-y-6">
+<div class="glass-panel p-2 rounded-2xl border border-white/5">
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-white transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="font-semibold">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary transition-all duration-300 group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<span class="font-bold">Scanner</span>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Right Column: Main Content Area -->
+<div class="md:col-span-9 space-y-8">
+<!-- Header Section (Centered within container) -->
+<!-- Verification Details Card (Right-hand container) -->
+<div class="glass-panel p-8 md:p-12 rounded-lg border border-white/5 shadow-2xl relative overflow-hidden">
+<!-- Decorative Light Element -->
+<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-[100px] rounded-full"></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12 relative z-10">
+<!-- Detail Item -->
+<div class="flex flex-col space-y-1">
+<label class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Event Name</label>
+<span class="text-lg font-semibold tracking-tight text-white">Midnight Pulse Festival 2024</span>
+</div>
+<!-- Detail Item -->
+<div class="flex flex-col space-y-1">
+<label class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Seat</label>
+<span class="text-lg font-semibold tracking-tight text-white">VIP Section • Row A12</span>
+</div>
+<!-- Detail Item -->
+<div class="flex flex-col space-y-1">
+<label class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Owner Name</label>
+<span class="text-lg font-semibold tracking-tight text-white">Julian Sterling</span>
+</div>
+<!-- Detail Item -->
+<div class="flex flex-col space-y-1">
+<label class="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Scan Time</label>
+<span class="text-lg font-semibold tracking-tight text-white">Oct 24, 21:04:12</span>
+</div>
+</div>
+<!-- Visual Separator -->
+<div class="h-px w-full bg-surface-variant my-8"></div>
+<!-- Action Cluster -->
+<div class="flex flex-col sm:flex-row gap-4 mt-4">
+<button class="flex-1 ember-gradient text-on-primary font-bold py-4 rounded-md flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+                        Next Scan
+                    </button>
+<button class="flex-1 bg-surface-variant/40 hover:bg-surface-variant/60 text-white font-semibold py-4 rounded-md ghost-border flex items-center justify-center gap-2 active:scale-95 transition-all">
+<span class="material-symbols-outlined">keyboard</span>
+                        Manual Entry
+                    </button>
+</div>
+</div>
+<!-- Security Metadata -->
+<div class="mt-8 flex items-center justify-center gap-2 text-on-surface-variant/60 text-[10px] uppercase tracking-[0.2em] font-bold">
+<span class="material-symbols-outlined text-xs">verified_user</span>
+                End-to-End Encrypted Verification Protocol v4.2
+            </div>
+</div>
+</div>
+</main>
+<!-- Footer (Standardized v3 footer match SCREEN_47) -->
+<footer class="bg-neutral-950 border-t border-neutral-900 w-full flex flex-col md:flex-row justify-between items-center px-12 py-16">
+<div class="mb-8 md:mb-0">
+<div class="text-lg font-bold text-orange-500 mb-2">TicketRemaster</div>
+<p class="text-neutral-500 text-sm font-medium">© 2024 TicketRemaster. Crafted in the Obsidian Hearth.</p>
+</div>
+<div class="flex gap-10">
+<a class="text-neutral-500 font-medium hover:text-white transition-colors opacity-80 hover:opacity-100" href="#">Terms</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors opacity-80 hover:opacity-100" href="#">Privacy</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors opacity-80 hover:opacity-100" href="#">Support</a>
+<a class="text-neutral-500 font-medium hover:text-white transition-colors opacity-80 hover:opacity-100" href="#">Contact</a>
+</div>
+</footer>
+</body></html>
