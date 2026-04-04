@@ -53,7 +53,7 @@ test.describe('Demo Mode & Mock Data', () => {
 
             // Click the demo user button
             await page.click('button:has-text("Demo User")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/events/, { timeout: 15000 });
 
             // Should redirect to events page
             await expect(page).toHaveURL(/\/events/);
@@ -107,11 +107,11 @@ test.describe('Demo Mode & Mock Data', () => {
         test('demo user should NOT access staff routes', async ({ page }) => {
             await page.goto('/demo-login');
             await page.click('button:has-text("Demo User")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/events/, { timeout: 15000 });
 
             // Try to access staff page
             await page.goto('/staff/scan');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/(events|login)/, { timeout: 10000 });
 
             // Should not remain on staff page; redirect to a safe route
             await expect(page).toHaveURL(/\/(events|login)/);
@@ -124,7 +124,7 @@ test.describe('Demo Mode & Mock Data', () => {
 
             // Click the demo admin button
             await page.click('button:has-text("Demo Admin")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/admin\/events/, { timeout: 15000 });
 
             // Should redirect to admin events page (which redirects to /admin/events/new)
             await expect(page).toHaveURL(/\/admin\/events/);
@@ -136,12 +136,12 @@ test.describe('Demo Mode & Mock Data', () => {
         test('demo admin should access admin user management', async ({ page }) => {
             await page.goto('/demo-login');
             await page.click('button:has-text("Demo Admin")');
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/admin\/events/, { timeout: 15000 });
 
             // Navigate to user management - check for Users link in nav
             const usersLink = page.locator('a[href="/admin/users"]').or(page.getByText('User Management'));
             await usersLink.click();
-            await page.waitForLoadState('networkidle');
+            await page.waitForURL(/\/admin\/users/, { timeout: 10000 });
             await expect(page).toHaveURL(/\/admin\/users/);
             // Check for user management content
             await expect(page.locator('h1, .section-title')).toContainText(/User|Users/);
