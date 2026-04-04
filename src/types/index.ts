@@ -21,7 +21,8 @@ export interface User {
 export interface AuthUser {
   userId: string
   email: string
-  phone?: string
+  phoneNumber?: string
+  phone?: string // legacy alias for backward compat
   isFlagged?: boolean
   isAdmin?: boolean
   role?: UserRole
@@ -102,7 +103,7 @@ export interface SeatWithInventory extends Seat {
 
 // ── Ticket Types ────────────────────────────────────────────────────
 
-export type TicketStatus = 'valid' | 'used' | 'cancelled' | 'transferred'
+export type TicketStatus = 'active' | 'used' | 'cancelled' | 'listed'
 
 export interface Ticket {
   ticketId: string
@@ -111,11 +112,13 @@ export interface Ticket {
   ownerId: string
   purchaseId?: string
   status: TicketStatus
+  price?: number
   qrHash?: string
   purchasedAt: string
   transferredAt?: string
   event?: EventSummary
   seat?: Seat
+  venue?: { venueId: string; name: string; address?: string }
 }
 
 // ── Purchase Types ──────────────────────────────────────────────────
@@ -137,7 +140,7 @@ export interface Purchase {
 
 // ── Transfer Types ──────────────────────────────────────────────────
 
-export type TransferStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'completed'
+export type TransferStatus = 'pending' | 'accepted' | 'declined' | 'expired' | 'completed' | 'pending_seller_acceptance' | 'pending_buyer_otp' | 'pending_seller_otp' | 'failed'
 
 export interface Transfer {
   transferId: string
@@ -161,6 +164,7 @@ export interface MarketplaceListing {
   listingId: string
   ticketId: string
   sellerId: string
+  sellerName?: string
   eventId: string
   price: number
   status: ListingStatus

@@ -56,23 +56,25 @@ The frontend includes a **Demo Mode** that allows UI development and testing wit
 
 ### What Works in Demo Mode
 
-- ✅ Browse events list
+- ✅ Browse events list (mock data via `mockServices.getEvents()`)
 - ✅ View event details
-- ✅ Seat selection (visual only)
-- ✅ View my tickets
+- ✅ Seat selection (visual, uses `mockSeats` — 40 seats across sections)
+- ✅ Checkout flow (simulated purchase, no real API call)
+- ✅ Credit top-up (simulated, balance stored in `sessionStorage`)
+- ✅ View my tickets (all 4 status variants: active, used, listed, cancelled)
 - ✅ Marketplace browsing
+- ✅ Transfer flow (full OTP state machine simulated with 1s delays)
+- ✅ Profile view (reads from `auth.state.user` set by `demoLogin`)
 - ✅ Admin dashboard (with admin account)
 - ✅ Staff scanner (with staff account)
 - ✅ Design system preview
 
 ### What's Disabled in Demo Mode
 
-- ❌ Real authentication (uses mock JWT)
-- ❌ Purchases and payments
-- ❌ Ticket transfers
-- ❌ Account registration
+- ❌ Real authentication (uses mock JWT stored in `sessionStorage`)
+- ❌ Real Stripe charges (replaced by "Simulate Top Up" button)
+- ❌ Real OTP SMS (OTP flow simulated with any 6-digit input)
 - ❌ Real-time WebSocket updates
-- ❌ Profile modifications
 
 ## Testing Observability
 

@@ -4,28 +4,15 @@ import { RouterLink, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
-
-interface Listing {
-  listingId: string
-  seatId: string
-  price: number
-  status: string
-  sellerId?: string
-  sellerName?: string
-  createdAt?: string
-  eventName?: string
-  eventDate?: string
-  rowNumber?: string
-  seatNumber?: number
-  image?: string
-}
+import { isDemoMode, mockServices } from '@/services/mockData'
+import type { MarketplaceListing } from '@/types'
 
 const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
 
 const loading = ref(false)
-const listings = ref<Listing[]>([])
+const listings = ref<MarketplaceListing[]>([])
 const listTicketId = ref('')
 const listPrice = ref(120)
 const listLoading = ref(false)
@@ -33,24 +20,29 @@ const showListForm = ref(false)
 const myTickets = ref<{ ticketId: string; label: string }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
 const search = ref('')
-const dateFilter = ref('')
 const priceSort = ref<'asc' | 'desc' | null>(null)
+const eventFilter = ref('')
 
+// Pagination
+const currentPage = ref(1)
+const pageSize = 10
+const totalListings = ref(0)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalListings.value / pageSize)))
 
-const seatLabel = (listing: Listing) => {
-  if (listing.rowNumber && listing.seatNumber) {
-    return `Row ${listing.rowNumber} · Seat ${listing.seatNumber}`
-  }
-  return `Seat ${listing.seatId}`
-}
+// Unique event names for the filter dropdown
+const eventNames = computed(() => {
+  const names = new Set<string>()
+  listings.value.forEach(l => { if (l.event?.name) names.add(l.event.name) })
+  return Array.from(names).sort()
+})
 
 const filteredListings = computed(() => {
   const needle = search.value.trim().toLowerCase()
   let result = listings.value.filter((l) => {
-    const text = `${l.eventName} ${l.listingId} ${l.seatId}`.toLowerCase()
+    const text = `${l.event?.name ?? ''} ${l.listingId}`.toLowerCase()
     const matched = !needle || text.includes(needle)
-    const dateMatched = !dateFilter.value || (l.eventDate && l.eventDate.slice(0, 10) === dateFilter.value)
-    return matched && dateMatched
+    const eventMatched = !eventFilter.value || l.event?.name === eventFilter.value
+    return matched && eventMatched
   })
   if (priceSort.value === 'asc') result = [...result].sort((a, b) => a.price - b.price)
   if (priceSort.value === 'desc') result = [...result].sort((a, b) => b.price - a.price)
@@ -63,30 +55,49 @@ const togglePriceSort = () => {
   else priceSort.value = null
 }
 
-const loadListings = async () => {
+const loadListings = async (page = currentPage.value) => {
   loading.value = true
   try {
-    const res = await api.get('/marketplace')
-    const items = res.data?.data?.listings || res.data?.data || (Array.isArray(res.data) ? res.data : [])
-    listings.value = items.map((item: any) => ({
-      listingId: item.listingId || item.listing_id || item.id,
-      seatId: item.ticketId || item.ticket_id || '-',
-      price: Number(item.price || 0),
-      status: (item.status || 'ACTIVE').toUpperCase(),
-      sellerId: item.sellerId || item.seller_id,
-      sellerName: item.sellerName || item.seller_name || null,
-      createdAt: item.createdAt || item.created_at,
-      eventName: item.event?.name || item.eventName,
-      eventDate: item.event?.date || item.event?.eventDate || item.eventDate,
-      rowNumber: item.rowNumber || item.seat?.rowNumber,
-      seatNumber: item.seatNumber || item.seat?.seatNumber,
-      image: item.event?.image || item.image,
+    if (isDemoMode()) {
+      const res = await mockServices.getMarketplaceListings({ page, limit: pageSize })
+      listings.value = res.listings
+      totalListings.value = res.pagination.total
+      currentPage.value = page
+      return
+    }
+    const res = await api.get('/marketplace', { params: { page, limit: pageSize } })
+    const data = res.data?.data
+    const items: any[] = data?.listings ?? []
+    listings.value = items.map((item: any): MarketplaceListing => ({
+      listingId: item.listingId,
+      ticketId: item.ticketId,
+      sellerId: item.sellerId,
+      sellerName: item.sellerName ?? undefined,
+      eventId: item.event?.eventId ?? '',
+      price: Number(item.price ?? 0),
+      status: item.status as MarketplaceListing['status'],
+      createdAt: item.createdAt,
+      event: item.event ? {
+        eventId: item.event.eventId,
+        name: item.event.name,
+        date: item.event.date,
+        venueId: '',
+        price: 0,
+        type: 'other',
+      } : undefined,
     }))
+    totalListings.value = data?.pagination?.total ?? listings.value.length
+    currentPage.value = page
   } catch {
     listings.value = []
   } finally {
     loading.value = false
   }
+}
+
+const goToPage = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  loadListings(page)
 }
 
 const loadMyTickets = async () => {
@@ -116,7 +127,7 @@ const listTicket = async () => {
     listTicketId.value = ''
     listPrice.value = 120
     showListForm.value = false
-    loadListings()
+    loadListings(1)
   } catch (e: any) {
     toast.push(e?.response?.data?.message || 'Unable to list ticket.', 'error', 3200)
   } finally {
@@ -135,7 +146,7 @@ const buyListing = async (listingId: string) => {
       router.push(`/transfer/${transferId}`)
     } else {
       listings.value = listings.value.map((l) =>
-        l.listingId === listingId ? { ...l, status: 'PENDING_TRANSFER' } : l
+        l.listingId === listingId ? { ...l, status: 'sold' } : l
       )
     }
   } catch (e: any) {
@@ -146,7 +157,7 @@ const buyListing = async (listingId: string) => {
   }
 }
 
-onMounted(loadListings)
+onMounted(() => loadListings(1))
 </script>
 
 <template>
@@ -185,14 +196,17 @@ onMounted(loadListings)
     <!-- Filter bar -->
     <article class="glass filter-bar" style="margin-top:1.5rem;">
       <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
-      <input v-model="dateFilter" type="date" class="date-col" />
+      <select v-model="eventFilter" class="event-col">
+        <option value="">All Events</option>
+        <option v-for="name in eventNames" :key="name" :value="name">{{ name }}</option>
+      </select>
       <button class="filter-btn" :class="{ active: priceSort }" @click="togglePriceSort">
         Price
         <span v-if="priceSort === 'asc'">↑</span>
         <span v-else-if="priceSort === 'desc'">↓</span>
       </button>
-      <button class="secondary" @click="search = ''; dateFilter = ''; priceSort = null">Reset</button>
-      <button class="secondary icon-btn" :disabled="loading" @click="loadListings">
+      <button class="secondary" @click="search = ''; eventFilter = ''; priceSort = null">Reset</button>
+      <button class="secondary icon-btn" :disabled="loading" @click="loadListings(currentPage)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
     </article>
@@ -209,29 +223,20 @@ onMounted(loadListings)
         :key="listing.listingId"
         class="listing-card glass"
       >
-        <div class="card-img-wrap">
-          <img
-            class="card-img"
-            :src="listing.image || ''"
-            :alt="listing.eventName || 'Event'"
-          />
-          <div class="img-overlay" />
-          <span class="price-pill">${{ listing.price }}</span>
-        </div>
         <div class="card-body">
-          <p class="event-date small">{{ listing.eventDate ? new Date(listing.eventDate).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBA' }}</p>
-          <h3 class="event-name">{{ listing.eventName || 'Event' }}</h3>
-          <p class="seat-label small">{{ seatLabel(listing) }}</p>
+          <p class="event-date small">{{ listing.event?.date ? new Date(listing.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBA' }}</p>
+          <h3 class="event-name">{{ listing.event?.name || 'Event' }}</h3>
+          <p class="price-label">${{ listing.price }}</p>
           <p v-if="listing.sellerName" class="seller-label small">
             <svg viewBox="0 0 24 24" class="seller-icon"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"/></svg>
             Listed by {{ listing.sellerName }}
           </p>
           <div class="card-footer">
-            <span :class="['status-dot', listing.status === 'ACTIVE' ? 'active' : 'inactive']" />
+            <span :class="['status-dot', listing.status === 'active' ? 'active' : 'inactive']" />
             <span class="small status-text">{{ listing.status }}</span>
             <button
               class="buy-btn"
-              :disabled="listing.status !== 'ACTIVE' || buyLoadingIds[listing.listingId]"
+              :disabled="listing.status !== 'active' || buyLoadingIds[listing.listingId]"
               @click="buyListing(listing.listingId)"
             >
               {{ buyLoadingIds[listing.listingId] ? 'Buying...' : 'Buy Now' }}
@@ -240,31 +245,31 @@ onMounted(loadListings)
         </div>
       </article>
     </div>
+
+    <!-- Pagination -->
+    <div v-if="totalPages > 1" class="pagination">
+      <button class="secondary" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">← Prev</button>
+      <span class="small">Page {{ currentPage }} of {{ totalPages }}</span>
+      <button class="secondary" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">Next →</button>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .marketplace-hero { padding-bottom: 0.5rem; }
-.filter-bar { padding: .8rem; display: grid; grid-template-columns: 2fr 1fr auto auto auto auto; gap: .55rem; align-items: center; }
+.filter-bar { padding: .8rem; display: grid; grid-template-columns: 2fr 1.5fr auto auto auto; gap: .55rem; align-items: center; }
 .search-col { min-width: 0; }
-.date-col { min-width: 0; color-scheme: dark; }
+.event-col { min-width: 0; }
 
-.login-prompt { margin-bottom: 1.2rem; display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: 0.9rem; }
+.listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.2rem; }
 
-.listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
-
-.listing-card { overflow: hidden; padding: 0; border-radius: 1.2rem; transition: transform .2s ease, box-shadow .2s ease; }
+.listing-card { overflow: hidden; border-radius: 1.2rem; transition: transform .2s ease, box-shadow .2s ease; }
 .listing-card:hover { transform: translateY(-4px); box-shadow: 0 24px 48px rgba(0,0,0,.5); }
-
-.card-img-wrap { position: relative; height: 160px; }
-.card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.img-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,9,11,0) 40%, rgba(9,9,11,.7) 100%); }
-.price-pill { position: absolute; top: .75rem; right: .75rem; background: var(--accent); color: #fff; font-weight: 700; font-size: .85rem; padding: .25rem .65rem; border-radius: 999px; }
 
 .card-body { padding: 1rem; display: grid; gap: .4rem; }
 .event-date { color: var(--muted); }
 .event-name { font-size: 1rem; font-weight: 700; line-height: 1.3; }
-.seat-label { color: var(--muted); }
+.price-label { font-size: 1.25rem; font-weight: 800; color: var(--accent); }
 .seller-label { color: var(--muted); display: flex; align-items: center; gap: .3rem; }
 .seller-icon { width: .85rem; height: .85rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
 
@@ -277,9 +282,13 @@ onMounted(loadListings)
 .buy-btn:disabled { opacity: .4; cursor: not-allowed; }
 .buy-btn:not(:disabled):hover { opacity: .85; }
 
+.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
+
+.count-label { margin: .75rem 0 .5rem; }
+
 @media (max-width: 640px) {
   .listings-grid { grid-template-columns: 1fr 1fr; gap: .8rem; }
-  .hero { flex-direction: column; align-items: flex-start; }
+  .filter-bar { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 420px) {
   .listings-grid { grid-template-columns: 1fr; }
