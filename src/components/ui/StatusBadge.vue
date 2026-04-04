@@ -9,13 +9,13 @@ const ERROR_LABELS = new Set(['cancelled', 'expired', 'used', 'error', 'failed']
 const INFO_LABELS = new Set(['listed', 'sold'])
 
 const props = defineProps<{
-  label: string
+  label?: string
   variant?: BadgeVariant
 }>()
 
 const resolvedVariant = computed<BadgeVariant>(() => {
   if (props.variant) return props.variant
-  const key = props.label.toLowerCase()
+  const key = (props.label ?? '').toLowerCase()
   if (SUCCESS_LABELS.has(key)) return 'success'
   if (WARNING_LABELS.has(key)) return 'warning'
   if (ERROR_LABELS.has(key)) return 'error'
@@ -25,7 +25,7 @@ const resolvedVariant = computed<BadgeVariant>(() => {
 </script>
 
 <template>
-  <span class="badge" :class="`badge--${resolvedVariant}`">{{ label }}</span>
+  <span class="badge" :class="`badge--${resolvedVariant}`">{{ label ?? '' }}</span>
 </template>
 
 <style scoped>

@@ -62,11 +62,12 @@ test.describe('Events Information', () => {
         });
 
         await page.goto('/events', { waitUntil: 'domcontentloaded' });
-        await expect(page.locator('text=Taylor Swift')).toBeVisible({ timeout: 15000 });
-        await page.click('text=Taylor Swift');
+        await expect(page.locator('h3.card-title:has-text("Taylor Swift")')).toBeVisible({ timeout: 15000 });
+        await page.locator('h3.card-title:has-text("Taylor Swift")').click();
 
         await expect(page).toHaveURL(/\/events\/evt_001/, { timeout: 5000 });
-        await expect(page.locator('h1')).toContainText('Taylor Swift');
+        await page.waitForLoadState('networkidle');
+        await expect(page.locator('.event-name')).toContainText('Taylor Swift', { timeout: 10000 });
         await expect(page.locator('text=Indoor Stadium')).toBeVisible();
     });
 

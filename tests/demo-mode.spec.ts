@@ -222,7 +222,7 @@ test.describe('Demo Mode & Mock Data', () => {
             await expect(page.locator('.events-page')).toBeVisible();
             // Check for event cards or the "No events found" empty state
             // (demo mode may or may not have pre-loaded events depending on cache)
-            await expect(page.locator('.events-grid, .events-list, .events-page')).toBeVisible();
+            await expect(page.locator('.events-grid, .events-list, .events-page').first()).toBeVisible();
         });
 
         test('should display mock venues on venues page', async ({ page }) => {
