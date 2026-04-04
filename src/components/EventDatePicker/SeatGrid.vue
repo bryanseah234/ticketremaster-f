@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import api from '@/api/client'
+import type { SeatWithInventory } from '@/types'
 
 export interface SeatItem {
   inventoryId: string
   rowNumber: string
   seatNumber: number | string
-  status: 'AVAILABLE' | 'HELD' | 'SOLD'
+  status: 'AVAILABLE' | 'HELD' | 'SOLD' | 'RESERVED'
   price: number
 }
 
@@ -14,15 +15,44 @@ const props = defineProps<{
   eventId: string
   date: string
   modelValue: string | null
+  seats?: SeatWithInventory[]
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [seat: SeatItem]
 }>()
 
-const seats = ref<SeatItem[]>([])
-const loading = ref(false)
+const fetchedSeats = ref<SeatItem[]>([])
+const fetchLoading = ref(false)
 const hovered = ref<{ seat: SeatItem; x: number; y: number } | null>(null)
+
+// Map SeatWithInventory (lowercase status) to internal uppercase status
+const mapStatus = (s: SeatWithInventory['status']): SeatItem['status'] => {
+  switch (s) {
+    case 'available': return 'AVAILABLE'
+    case 'held': return 'HELD'
+    case 'sold': return 'SOLD'
+    case 'reserved': return 'RESERVED'
+    default: return 'AVAILABLE'
+  }
+}
+
+// Use prop seats if provided, otherwise use fetched seats
+const seats = computed<SeatItem[]>(() => {
+  if (props.seats) {
+    return props.seats.map(s => ({
+      inventoryId: s.inventoryId,
+      rowNumber: s.rowNumber,
+      seatNumber: s.seatNumber,
+      status: mapStatus(s.status),
+      price: s.price ?? 0,
+    }))
+  }
+  return fetchedSeats.value
+})
+
+const isLoading = computed(() => props.loading || fetchLoading.value)
 
 const seatsByRow = computed(() => {
   const map = new Map<string, SeatItem[]>()
@@ -42,11 +72,12 @@ const seatsByRow = computed(() => {
 })
 
 const load = async () => {
-  loading.value = true
+  if (props.seats) return // skip fetch when prop seats provided
+  fetchLoading.value = true
   try {
     const { data } = await api.get(`/events/${props.eventId}/seats`)
     const raw = data?.data?.seats || []
-    seats.value = raw.map((s: any) => ({
+    fetchedSeats.value = raw.map((s: any) => ({
       inventoryId: s.inventoryId || s.inventory_id,
       rowNumber: s.rowNumber || s.row_number,
       seatNumber: s.seatNumber || s.seat_number,
@@ -59,7 +90,7 @@ const load = async () => {
       'AVAILABLE', 'AVAILABLE', 'AVAILABLE', 'HELD',
       'AVAILABLE', 'SOLD', 'AVAILABLE', 'AVAILABLE', 'HELD', 'AVAILABLE',
     ]
-    seats.value = rows.flatMap((row, ri) =>
+    fetchedSeats.value = rows.flatMap((row, ri) =>
       Array.from({ length: 10 }, (_, ci) => ({
         inventoryId: `demo-${row}-${ci + 1}`,
         rowNumber: row,
@@ -69,7 +100,7 @@ const load = async () => {
       }))
     )
   } finally {
-    loading.value = false
+    fetchLoading.value = false
   }
 }
 
@@ -82,12 +113,23 @@ const dotClass = (seat: SeatItem) => ({
   'dot-available': seat.status === 'AVAILABLE' && props.modelValue !== seat.inventoryId,
   'dot-held': seat.status === 'HELD',
   'dot-sold': seat.status === 'SOLD',
+  'dot-reserved': seat.status === 'RESERVED',
   'dot-picked': props.modelValue === seat.inventoryId,
 })
 
 const onMouseEnter = (seat: SeatItem, e: MouseEvent) => {
   const rect = (e.target as HTMLElement).getBoundingClientRect()
   hovered.value = { seat, x: rect.left + rect.width / 2, y: rect.top - 8 }
+}
+
+const statusLabel = (status: SeatItem['status']) => {
+  switch (status) {
+    case 'AVAILABLE': return 'Available'
+    case 'HELD': return 'Held'
+    case 'SOLD': return 'Sold'
+    case 'RESERVED': return 'Reserved'
+    default: return status
+  }
 }
 
 onMounted(load)
@@ -97,7 +139,7 @@ onMounted(load)
   <div class="seat-section">
     <div class="stage-bar">STAGE</div>
 
-    <div v-if="loading" class="loading-msg">Loading seats...</div>
+    <div v-if="isLoading" class="loading-msg">Loading seats...</div>
 
     <div v-else class="venue-wrap">
       <div v-for="{ row, seats: rowSeats } in seatsByRow" :key="row" class="seat-row">
@@ -121,6 +163,7 @@ onMounted(load)
       <span class="legend-item"><span class="dot-legend available-l" />Available</span>
       <span class="legend-item"><span class="dot-legend held-l" />Held</span>
       <span class="legend-item"><span class="dot-legend sold-l" />Sold</span>
+      <span class="legend-item"><span class="dot-legend reserved-l" />Reserved</span>
       <span class="legend-item"><span class="dot-legend picked-l" />Your pick</span>
     </div>
 
@@ -132,7 +175,7 @@ onMounted(load)
       >
         <strong>Row {{ hovered.seat.rowNumber }} · Seat {{ hovered.seat.seatNumber }}</strong>
         <span class="tooltip-price">${{ hovered.seat.price }}</span>
-        <span class="tooltip-status">{{ hovered.seat.status === 'AVAILABLE' ? 'Available' : hovered.seat.status === 'HELD' ? 'Held' : 'Sold' }}</span>
+        <span class="tooltip-status">{{ statusLabel(hovered.seat.status) }}</span>
       </div>
     </Teleport>
   </div>
@@ -220,6 +263,11 @@ onMounted(load)
   opacity: .4;
 }
 
+.dot-reserved {
+  background: #a855f7;
+  opacity: .7;
+}
+
 .dot-picked {
   background: #22c55e;
   cursor: pointer;
@@ -251,6 +299,7 @@ onMounted(load)
 .available-l { background: #3b82f6; }
 .held-l { background: #eab308; }
 .sold-l { background: rgba(255,255,255,.2); }
+.reserved-l { background: #a855f7; }
 .picked-l { background: #22c55e; }
 </style>
 

@@ -1,9 +1,10 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { useSellerNotifications } from '@/composables/useSellerNotifications'
+import { isDemoMode } from '@/services/mockData'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -105,6 +106,11 @@ const balanceLabel = computed(() => {
   if (balance.value === null) return 'Credits: --'
   return `Credits: $${balance.value}`
 })
+
+const logout = () => {
+  auth.clearSession()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -147,8 +153,10 @@ const balanceLabel = computed(() => {
           </Transition>
         </div>
 
+        <span v-if="isDemoMode()" class="demo-pill">DEMO</span>
         <nav>
           <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
+          <button v-if="auth.isLoggedIn" class="nav-button" @click="logout">Logout</button>
         </nav>
       </div>
 
@@ -169,6 +177,7 @@ const balanceLabel = computed(() => {
     <nav v-if="mobileMenuOpen" class="mobile-menu">
       <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-nav-link">{{ item.label }}</RouterLink>
       <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
+      <button v-if="auth.isLoggedIn" class="mobile-nav-link" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
@@ -485,6 +494,19 @@ nav {
 
 .dropdown-enter-active, .dropdown-leave-active { transition: opacity .15s, transform .15s; }
 .dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
+
+.demo-pill {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  background: rgba(249, 115, 22, 0.1);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 
 /* Desktop breakpoint - 1025px and above */

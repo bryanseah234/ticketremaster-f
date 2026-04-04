@@ -22,15 +22,25 @@ const submit = async () => {
   loading.value = true
   try {
     const { data } = await api.post('/auth/verify-registration', { userId: userId.value, otpCode: otp.value })
-    auth.setSession(data.data)
+    const d = data.data
+    auth.setSession({
+      access_token: d.token,
+      refresh_token: d.token, // backend issues single token; no separate refresh token
+      user: {
+        userId: d.user.userId,
+        email: d.user.email,
+        role: d.user.role,
+      },
+    })
     localStorage.removeItem('pendingUserId')
     router.push('/events')
   } catch (e: any) {
-    const code = e?.response?.data?.error_code
-    if (code === 'BAD_REQUEST') toast.push('Invalid OTP code or no pending verification found.', 'error', 3200)
-    else if (code === 'NOT_FOUND') toast.push('User not found.', 'error', 3200)
-    else if (code === 'VALIDATION_ERROR') toast.push('Please check the user ID and OTP code.', 'error', 3200)
-    else toast.push('Verification failed.', 'error', 3200)
+    const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
+    if (code === 'NO_PENDING_VERIFICATION') toast.push('No pending verification found. Please register again.', 'error', 3200)
+    else if (code === 'OTP_INVALID') toast.push('Invalid OTP code. Please try again.', 'error', 3200)
+    else if (code === 'USER_NOT_FOUND') toast.push('User not found.', 'error', 3200)
+    else if (code === 'VALIDATION_ERROR') toast.push('Please enter your user ID and a valid 6-digit OTP.', 'error', 3200)
+    else toast.push('Verification failed. Please try again.', 'error', 3200)
   } finally {
     loading.value = false
   }
