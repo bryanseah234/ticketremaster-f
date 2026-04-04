@@ -3,15 +3,18 @@ import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import { isDemoMode, mockServices } from '@/services/mockData'
+import type { Ticket } from '@/types'
 
-const tickets = ref<any[]>([])
+const tickets = ref<Ticket[]>([])
 const loading = ref(false)
 const toast = useToast()
 const listingTicketId = ref<string | null>(null)
 const listingPrice = ref<number>(0)
 const listingLoading = ref(false)
 
-const startListing = (ticketId: string, price: number) => {
+const startListing = (ticketId: string, price?: number) => {
   listingTicketId.value = ticketId
   listingPrice.value = price || 0
 }
@@ -35,7 +38,7 @@ const cancelUnlisting = () => {
 const confirmUnlist = async (ticketId: string) => {
   unlistingLoading.value = true
   try {
-    const ticket = tickets.value.find(t => t.ticketId === ticketId)
+    const ticket = tickets.value.find(t => t.ticketId === ticketId) as any
     if (!ticket?.listingId) {
       toast.push('Could not find listing information.', 'error', 3000)
       return
@@ -69,59 +72,53 @@ const submitListing = async (ticketId: string) => {
   }
 }
 
-const fallbackTickets = [
-  { ticketId: 'demo-101', status: 'active', event: { name: 'Neon Skyline Festival', eventDate: '2026-04-12T20:00:00Z', image: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=800' }, rowNumber: 'B', seatNumber: 18, price: 120, createdAt: '2026-03-02T19:30:00Z' },
-  { ticketId: 'demo-102', status: 'active', event: { name: 'Midnight Bass District', eventDate: '2026-05-03T19:30:00Z', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800' }, rowNumber: 'D', seatNumber: 9, price: 85, createdAt: '2026-02-18T14:20:00Z' },
-  { ticketId: 'demo-103', status: 'listed', event: { name: 'Jazz at Capitol', eventDate: '2026-06-08T19:00:00Z', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=800' }, rowNumber: 'A', seatNumber: 5, price: 110, createdAt: '2026-02-20T10:00:00Z' },
-]
+// Map raw backend ticket to Ticket type
+// Backend shape: { ticketId, status, price, createdAt, event: { eventId, name, date }, venue: { venueId, name } }
+const mapTicket = (t: any): Ticket => ({
+  ticketId: t.ticketId,
+  eventId: t.event?.eventId || t.eventId || '',
+  seatId: t.seatId || '',
+  ownerId: t.ownerId || '',
+  status: t.status as Ticket['status'],
+  price: t.price,
+  purchasedAt: t.createdAt || t.purchasedAt || '',
+  event: t.event ? {
+    eventId: t.event.eventId || '',
+    name: t.event.name || '',
+    date: t.event.date || t.event.eventDate || '',
+    venueId: t.venue?.venueId || t.event.venueId || '',
+    price: t.price || 0,
+    type: t.event.type || 'other',
+    image: t.event.image || undefined,
+    venue: t.venue ? { venueId: t.venue.venueId, name: t.venue.name } : undefined,
+  } : undefined,
+  seat: t.seat,
+  venue: t.venue ? { venueId: t.venue.venueId, name: t.venue.name } : undefined,
+})
 
 const load = async () => {
   loading.value = true
   try {
-    const { data } = await api.get('/tickets')
-    const raw = data?.data?.tickets || data?.data || []
-    tickets.value = raw.map((t: any) => ({
-      ...t,
-      event: t.event ? {
-        ...t.event,
-        eventDate: t.event.eventDate || t.event.date,
-        image: t.event.image || null,
-      } : null,
-    }))
+    if (isDemoMode()) {
+      const result = await mockServices.getMyTickets()
+      tickets.value = result.tickets
+    } else {
+      const { data } = await api.get('/tickets')
+      const raw: any[] = data?.data?.tickets || data?.data || []
+      tickets.value = raw.map(mapTicket)
+    }
   } catch {
-    tickets.value = fallbackTickets
-    toast.push('Backend unavailable. Showing limited demo data.', 'info', 3200)
+    // Fallback to mock data on error
+    try {
+      const result = await mockServices.getMyTickets()
+      tickets.value = result.tickets
+      toast.push('Backend unavailable. Showing demo data.', 'info', 3200)
+    } catch {
+      tickets.value = []
+    }
   } finally {
     loading.value = false
   }
-}
-
-const statusColor = (s: string) => {
-  const status = (s || '').toLowerCase()
-  if (status === 'active') return 'status-active'
-  if (status === 'used') return 'status-used'
-  if (status === 'listed') return 'status-listed'
-  if (status === 'pending_transfer' || status === 'transferred') return 'status-transfer'
-  return 'status-default'
-}
-
-const statusLabel = (s: string) => {
-  const status = (s || '').toLowerCase()
-  if (status === 'active') return 'Active'
-  if (status === 'used') return 'Used'
-  if (status === 'listed') return 'Listed on Marketplace'
-  if (status === 'pending_transfer') return 'In Transfer'
-  if (status === 'transferred') return 'Transferred'
-  return s || 'Active'
-}
-
-const accentColor = (s: string) => {
-  const status = (s || '').toLowerCase()
-  if (status === 'active') return '#22c55e'
-  if (status === 'used') return '#6b7280'
-  if (status === 'listed') return '#f59e0b'
-  if (status === 'pending_transfer' || status === 'transferred') return '#3b82f6'
-  return 'var(--accent-rgb, 249,115,22)'
 }
 
 const formatDate = (d?: string) => {
@@ -134,8 +131,17 @@ const formatTime = (d?: string) => {
   return new Date(d).toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
 }
 
-const canShowQR = (t: any) => t.status !== 'used' && t.status !== 'transferred'
-const canList = (t: any) => t.status === 'active'
+const canShowQR = (t: Ticket) => t.status !== 'used' && t.status !== 'cancelled'
+const canList = (t: Ticket) => t.status === 'active'
+
+const accentColor = (s: string) => {
+  const status = (s || '').toLowerCase()
+  if (status === 'active') return '34,197,94'
+  if (status === 'used') return '107,114,128'
+  if (status === 'listed') return '245,158,11'
+  if (status === 'cancelled') return '248,113,113'
+  return '249,115,22'
+}
 
 onMounted(load)
 watch([loading, tickets], ([isLoading, items]) => {
@@ -179,11 +185,11 @@ watch([loading, tickets], ([isLoading, items]) => {
               : `linear-gradient(135deg, rgba(${accentColor(t.status)},0.25) 0%, rgba(0,0,0,0.6) 100%)`
           }"
         >
-          <span :class="['status-pill', statusColor(t.status)]">{{ statusLabel(t.status) }}</span>
+          <StatusBadge :label="t.status" class="status-badge-overlay" />
           <h3 class="ticket-name">{{ t.event?.name || 'Event' }}</h3>
-          <div v-if="t.event?.eventDate" class="header-date">
+          <div v-if="t.event?.date" class="header-date">
             <svg viewBox="0 0 24 24" class="hd-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <span>{{ formatDate(t.event.eventDate) }} · {{ formatTime(t.event.eventDate) }}</span>
+            <span>{{ formatDate(t.event.date) }} · {{ formatTime(t.event.date) }}</span>
           </div>
         </div>
 
@@ -198,22 +204,35 @@ watch([loading, tickets], ([isLoading, items]) => {
         <div class="ticket-body">
           <div class="info-row">
             <!-- Seat -->
-            <div v-if="t.rowNumber || t.seatNumber" class="info-block">
+            <div class="info-block">
               <span class="info-label">Seat</span>
-              <span class="info-value">Row {{ t.rowNumber || '—' }} · {{ t.seatNumber || '—' }}</span>
+              <span v-if="t.seat" class="info-value">Row {{ t.seat.rowNumber }} · {{ t.seat.seatNumber }}</span>
+              <span v-else class="info-value">—</span>
             </div>
-            <div v-else class="info-block">
-              <span class="info-label">Seat</span>
-              <span class="info-value">—</span>
+            <!-- Venue -->
+            <div v-if="t.venue?.name" class="info-block text-right">
+              <span class="info-label">Venue</span>
+              <span class="info-value venue-name">{{ t.venue.name }}</span>
             </div>
             <!-- Price -->
+            <div v-else class="info-block text-right">
+              <span class="info-label">Paid</span>
+              <span class="info-value price">${{ t.price ?? '—' }}</span>
+            </div>
+          </div>
+
+          <!-- Price row when venue is shown -->
+          <div v-if="t.venue?.name" class="info-row">
+            <div class="info-block">
+              <span class="info-label">Ticket ID</span>
+              <span class="info-value ticket-id">{{ t.ticketId }}</span>
+            </div>
             <div class="info-block text-right">
               <span class="info-label">Paid</span>
               <span class="info-value price">${{ t.price ?? '—' }}</span>
             </div>
           </div>
-          <!-- Ticket ID -->
-          <div class="info-block">
+          <div v-else class="info-block">
             <span class="info-label">Ticket ID</span>
             <span class="info-value ticket-id">{{ t.ticketId }}</span>
           </div>
@@ -311,7 +330,7 @@ watch([loading, tickets], ([isLoading, items]) => {
   border-radius: 1.2rem;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: var(--surface-1);
+  background: var(--surface);
   transition: transform .2s ease, box-shadow .2s ease;
   display: flex;
   flex-direction: column;
@@ -349,29 +368,19 @@ watch([loading, tickets], ([isLoading, items]) => {
 }
 .hd-icon { width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
 
-/* Status pill — positioned top-right in header */
-.status-pill {
+/* StatusBadge overlay — positioned top-right in header */
+.status-badge-overlay {
   position: absolute;
   top: .85rem;
   right: .85rem;
-  font-size: .7rem;
-  font-weight: 700;
-  padding: .25rem .65rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
   backdrop-filter: blur(8px);
 }
-.status-active   { background: rgba(34,197,94,.25);  color: #4ade80; border-color: rgba(34,197,94,.5); }
-.status-used     { background: rgba(107,114,128,.25); color: #d1d5db; border-color: rgba(107,114,128,.5); }
-.status-listed   { background: rgba(245,158,11,.25);  color: #fcd34d; border-color: rgba(245,158,11,.5); }
-.status-transfer { background: rgba(59,130,246,.25);  color: #93c5fd; border-color: rgba(59,130,246,.5); }
-.status-default  { background: rgba(249,115,22,.25);  color: #fdba74; border-color: rgba(249,115,22,.5); }
 
 /* Tear line */
 .tear-line {
   display: flex;
   align-items: center;
-  background: var(--surface-1);
+  background: var(--surface);
   position: relative;
 }
 .notch {
@@ -409,6 +418,7 @@ watch([loading, tickets], ([isLoading, items]) => {
 .info-value { font-size: .95rem; font-weight: 600; color: var(--text); }
 .info-value.ticket-id { font-size: .72rem; font-family: monospace; font-weight: 400; color: var(--muted); word-break: break-all; }
 .info-value.price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+.info-value.venue-name { font-size: .82rem; font-weight: 500; color: var(--muted); max-width: 140px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Actions */
 .actions { display: flex; flex-direction: column; gap: .55rem; }

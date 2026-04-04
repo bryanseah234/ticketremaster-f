@@ -1,12 +1,20 @@
 import { computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
-import type { AuthUser } from '@/types'
+import type { AuthUser, UserRole } from '@/types'
+import { mockUser, mockAdminUser, mockStaffUser } from '@/services/mockData'
+
+const DEMO_TOKEN_KEY = 'demo_access_token'
+const DEMO_USER_KEY = 'demo_user'
 
 export const useAuthStore = defineStore('auth', () => {
+  // Restore from sessionStorage (demo) or localStorage (real session)
+  const demoToken = sessionStorage.getItem(DEMO_TOKEN_KEY)
+  const demoUser = sessionStorage.getItem(DEMO_USER_KEY)
+
   const state = reactive({
-    accessToken: localStorage.getItem('access_token') || '',
+    accessToken: demoToken || localStorage.getItem('access_token') || '',
     refreshToken: localStorage.getItem('refresh_token') || '',
-    user: JSON.parse(localStorage.getItem('user') || 'null') as AuthUser | null,
+    user: (demoUser ? JSON.parse(demoUser) : JSON.parse(localStorage.getItem('user') || 'null')) as AuthUser | null,
   })
 
   const isLoggedIn = computed(() => Boolean(state.accessToken))
@@ -33,7 +41,27 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
+    sessionStorage.removeItem(DEMO_TOKEN_KEY)
+    sessionStorage.removeItem(DEMO_USER_KEY)
   }
 
-  return { state, isLoggedIn, isAdmin, isStaff, setSession, clearSession }
+  const demoLogin = (role: UserRole) => {
+    const sourceUser = role === 'admin' ? mockAdminUser : role === 'staff' ? mockStaffUser : mockUser
+    const authUser: AuthUser = {
+      userId: sourceUser.userId,
+      email: sourceUser.email,
+      phoneNumber: sourceUser.phoneNumber,
+      role: sourceUser.role,
+      isFlagged: sourceUser.isFlagged,
+      isAdmin: sourceUser.role === 'admin',
+    }
+    const token = `demo-${role}-token`
+    state.accessToken = token
+    state.refreshToken = ''
+    state.user = authUser
+    sessionStorage.setItem(DEMO_TOKEN_KEY, token)
+    sessionStorage.setItem(DEMO_USER_KEY, JSON.stringify(authUser))
+  }
+
+  return { state, isLoggedIn, isAdmin, isStaff, setSession, clearSession, demoLogin }
 })

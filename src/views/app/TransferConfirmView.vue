@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
+import { isDemoMode } from '@/services/mockData'
 
 const route = useRoute()
 const toast = useToast()
@@ -46,12 +47,18 @@ const stepIndex = computed(() => {
   return idx === -1 ? (status.value === 'completed' ? steps.value.length - 1 : 0) : idx
 })
 
+// Format countdown as MM:SS
+const countdownFormatted = computed(() => {
+  const m = Math.floor(rateLimitCountdown.value / 60)
+  const s = rateLimitCountdown.value % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+})
+
 const loadTransfer = async () => {
   try {
     const { data } = await api.get(`/transfer/${route.params.transferId}`)
     const raw = data?.data || data || null
     if (raw) {
-      // Normalise camelCase from backend to what the template expects
       transfer.value = {
         ...raw,
         status: raw.status,
@@ -82,19 +89,47 @@ const loadTransfer = async () => {
   }
 }
 
+// ── Rate limit helper ─────────────────────────────────────────────────────────
+
+const handleRateLimit = () => {
+  rateLimited.value = true
+  rateLimitCountdown.value = 900 // 15 minutes
+  rateLimitResetAt.value = new Date(Date.now() + 900 * 1000)
+}
+
+// ── Demo mode OTP flow ────────────────────────────────────────────────────────
+
 const submitBuyerOtp = async () => {
+  if (rateLimited.value) return
   loading.value = true
   otpError.value = ''
   try {
+    if (isDemoMode()) {
+      if (otp.value.length < 6) {
+        otpError.value = 'Enter a 6-digit OTP.'
+        return
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      transfer.value = { ...transfer.value, status: 'pending_seller_otp' }
+      otp.value = ''
+      otpAttempts.value = 0
+      toast.push('OTP verified. Waiting for seller to confirm.', 'success', 3200)
+      return
+    }
     const { data } = await api.post(`/transfer/${route.params.transferId}/buyer-verify`, { otp: otp.value })
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
     otp.value = ''
     otpAttempts.value = 0
     toast.push('OTP verified. Waiting for seller to confirm.', 'success', 3200)
   } catch (e: any) {
-    otpAttempts.value++
-    otp.value = ''
-    otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
+    if (e?.response?.status === 429) {
+      handleRateLimit()
+      otpError.value = 'Too many attempts. Please wait 15 minutes before trying again.'
+    } else {
+      otpAttempts.value++
+      otp.value = ''
+      otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
+    }
   } finally {
     loading.value = false
   }
@@ -103,6 +138,12 @@ const submitBuyerOtp = async () => {
 const acceptTransfer = async () => {
   loading.value = true
   try {
+    if (isDemoMode()) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      transfer.value = { ...transfer.value, status: 'pending_buyer_otp' }
+      toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
+      return
+    }
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
     toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
@@ -127,9 +168,23 @@ const rejectTransfer = async () => {
 }
 
 const submitSellerOtp = async () => {
+  if (rateLimited.value) return
   loading.value = true
   otpError.value = ''
   try {
+    if (isDemoMode()) {
+      if (otp.value.length < 6) {
+        otpError.value = 'Enter a 6-digit OTP.'
+        return
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      transfer.value = { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
+      otp.value = ''
+      otpAttempts.value = 0
+      showSuccessBanner.value = true
+      toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
+      return
+    }
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-verify`, { otp: otp.value })
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
@@ -137,9 +192,14 @@ const submitSellerOtp = async () => {
     showSuccessBanner.value = true
     toast.push('Transfer complete! Ticket has been transferred.', 'success', 4000)
   } catch (e: any) {
-    otpAttempts.value++
-    otp.value = ''
-    otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
+    if (e?.response?.status === 429) {
+      handleRateLimit()
+      otpError.value = 'Too many attempts. Please wait 15 minutes before trying again.'
+    } else {
+      otpAttempts.value++
+      otp.value = ''
+      otpError.value = e?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
+    }
   } finally {
     loading.value = false
   }
@@ -163,13 +223,13 @@ let countdownTimer: number | undefined
 onMounted(async () => {
   await loadTransfer()
   pollTimer = window.setInterval(async () => {
-    if (['completed', 'failed', 'cancelled'].includes(status.value)) {
+    if (['completed', 'failed', 'cancelled', 'expired'].includes(status.value)) {
       clearInterval(pollTimer)
       return
     }
     await loadTransfer()
   }, 5000)
-  
+
   // Countdown timer for rate limiting
   countdownTimer = window.setInterval(() => {
     if (rateLimited.value && rateLimitCountdown.value > 0) {
@@ -235,13 +295,20 @@ onUnmounted(() => {
           <div v-else-if="status === 'pending_buyer_otp'" class="step-panel">
             <h2 class="step-heading">Verify your identity</h2>
             <p class="small muted">The seller has accepted. Enter the OTP sent to your phone to confirm this purchase.</p>
-            <div class="otp-row">
+
+            <!-- Rate limit warning -->
+            <div v-if="rateLimited" class="rate-limit-warning">
+              <span class="warning-icon">⏳</span>
+              <span>Too many attempts. Try again in <strong>{{ countdownFormatted }}</strong></span>
+            </div>
+
+            <div v-else class="otp-row">
               <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" :class="['otp-input', otpError && 'otp-input-error']" @keyup.enter="submitBuyerOtp" @input="otpError = ''" />
-              <button :disabled="loading || otp.length < 4" @click="submitBuyerOtp">{{ loading ? 'Verifying...' : 'Verify' }}</button>
+              <button :disabled="loading || otp.length < 4 || rateLimited" @click="submitBuyerOtp">{{ loading ? 'Verifying...' : 'Verify' }}</button>
             </div>
             <p v-if="otpError" class="otp-error-msg">{{ otpError }}</p>
-            <p v-if="otpAttempts >= 3" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
-            <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
+            <p v-if="otpAttempts >= 3 && !rateLimited" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
+            <button v-if="!rateLimited" class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
             </button>
           </div>
@@ -283,13 +350,20 @@ onUnmounted(() => {
           <div v-else-if="status === 'pending_seller_otp'" class="step-panel">
             <h2 class="step-heading">Verify your identity</h2>
             <p class="small muted">Enter the OTP sent to your phone to confirm you are releasing this ticket.</p>
-            <div class="otp-row">
+
+            <!-- Rate limit warning -->
+            <div v-if="rateLimited" class="rate-limit-warning">
+              <span class="warning-icon">⏳</span>
+              <span>Too many attempts. Try again in <strong>{{ countdownFormatted }}</strong></span>
+            </div>
+
+            <div v-else class="otp-row">
               <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="6-digit code" :class="['otp-input', otpError && 'otp-input-error']" @keyup.enter="submitSellerOtp" @input="otpError = ''" />
-              <button :disabled="loading || otp.length < 4" @click="submitSellerOtp">{{ loading ? 'Verifying...' : 'Confirm' }}</button>
+              <button :disabled="loading || otp.length < 4 || rateLimited" @click="submitSellerOtp">{{ loading ? 'Verifying...' : 'Confirm' }}</button>
             </div>
             <p v-if="otpError" class="otp-error-msg">{{ otpError }}</p>
-            <p v-if="otpAttempts >= 3" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
-            <button class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
+            <p v-if="otpAttempts >= 3 && !rateLimited" class="small muted">Too many failed attempts? Use Resend OTP to get a new code.</p>
+            <button v-if="!rateLimited" class="secondary resend-btn" :disabled="resendLoading" @click="resendOtp">
               {{ resendLoading ? 'Sending...' : 'Resend OTP' }}
             </button>
           </div>
@@ -341,6 +415,13 @@ onUnmounted(() => {
         <div v-if="status === 'failed' || status === 'cancelled'" class="step-panel">
           <h2 class="step-heading">Transfer {{ status }}</h2>
           <p class="small muted">This transfer is no longer active.</p>
+          <RouterLink to="/marketplace"><button class="secondary">Back to Marketplace</button></RouterLink>
+        </div>
+
+        <!-- Expired -->
+        <div v-if="status === 'expired'" class="step-panel">
+          <h2 class="step-heading">Transfer expired</h2>
+          <p class="small muted">This transfer has expired. The listing may still be available on the marketplace.</p>
           <RouterLink to="/marketplace"><button class="secondary">Back to Marketplace</button></RouterLink>
         </div>
       </article>

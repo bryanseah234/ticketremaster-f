@@ -102,23 +102,28 @@ The frontend includes a comprehensive demo mode for UI development without a bac
 
 ### Accessing Demo Mode
 
-1. Navigate to `/demo-login`
-2. Choose a demo account or enter credentials manually:
+1. Navigate to `/demo-login` and select a role, or
+2. Add `?demo=true` to any URL
 
-#### Demo Accounts
+Demo sessions use `sessionStorage` (not `localStorage`) and are cleared on tab close.
 
-| Account | Email | Password | Access Level |
-|---------|-------|----------|--------------|
-| Demo User | `demo@ticketremaster.com` | `demo1234` | Regular user features |
-| Demo Admin | `admin@ticketremaster.com` | `demo1234` | Admin dashboard and event management |
-| Demo Staff | `staff@ticketremaster.com` | `demo1234` | Staff scanner and ticket verification |
+### Demo Accounts
+
+| Account | Email | Role | Access Level |
+|---------|-------|------|--------------|
+| Demo User | `demo@ticketremaster.com` | user | Events, tickets, marketplace, transfers |
+| Demo Admin | `admin@ticketremaster.com` | admin | Admin dashboard, event management |
+| Demo Staff | `staff@ticketremaster.com` | staff | Staff scanner, ticket verification |
 
 ### Demo Features
 
-- Browse events with mock data
-- View seat maps and select seats
-- Access admin and staff interfaces
-- Test all UI interactions
+- Browse events with mock data (6 events, varied types)
+- View seat maps with 40 seats across sections
+- Full checkout flow (simulated, no real charge)
+- Credit top-up simulation (balance in sessionStorage)
+- Full transfer OTP flow (any 6-digit code works)
+- All 4 ticket status variants visible
+- Admin and staff interfaces
 
 ### Debug Panel
 
@@ -134,22 +139,25 @@ src/
 ├── api/              # API client and request interceptors
 ├── assets/           # Static assets (CSS, images)
 ├── components/       # Reusable Vue components
-│   ├── common/       # Common components (buttons, inputs)
-│   ├── layout/       # Layout components (navbar, footer)
-│   └── ui/           # UI components (cards, modals)
-├── composables/      # Vue composables (hooks)
-│   ├── useAccessibility.ts  # A11y utilities
-│   ├── useWebSocket.ts      # Real-time updates
-│   └── useToast.ts          # Toast notifications
-├── config/           # Configuration (theme, constants)
-├── locales/          # i18n translations
-├── router/           # Route definitions
-├── services/         # Business logic services
-│   └── mockData.ts   # Demo mode mock data
-├── stores/           # Pinia stores
-├── types/            # TypeScript type definitions
+│   ├── common/       # AppNavbar (demo pill, logout), ToastStack, ConnectionStatus
+│   ├── EventDatePicker/ # SeatGrid (accepts SeatWithInventory[])
+│   ├── layout/       # Footer
+│   ├── sections/     # Landing page sections
+│   └── ui/           # EventCard, StatusBadge, ProfileField, Card, SearchBar
+├── composables/      # Vue composables
+│   ├── useAccessibility.ts
+│   ├── useSellerNotifications.ts
+│   ├── useToast.ts
+│   └── useWebSocket.ts
+├── config/           # Theme tokens
+├── data/             # Static mock event data
+├── locales/          # i18n translations (en, es, fr)
+├── router/           # Route definitions with auth guards
+├── services/         # mockData.ts — demo mode mock data + isDemoMode()
+├── stores/           # Pinia stores (auth with demoLogin)
+├── types/            # TypeScript type definitions (index.ts)
 └── views/            # Page components
-    └── app/          # Application views
+    └── app/          # All application views
 ```
 
 ## Testing

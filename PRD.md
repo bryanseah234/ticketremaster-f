@@ -155,9 +155,11 @@ The frontend is a Vue 3 Single Page Application (SPA) with a premium glassmorphi
 **State Machine:**
 ```
 pending_seller_acceptance → pending_buyer_otp → pending_seller_otp → completed
-                                ↓                      ↓
-                            cancelled              completed
+         ↓                        ↓                     ↓
+     cancelled                cancelled             cancelled/failed
 ```
+
+Real backend status values: `pending_seller_acceptance`, `pending_buyer_otp`, `pending_seller_otp`, `completed`, `failed`, `cancelled`, `expired`
 
 #### 6. QR Code & Ticket Verification
 
