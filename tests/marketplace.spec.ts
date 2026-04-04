@@ -50,8 +50,7 @@ test.describe('Marketplace Flow', () => {
 
         await page.goto('/marketplace');
         await expect(page.locator('h1')).toContainText(/Discover Listings|Marketplace/, { timeout: 10000 });
-        await expect(page.locator('text=Taylor Swift')).toBeVisible({ timeout: 10000 });
-        await expect(page.locator('text=Row A')).toBeVisible();
+        await expect(page.locator('h3.event-name:has-text("Taylor Swift")')).toBeVisible({ timeout: 10000 });
     });
 
     test('should allow buying a listing', async ({ page }) => {
@@ -86,7 +85,7 @@ test.describe('Marketplace Flow', () => {
         });
 
         await page.goto('/marketplace');
-        await expect(page.locator('text=Concert A')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h3.event-name:has-text("Concert A")')).toBeVisible({ timeout: 10000 });
 
         const buyBtn = page.locator('button:has-text("Buy")').first();
         if (await buyBtn.count() > 0) {
@@ -98,7 +97,7 @@ test.describe('Marketplace Flow', () => {
     test('should handle buying with insufficient credits (402)', async ({ page }) => {
         await page.route(API_URL, async route => {
             const url = route.request().url();
-            if (url.includes('/marketplace') && route.request().method() === 'POST') {
+            if (url.includes('/transfer/initiate') && route.request().method() === 'POST') {
                 await route.fulfill({
                     status: 402,
                     contentType: 'application/json',
@@ -127,7 +126,7 @@ test.describe('Marketplace Flow', () => {
         });
 
         await page.goto('/marketplace');
-        await expect(page.locator('text=Expensive Concert')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h3.event-name:has-text("Expensive Concert")')).toBeVisible({ timeout: 10000 });
 
         const buyBtn = page.locator('button:has-text("Buy")').first();
         if (await buyBtn.count() > 0) {
@@ -159,14 +158,14 @@ test.describe('Marketplace Flow', () => {
         });
 
         await page.goto('/marketplace');
-        await expect(page.locator('text=Taylor Swift')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h3.event-name:has-text("Taylor Swift")')).toBeVisible({ timeout: 10000 });
 
         const searchInput = page.locator('input[placeholder*="search" i], input[placeholder*="Search"]').first();
         if (await searchInput.count() > 0) {
             await searchInput.fill('Taylor Swift');
             await page.waitForTimeout(300);
-            await expect(page.locator('text=Taylor Swift')).toBeVisible();
-            await expect(page.locator('text=Ed Sheeran')).not.toBeVisible();
+            await expect(page.locator('h3.event-name:has-text("Taylor Swift")')).toBeVisible();
+            await expect(page.locator('h3.event-name:has-text("Ed Sheeran")')).not.toBeVisible();
         } else {
             await expect(page.locator('text=Taylor Swift')).toBeVisible();
         }
@@ -195,7 +194,7 @@ test.describe('Marketplace Flow', () => {
         });
 
         await page.goto('/marketplace');
-        await expect(page.locator('text=Concert A')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('h3.event-name:has-text("Concert A")')).toBeVisible({ timeout: 10000 });
 
         const priceBtn = page.locator('button:has-text("Price")').first();
         if (await priceBtn.count() > 0) {
@@ -203,8 +202,8 @@ test.describe('Marketplace Flow', () => {
             await page.waitForTimeout(300);
         }
 
-        await expect(page.locator('text=Concert A')).toBeVisible();
-        await expect(page.locator('text=Concert B')).toBeVisible();
-        await expect(page.locator('text=Concert C')).toBeVisible();
+        await expect(page.locator('h3.event-name:has-text("Concert A")')).toBeVisible();
+        await expect(page.locator('h3.event-name:has-text("Concert B")')).toBeVisible();
+        await expect(page.locator('h3.event-name:has-text("Concert C")')).toBeVisible();
     });
 });

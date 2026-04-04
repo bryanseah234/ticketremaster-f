@@ -194,7 +194,7 @@ test.describe('Local State Persistence', () => {
             if (await logoutBtn.count() > 0) {
                 // Set the guard flag BEFORE clicking logout so addInitScript won't re-set tokens
                 await page.evaluate(() => sessionStorage.setItem('_test_logged_out', 'true'));
-                await logoutBtn.click();
+                await logoutBtn.first().click();
 
                 // Wait for logout redirect (auth store navigates to /login)
                 await page.waitForURL(/\/(login|demo-login|\?)/, { timeout: 10000 }).catch(() => {});
