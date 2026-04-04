@@ -49,6 +49,8 @@ const ALLOWED_CONSOLE_PATTERNS = [
   /ResizeObserver loop/, // ResizeObserver harmless warnings
   /NotAllowedError/, // Camera permission errors (staff scanner)
   /NotFoundError.*getUserMedia/, // Camera not found (headless)
+  /NotSupportedError/, // Camera/media not supported in headless
+  /^Not supported$/, // Bare "Not supported" from camera API in headless
   /AxiosError/, // Axios error objects logged to console
   /Request failed with status code/, // Axios HTTP error messages
   /Backend unavailable/, // Expected demo mode message

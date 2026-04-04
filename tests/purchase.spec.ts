@@ -20,7 +20,6 @@ test.describe('Purchase Flow', () => {
     });
 
     test('should reserve a seat and pay successfully', async ({ page }) => {
-        // Mock seat hold
         await page.route('**/purchase/hold/*', async route => {
             await route.fulfill({
                 status: 200,
@@ -36,7 +35,6 @@ test.describe('Purchase Flow', () => {
             });
         });
 
-        // Mock purchase confirm
         await page.route('**/purchase/confirm/*', async route => {
             await route.fulfill({
                 status: 200,
@@ -53,31 +51,25 @@ test.describe('Purchase Flow', () => {
             });
         });
 
-        // Mock credit balance check
         await page.route('**/credits/balance', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({
-                    data: { creditBalance: 500 }
-                })
+                body: JSON.stringify({ data: { creditBalance: 500 } })
             });
         });
 
         await page.goto('/events/evt_001/seats');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
-        // Check if seat buttons exist
         const seatBtn = page.locator('button.seat-btn.available').first();
         if (await seatBtn.count() > 0) {
             await seatBtn.click();
             const reserveBtn = page.locator('button:has-text("Reserve Seat")');
             if (await reserveBtn.count() > 0) {
                 await reserveBtn.click();
-                // Should navigate to checkout
                 await expect(page.locator('h1')).toContainText(/Checkout/);
                 await page.click('button:has-text("Confirm Purchase")');
-                // Should show success
                 await expect(page.locator('text=Purchase Successful')).toBeVisible({ timeout: 10000 });
             }
         }
@@ -95,7 +87,7 @@ test.describe('Purchase Flow', () => {
         });
 
         await page.goto('/events/evt_001/seats');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const seatBtn = page.locator('button.seat-btn.available').first();
         if (await seatBtn.count() > 0) {
@@ -111,14 +103,11 @@ test.describe('Purchase Flow', () => {
     });
 
     test('should handle INSUFFICIENT_CREDITS (402)', async ({ page, context }) => {
-        // Mock checkout page load (balance check)
         await page.route('**/credits/balance', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({
-                    data: { creditBalance: 10 }
-                })
+                body: JSON.stringify({ data: { creditBalance: 10 } })
             });
         });
 
@@ -132,7 +121,6 @@ test.describe('Purchase Flow', () => {
             });
         });
 
-        // Set up pending order via addInitScript
         await context.addInitScript(() => {
             localStorage.setItem('pendingOrder', JSON.stringify({
                 orderId: 'inv_001',
@@ -144,7 +132,7 @@ test.describe('Purchase Flow', () => {
         });
 
         await page.goto('/checkout/inv_001');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const confirmBtn = page.locator('button:has-text("Confirm Purchase")');
         if (await confirmBtn.count() > 0 && await confirmBtn.isEnabled()) {
@@ -166,7 +154,6 @@ test.describe('Purchase Flow', () => {
             });
         });
 
-        // Set up pending order via addInitScript
         await context.addInitScript(() => {
             localStorage.setItem('pendingOrder', JSON.stringify({
                 orderId: 'inv_001',
@@ -178,7 +165,7 @@ test.describe('Purchase Flow', () => {
         });
 
         await page.goto('/checkout/inv_001');
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
         const confirmBtn = page.locator('button:has-text("Confirm Purchase")');
         if (await confirmBtn.count() > 0 && await confirmBtn.isEnabled()) {

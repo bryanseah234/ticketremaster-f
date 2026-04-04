@@ -231,7 +231,7 @@ test.describe('Demo Mode & Mock Data', () => {
             await page.waitForURL(/\/events/, { timeout: 10000 });
 
             await page.goto('/venues');
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
             // Venues page h1 says "Explore venues powered by TicketRemaster"
             await expect(page.locator('h1')).toContainText(/Explore venues/);
 
@@ -245,7 +245,7 @@ test.describe('Demo Mode & Mock Data', () => {
             await page.waitForURL(/\/events/, { timeout: 10000 });
 
             await page.goto('/marketplace');
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
             // Marketplace h1 says "Discover Listings"
             await expect(page.locator('h1')).toContainText(/Discover Listings/);
 
