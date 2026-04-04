@@ -275,6 +275,7 @@ api.interceptors.response.use(
     // Detect backend unavailability and enable demo mode
     if (
       isNetworkError ||
+      status === 408 ||
       status === 502 ||
       status === 503 ||
       status === 504
