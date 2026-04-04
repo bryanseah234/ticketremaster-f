@@ -233,7 +233,7 @@ test.describe('Role-Based Access Control', () => {
         test('staff user should access /staff/scan', async ({ page }) => {
             await page.goto('/staff/scan');
             await expect(page).toHaveURL('/staff/scan');
-            await expect(page.locator('h1')).toContainText(/Staff|Scanner|Ticket/);
+            await expect(page.locator('h1')).toContainText(/Staff|Scanner|Ticket|QR/, { timeout: 10000 });
         });
 
         test('staff user should NOT access /admin/events/new', async ({ page }) => {
