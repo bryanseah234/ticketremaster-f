@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -9,102 +9,96 @@ import { isDemoMode } from '@/services/mockData'
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const { notifications, dismiss } = useSellerNotifications()
-const bellOpen = ref(false)
+const { notifications, checkNotifications } = useSellerNotifications()
+
 const balance = ref<number | null>(null)
 const balanceLoading = ref(false)
-const balanceError = ref(false)
 const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
 
 const items = computed(() => {
   if (auth.isStaff) {
     return [
-      { to: '/staff/scan', label: 'Scanner', key: 'scan' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: '/staff/scan', label: 'Scanner' },
+      { to: '/notifications', label: 'Notifications' },
+      { to: '/profile', label: 'Profile' },
     ]
   }
   if (auth.isAdmin) {
     return [
-      { to: '/', label: 'Home', key: 'home' },
-      { to: '/events', label: 'Events', key: 'events' },
-      { to: '/admin/events/new', label: 'Admin Tools', key: 'admin-events' },
-      { to: '/admin/users', label: 'User Management', key: 'admin-users' },
-      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: '/', label: 'Home' },
+      { to: '/events', label: 'Events' },
+      { to: '/help', label: 'Support' },
+      { to: '/notifications', label: 'Notifications' },
+      { to: '/admin/events/new', label: 'Create Event' },
+      { to: '/admin/events/demo/dashboard', label: 'Dashboard' },
+      { to: '/profile', label: 'Profile' },
     ]
   }
   if (auth.isLoggedIn) {
     return [
-      { to: '/', label: 'Home', key: 'home' },
-      { to: '/events', label: 'Events', key: 'events' },
-      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-      { to: '/tickets', label: 'My Tickets', key: 'tickets' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: '/', label: 'Home' },
+      { to: '/events', label: 'Events' },
+      { to: '/marketplace', label: 'Marketplace' },
+      { to: '/tickets', label: 'My Tickets' },
+      { to: '/notifications', label: 'Notifications' },
+      { to: '/profile', label: 'Profile' },
     ]
   }
   return [
-    { to: '/', label: 'Home', key: 'home' },
-    { to: '/events', label: 'Events', key: 'events' },
-    { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-    { to: '/login', label: 'Login', key: 'login' },
+    { to: '/', label: 'Home' },
+    { to: '/events', label: 'Events' },
+    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/help', label: 'Support' },
+    { to: '/login', label: 'Login' },
   ]
 })
 
 const fetchBalance = async () => {
   if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) {
     balance.value = null
-    balanceError.value = false
     return
   }
   balanceLoading.value = true
-  balanceError.value = false
   try {
     const { data } = await api.get('/credits/balance')
     const value = data?.data?.creditBalance ?? data?.creditBalance
     balance.value = typeof value === 'number' ? value : null
   } catch {
-    balanceError.value = true
+    balance.value = null
   } finally {
     balanceLoading.value = false
   }
 }
 
 const scheduleBalance = () => {
-  if (balanceTimer) window.clearTimeout(balanceTimer)
+  if (balanceTimer) clearTimeout(balanceTimer)
   balanceTimer = window.setTimeout(fetchBalance, 250)
 }
 
-watch(() => auth.isLoggedIn, (loggedIn, wasLoggedIn) => {
-  if (loggedIn && !wasLoggedIn) scheduleBalance()
-  if (!loggedIn) {
-    balance.value = null
-    balanceError.value = false
+const balanceLabel = computed(() => {
+  if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return null
+  if (balanceLoading.value) return 'Credits ...'
+  if (balance.value === null) return 'Credits --'
+  return `Credits $${balance.value}`
+})
+
+watch(() => auth.isLoggedIn, () => {
+  if (auth.isLoggedIn) {
+    scheduleBalance()
+    checkNotifications()
   }
 })
 
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false
-  if (auth.isLoggedIn) scheduleBalance()
 })
-
-const goToTransfer = (transferId: string) => {
-  dismiss(transferId)
-  bellOpen.value = false
-  router.push(`/transfer/${transferId}`)
-}
 
 onMounted(() => {
-  if (auth.isLoggedIn) scheduleBalance()
-})
-
-
-const balanceLabel = computed(() => {
-  if (!auth.isLoggedIn) return ''
-  if (balanceLoading.value) return 'Credits: ...'
-  if (balanceError.value) return 'Credits: --'
-  if (balance.value === null) return 'Credits: --'
-  return `Credits: $${balance.value}`
+  if (auth.isLoggedIn) {
+    scheduleBalance()
+    checkNotifications()
+  }
 })
 
 const logout = () => {
@@ -115,517 +109,211 @@ const logout = () => {
 
 <template>
   <header class="header">
-    <div class="inner" :class="{ 'inner-wide': auth.isAdmin }">
+    <div class="shell">
       <RouterLink to="/" class="brand">
         <img src="/logo.svg" alt="TicketRemaster logo" />
-        <span>TicketRemaster</span>
+        <div>
+          <strong>TicketRemaster</strong>
+          <span>Verified resale, elevated live experiences.</span>
+        </div>
       </RouterLink>
 
-      <!-- Desktop Navigation -->
-      <div class="right-cluster desktop-only">
-        <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
-
-        <!-- Notification Bell -->
-        <div v-if="auth.isLoggedIn" class="bell-wrap">
-          <button class="bell-btn" :class="{ 'bell-active': notifications.length }" @click="bellOpen = !bellOpen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span v-if="notifications.length" class="bell-badge">{{ notifications.length }}</span>
-          </button>
-          <Transition name="dropdown">
-            <div v-if="bellOpen" class="bell-dropdown">
-              <p v-if="!notifications.length" class="bell-empty">No pending requests</p>
-              <button
-                v-for="n in notifications"
-                :key="n.transferId"
-                class="bell-item"
-                @click="goToTransfer(n.transferId)"
-              >
-                <span class="bell-dot" />
-                <div>
-                  <p class="bell-title">Buyer wants your ticket</p>
-                  <p class="bell-sub">${{ n.creditAmount }} · {{ new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</p>
-                </div>
-              </button>
-            </div>
-          </Transition>
-        </div>
-
-        <span v-if="isDemoMode()" class="demo-pill">DEMO</span>
-        <nav>
-          <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn" class="nav-button" @click="logout">Logout</button>
-        </nav>
-      </div>
-
-      <!-- Mobile Menu Button -->
-      <button 
-        class="mobile-menu-btn mobile-only" 
-        :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
-        :class="{ active: mobileMenuOpen }"
-        @click="mobileMenuOpen = !mobileMenuOpen"
-      >
-        <span></span>
+      <button class="menu-toggle mobile-only" :class="{ active: mobileMenuOpen }" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle navigation">
         <span></span>
         <span></span>
       </button>
+
+      <div class="nav-cluster desktop-only">
+        <RouterLink v-if="balanceLabel" to="/credits/topup" class="credit-pill">{{ balanceLabel }}</RouterLink>
+        <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="notify-pill">
+          Notifications
+          <span v-if="notifications.length">{{ notifications.length }}</span>
+        </RouterLink>
+        <span v-if="isDemoMode()" class="badge">Demo</span>
+        <nav class="nav-list">
+          <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
+          <button v-if="auth.isLoggedIn" class="ghost nav-logout" @click="logout">Logout</button>
+        </nav>
+      </div>
     </div>
 
-    <!-- Mobile Navigation Menu -->
-    <nav v-if="mobileMenuOpen" class="mobile-menu">
-      <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-nav-link">{{ item.label }}</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
-      <button v-if="auth.isLoggedIn" class="mobile-nav-link" @click="logout">Logout</button>
+    <nav v-if="mobileMenuOpen" class="mobile-menu glass">
+      <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-link">{{ item.label }}</RouterLink>
+      <RouterLink v-if="balanceLabel" to="/credits/topup" class="mobile-link">{{ balanceLabel }}</RouterLink>
+      <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="mobile-link">
+        Notifications<span v-if="notifications.length"> ({{ notifications.length }})</span>
+      </RouterLink>
+      <button v-if="auth.isLoggedIn" class="ghost mobile-logout" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
 
 <style scoped>
 .header {
-  position: fixed;
-  top: 0.75rem;
-  left: 0;
-  right: 0;
+  position: sticky;
+  top: 0;
   z-index: 100;
-  pointer-events: none;
-  background: transparent;
-  backdrop-filter: none;
-  border: none;
+  padding: 0.9rem 0.75rem 0;
 }
 
-.inner {
-  pointer-events: auto;
-  max-width: 860px;
+.shell {
+  width: min(1240px, 100%);
   margin: 0 auto;
-  padding: 0.35rem 1.25rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--outlineSoft);
+  border-radius: var(--radius-pill);
+  background: rgba(60, 51, 49, 0.58);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: rgba(18, 18, 23, 0.75);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
-  position: relative;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  font-size: 0.95rem;
-  color: #fff;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.brand span {
-  background: linear-gradient(135deg, #fff 0%, #fbd4c2 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
 .brand img {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
 }
 
-.right-cluster {
+.brand strong {
+  display: block;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.brand span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--textMuted);
+}
+
+.nav-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
 }
 
-.nav-credit {
-  padding: 0.35rem 0.6rem;
+.credit-pill,
+.notify-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--outlineSoft);
+  background: rgba(60, 51, 49, 0.72);
+  color: var(--textMuted);
+  font-size: 0.82rem;
+}
+
+.notify-pill span {
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
   border-radius: 999px;
-  border: 1px solid rgba(251, 146, 60, 0.3);
-  color: #fed7aa;
-  font-weight: 700;
-  font-size: 0.85rem;
-  background: rgba(251, 146, 60, 0.08);
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.nav-credit:hover {
-  background: rgba(251, 146, 60, 0.15);
-  border-color: rgba(251, 146, 60, 0.5);
-}
-
-nav {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: flex-end;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  background: rgba(249, 115, 22, 0.18);
+  color: var(--primarySoft);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   flex-wrap: wrap;
 }
 
 .nav-link {
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.7);
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-pill);
+  color: var(--textMuted);
+  font-size: 0.88rem;
   font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-.nav-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .nav-link.router-link-active {
-  background: rgba(249, 115, 22, 0.9);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--primarySoft);
 }
 
-.nav-button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+.nav-logout {
+  padding-inline: 0.9rem;
 }
 
-.nav-button:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+.menu-toggle {
+  display: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-left: auto;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--outlineSoft);
+  background: rgba(60, 51, 49, 0.72);
+  position: relative;
 }
 
-/* Utility classes */
+.menu-toggle span {
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  height: 2px;
+  background: var(--text);
+}
+
+.menu-toggle span:first-child {
+  top: 1rem;
+}
+
+.menu-toggle span:last-child {
+  top: 1.5rem;
+}
+
+.mobile-menu {
+  width: min(1240px, calc(100% - 1.5rem));
+  margin: 0.6rem auto 0;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mobile-link,
+.mobile-logout {
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+}
+
 .desktop-only {
-  display: flex !important;
+  display: flex;
 }
 
 .mobile-only {
-  display: none !important;
-}
-
-/* Mobile Menu Button */
-.mobile-menu-btn {
   display: none;
-  flex-direction: column;
-  gap: 0.375rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  margin-left: auto;
-  z-index: 1001;
 }
 
-.mobile-menu-btn span {
-  display: block;
-  width: 24px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 1px;
-  transition: all 0.3s ease;
-}
-
-.mobile-menu-btn.active span:nth-child(1) {
-  transform: rotate(45deg) translate(8px, 8px);
-}
-
-.mobile-menu-btn.active span:nth-child(2) {
-  opacity: 0;
-}
-
-.mobile-menu-btn.active span:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -7px);
-}
-
-/* Mobile Menu */
-.mobile-menu {
-  position: absolute;
-  top: calc(100% + 0.65rem);
-  right: 0;
-  background: rgba(18, 18, 23, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  display: none;
-  flex-direction: column;
-  padding: 0.5rem 0;
-  pointer-events: auto;
-  min-width: 200px;
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-.mobile-nav-link {
-  padding: 0.6rem 1.25rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  text-decoration: none;
-  display: block;
-  width: 100%;
-}
-
-.mobile-nav-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.mobile-nav-link.router-link-active {
-  background: rgba(249, 115, 22, 0.9);
-  color: #fff;
-}
-
-.mobile-credit {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  color: #fed7aa;
-}
-
-/* Bell */
-.bell-wrap {
-  position: relative;
-}
-
-.bell-btn {
-  position: relative;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 999px;
-  padding: .35rem .45rem;
-  cursor: pointer;
-  color: rgba(255,255,255,.7);
-  display: flex;
-  align-items: center;
-  transition: background .15s;
-}
-.bell-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
-.bell-btn.bell-active { color: #fb923c; border-color: rgba(251,146,60,.4); }
-
-.bell-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #ef4444;
-  color: #fff;
-  font-size: .6rem;
-  font-weight: 700;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 3px;
-}
-
-.bell-dropdown {
-  position: absolute;
-  top: calc(100% + .6rem);
-  right: 0;
-  background: rgba(18,18,23,.97);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: .75rem;
-  min-width: 240px;
-  padding: .4rem 0;
-  box-shadow: 0 16px 40px rgba(0,0,0,.5);
-  z-index: 200;
-}
-
-.bell-empty {
-  padding: .6rem 1rem;
-  font-size: .82rem;
-  color: rgba(255,255,255,.4);
-}
-
-.bell-item {
-  width: 100%;
-  background: none;
-  border: none;
-  padding: .6rem 1rem;
-  display: flex;
-  align-items: flex-start;
-  gap: .6rem;
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s;
-}
-.bell-item:hover { background: rgba(255,255,255,.06); }
-
-.bell-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fb923c;
-  flex-shrink: 0;
-  margin-top: .3rem;
-}
-
-.bell-title {
-  font-size: .84rem;
-  font-weight: 600;
-  color: #fff;
-  margin: 0;
-}
-
-.bell-sub {
-  font-size: .74rem;
-  color: rgba(255,255,255,.45);
-  margin: .1rem 0 0;
-}
-
-.dropdown-enter-active, .dropdown-leave-active { transition: opacity .15s, transform .15s; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
-
-.demo-pill {
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  border: 1px solid rgba(249, 115, 22, 0.4);
-  background: rgba(249, 115, 22, 0.1);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-
-/* Desktop breakpoint - 1025px and above */
-@media (min-width: 1025px) {
-  /* Show all desktop navigation */
-  .nav-link {
-    display: inline-block;
-  }
-  
+@media (max-width: 1080px) {
   .desktop-only {
-    display: flex !important;
-  }
-  
-  .mobile-only {
-    display: none !important;
-  }
-  
-  .mobile-menu {
-    display: none !important;
-  }
-  
-  .inner {
-    max-width: 860px;
+    display: none;
   }
 
-  .inner.inner-wide {
-    max-width: 1080px;
-  }
-}
-
-/* Below desktop - show hamburger menu */
-@media (max-width: 1024px) {
-  /* Hide desktop navigation */
-  .desktop-only {
-    display: none !important;
-  }
-  
-  /* Show mobile hamburger and dropdown */
   .mobile-only {
-    display: flex !important;
+    display: inline-flex;
   }
-  
-  .mobile-menu {
-    display: flex;
-  }
-  
-  .nav-link {
-    display: none !important;
-  }
-  
-  .inner {
-    max-width: 90%;
-  }
-  
+
   .brand span {
-    display: inline;
-  }
-}
-
-@media (max-width: 640px) {
-  .inner {
-    padding: 0.3rem 0.6rem;
-    width: calc(100% - 1.2rem);
-    margin: 0.75rem 0.6rem;
-  }
-  
-  .brand {
-    font-size: 0.85rem;
-    gap: 0.3rem;
-  }
-  
-  .brand img {
-    width: 20px;
-    height: 20px;
-  }
-  
-  .mobile-menu {
-    max-width: calc(100vw - 1.2rem);
-  }
-  
-  .mobile-nav-link {
-    padding: 0.55rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .mobile-menu-btn {
-    padding: 0.35rem;
-  }
-  
-  .mobile-menu-btn span {
-    width: 20px;
-    height: 2px;
-  }
-}
-
-@media (max-width: 480px) {
-  .inner {
-    padding: 0.25rem 0.5rem;
-    width: calc(100% - 1rem);
-    margin: 0.75rem 0.5rem;
-  }
-  
-  .brand {
-    font-size: 0.8rem;
-    gap: 0.25rem;
-  }
-  
-  .brand img {
-    width: 18px;
-    height: 18px;
-  }
-  
-  .mobile-menu {
-    max-width: calc(100vw - 1rem);
-  }
-  
-  .mobile-nav-link {
-    padding: 0.5rem 0.9rem;
-    font-size: 0.85rem;
+    display: none;
   }
 }
 </style>

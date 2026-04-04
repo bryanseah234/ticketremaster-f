@@ -6,179 +6,99 @@ const year = new Date().getFullYear()
 
 <template>
   <footer class="footer">
-    <div class="inner">
-      <section class="brand">
-        <div class="logo-line">
-          <img src="/logo.svg" alt="TicketRemaster logo" />
-          <h3>TicketRemaster</h3>
-        </div>
-        <p class="tagline">Buy smarter, Sell safer, Experience more live moments</p>
-        <div class="copy">© {{ year }} TicketRemaster. All rights reserved.</div>
-      </section>
+    <div class="footer-shell">
+      <div class="brand-block">
+        <span class="badge">TicketRemaster</span>
+        <h2>Premium ticketing with verified resale built in.</h2>
+        <p class="small muted">Buy smarter, sell safer, and move through live-event journeys with confidence.</p>
+      </div>
 
-      <section class="links">
-        <div class="column">
-          <div class="group">
-            <h4>Company</h4>
-            <RouterLink to="/about">About Us</RouterLink>
-            <RouterLink to="/careers">Careers</RouterLink>
-          </div>
-          <div class="group">
-            <h4>Product</h4>
-            <RouterLink to="/events">Buy Tickets</RouterLink>
-            <RouterLink to="/marketplace">Sell Tickets</RouterLink>
-            <RouterLink to="/venues">Venues</RouterLink>
-          </div>
+      <div class="link-grid">
+        <div class="link-column">
+          <strong>Explore</strong>
+          <RouterLink to="/events">Events</RouterLink>
+          <RouterLink to="/marketplace">Marketplace</RouterLink>
+          <RouterLink to="/help">Support</RouterLink>
         </div>
-        <div class="column">
-          <div class="group">
-            <h4>Legal</h4>
-            <RouterLink to="/terms">Terms</RouterLink>
-            <RouterLink to="/privacy">Privacy</RouterLink>
-          </div>
-          <div class="group">
-            <h4>Resources</h4>
-            <RouterLink to="/help">Help Center</RouterLink>
-            <RouterLink to="/resale-guarantees">Resale Guarantees</RouterLink>
-          </div>
+        <div class="link-column">
+          <strong>Account</strong>
+          <RouterLink to="/login">Login</RouterLink>
+          <RouterLink to="/register">Register</RouterLink>
+          <RouterLink to="/profile">Profile</RouterLink>
         </div>
-      </section>
+        <div class="link-column">
+          <strong>Company</strong>
+          <RouterLink to="/about">About</RouterLink>
+          <RouterLink to="/privacy">Privacy</RouterLink>
+          <RouterLink to="/terms">Terms</RouterLink>
+        </div>
+      </div>
     </div>
+    <div class="footer-meta">© {{ year }} TicketRemaster. All rights reserved.</div>
   </footer>
 </template>
 
 <style scoped>
 .footer {
-  /* padding: 3rem 2rem; */
-  background: #0b0b0e;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--outlineSoft);
+  margin-top: 4rem;
+  padding: 2.5rem 1rem 1.5rem;
+  background: rgba(19, 13, 11, 0.9);
 }
 
-.inner {
-  padding: 5em;
-  width: 100%;
-  max-width: 1200px;
+.footer-shell {
+  width: min(1180px, 100%);
   margin: 0 auto;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 3rem;
-  text-align: center;
-  justify-content: center;
-}
-
-.brand {
-  
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items:center;
-  text-align: center;
-
-}
-
-.logo-line {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  justify-content: center;
-}
-
-.logo-line img {
-  width: 28px;
-  height: 28px;
-}
-
-h3,
-h4 {
-  margin: 0;
-}
-
-h3 {
-  font-size: 1.5rem;
-  color: var(--accent);
-  font-weight: 800;
-}
-
-h4 {
-  color: #fff;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 0.875rem;
-}
-
-p,
-a {
-  color: var(--muted);
-  font-size: 0.925rem;
-}
-
-a {
-  display: inline-block;
-  margin: 0.5rem 0.75rem;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-a:hover {
-  color: #fff;
-}
-
-.links {
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-  flex-wrap: nowrap;
-  width: 100%;
-}
-
-.column {
-  display: flex;
-  gap: 2rem;
-  min-width: 140px;
-  justify-content: center;
-}
-
-.group {
   display: grid;
-  gap: 0.25rem;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 2rem;
 }
 
-.copy {
-  text-align: center;
-  margin-top: 0.5rem;
-  color: var(--muted);
+.brand-block {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.brand-block h2 {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 1.55rem;
+  line-height: 1.2;
+}
+
+.link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.link-column {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.link-column strong {
+  color: var(--text);
   font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 1024px) {
-  .inner {
-    flex-direction: column;
-    align-items: center;
-    gap: 1.6rem;
-  }
-
-  .links {
-    gap: 1.2rem;
-  }
+.link-column a {
+  color: var(--textMuted);
+  font-size: 0.92rem;
 }
 
-@media (max-width: 640px) {
-  .inner {
-    gap: 1.2rem;
-  }
+.footer-meta {
+  width: min(1180px, 100%);
+  margin: 1.5rem auto 0;
+  color: var(--textMuted);
+  font-size: 0.82rem;
+}
 
-  .links {
-    gap: 1rem;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+@media (max-width: 860px) {
+  .footer-shell,
+  .link-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

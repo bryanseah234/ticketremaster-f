@@ -10,7 +10,6 @@ const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 
-/* ── State ─────────────────────────────────────────────────────────────── */
 interface Seat {
   inventoryId: string
   seatId: string
@@ -34,44 +33,37 @@ const holdDisplay = computed(() => {
 })
 
 const totalAvailable = computed(() => {
-  let n = 0
-  rows.value.forEach(seats => seats.forEach(s => { if (s.status === 'AVAILABLE') n++ }))
-  return n
+  let count = 0
+  rows.value.forEach(seats => seats.forEach(seat => { if (seat.status === 'AVAILABLE') count++ }))
+  return count
 })
 
-/* ── Load ──────────────────────────────────────────────────────────────── */
 const loadSeats = async () => {
   loading.value = true
-  toast.push('Loading seat map…', 'info', 1600)
   try {
-    const eventId = route.params.eventId as string
-
-    // Single enriched call — event-orchestrator now joins inventory + seat metadata server-side
-    const { data } = await api.get(`/events/${eventId}/seats`)
+    const { data } = await api.get(`/events/${route.params.eventId}/seats`)
     const rawSeats: any[] = data?.data?.seats || []
-
     const rowMap = new Map<string, Seat[]>()
     for (const s of rawSeats) {
       const row = s.rowNumber ?? 'GA'
       const merged: Seat = {
         inventoryId: s.inventoryId,
-        seatId:      s.seatId,
-        rowNumber:   row,
-        seatNumber:  s.seatNumber ?? s.inventoryId.slice(-4),
-        status:      (s.status ?? 'available').toUpperCase() as Seat['status'],
-        heldUntil:   s.heldUntil,
+        seatId: s.seatId,
+        rowNumber: row,
+        seatNumber: s.seatNumber ?? s.inventoryId.slice(-4),
+        status: (s.status ?? 'available').toUpperCase() as Seat['status'],
+        heldUntil: s.heldUntil,
       }
       if (!rowMap.has(row)) rowMap.set(row, [])
       rowMap.get(row)!.push(merged)
     }
-
     rows.value = new Map(
       [...rowMap.entries()]
         .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-        .map(([r, seats]) => [
-          r,
+        .map(([row, seats]) => [
+          row,
           seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
-        ])
+        ]),
     )
   } catch (e) {
     console.error(e)
@@ -81,7 +73,6 @@ const loadSeats = async () => {
   }
 }
 
-/* ── Reserve ───────────────────────────────────────────────────────────── */
 const reserveSeat = async () => {
   if (!selectedSeat.value || !auth.state.user) return
   try {
@@ -92,7 +83,9 @@ const reserveSeat = async () => {
       ? Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
       : 300
     if (timer) clearInterval(timer)
-    timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
+    timer = window.setInterval(() => {
+      holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+    }, 1000)
     orderId.value = data?.data?.inventoryId || inventoryId
     localStorage.setItem('pendingOrder', JSON.stringify({
       orderId: orderId.value,
@@ -106,55 +99,54 @@ const reserveSeat = async () => {
         price: 0,
       },
     }))
-    toast.push('Seat held! You have 5 minutes to complete checkout.', 'success', 3200)
+    toast.push('Seat held. You have 5 minutes to finish checkout.', 'success', 3200)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code
     const status = e?.response?.status
-    const msg = code === 'SEAT_UNAVAILABLE' || status === 409 ? 'Seat is no longer available.' :
-      code === 'EVENT_ENDED' || status === 410 ? 'Event has ended.' :
-      'Unable to reserve seat.'
-    toast.push(msg, 'error', 3200)
+    const message = code === 'SEAT_UNAVAILABLE' || status === 409
+      ? 'Seat is no longer available.'
+      : code === 'EVENT_ENDED' || status === 410
+        ? 'Event has ended.'
+        : 'Unable to reserve seat.'
+    toast.push(message, 'error', 3200)
   }
 }
 
 onMounted(loadSeats)
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>
-  <section class="page">
-    <h1 class="section-title">Seat Selection</h1>
-    <p class="section-subtitle">Choose an available seat to reserve it for 5 minutes.</p>
-
-    <!-- Legend -->
-    <div class="legend">
-      <span class="dot available"></span> Available ({{ totalAvailable }})
-      <span class="dot held"></span> Held
-      <span class="dot sold"></span> Sold
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading seat map…</p>
-    </div>
-
-    <!-- Seat map -->
-    <article v-else class="glass seat-map">
-      <!-- Stage indicator -->
-      <div class="stage">
-        <span>STAGE</span>
+  <section class="page seat-page">
+    <div class="seat-header">
+      <div>
+        <span class="badge">Seat Selection</span>
+        <h1 class="section-title">Choose your spot before someone else does.</h1>
+        <p class="section-subtitle">Reserve an available seat for five minutes, then continue into checkout.</p>
       </div>
+      <div class="seat-legend">
+        <span><i class="dot available"></i>Available</span>
+        <span><i class="dot held"></i>Held</span>
+        <span><i class="dot sold"></i>Sold</span>
+      </div>
+    </div>
 
-      <div v-if="rows.size === 0" class="empty-state">No seats available for this event.</div>
+    <article class="glass stage-card">
+      <div class="stage">Stage</div>
+      <p class="small muted">{{ totalAvailable }} seats currently available</p>
+    </article>
 
+    <article class="glass map-card" v-if="!loading">
+      <div v-if="rows.size === 0" class="empty-map">No seats available for this event.</div>
       <div v-for="[rowLabel, seats] in rows" :key="rowLabel" class="seat-row">
         <span class="row-label">{{ rowLabel }}</span>
-        <div class="seats">
+        <div class="seat-track">
           <button
             v-for="seat in seats"
             :key="seat.inventoryId"
-            class="seat-btn"
+            class="seat"
             :class="{
               available: seat.status === 'AVAILABLE',
               held: seat.status === 'HELD',
@@ -162,7 +154,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
               selected: selectedSeat?.inventoryId === seat.inventoryId
             }"
             :disabled="seat.status !== 'AVAILABLE'"
-            :title="`Row ${seat.rowNumber} · Seat ${seat.seatNumber} · ${seat.status}`"
             @click="selectedSeat = seat"
           >
             {{ seat.seatNumber }}
@@ -171,183 +162,73 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
       </div>
     </article>
 
-    <!-- Action bar -->
-    <article class="glass action-bar">
-      <div class="selection-info">
-        <template v-if="selectedSeat">
-          <span class="badge">Row {{ selectedSeat.rowNumber }}, Seat {{ selectedSeat.seatNumber }}</span>
-          <span v-if="holdSeconds > 0" class="badge warning">⏱ {{ holdDisplay }} remaining</span>
-        </template>
-        <span v-else class="muted">No seat selected</span>
+    <article v-else class="glass map-card loading-card">
+      <p class="small muted">Loading seat map...</p>
+    </article>
+
+    <article class="glass reserve-card">
+      <div class="reserve-copy">
+        <span class="badge" v-if="selectedSeat">Row {{ selectedSeat.rowNumber }} · Seat {{ selectedSeat.seatNumber }}</span>
+        <p v-else class="small muted">Select a seat to reserve it.</p>
+        <p v-if="holdSeconds > 0" class="small status-warning">Held for {{ holdDisplay }}</p>
       </div>
-      <div class="actions">
+      <div class="reserve-actions">
         <button :disabled="!selectedSeat || holdSeconds > 0" @click="reserveSeat">
-          {{ holdSeconds > 0 ? 'Seat Reserved ✓' : 'Reserve Seat' }}
+          {{ holdSeconds > 0 ? 'Seat Reserved' : 'Reserve Seat' }}
         </button>
-        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">
-          Proceed to Checkout →
-        </button>
+        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">Proceed to Checkout</button>
       </div>
     </article>
   </section>
 </template>
 
 <style scoped>
-.legend {
+.seat-page { display: grid; gap: 1rem; }
+.seat-header, .seat-legend, .reserve-card {
   display: flex;
-  align-items: center;
-  gap: 1.2rem;
-  margin-bottom: 1rem;
-  font-size: .85rem;
-  color: var(--text-muted, #a1a1aa);
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
-.dot {
-  display: inline-block;
-  width: .75rem;
-  height: .75rem;
-  border-radius: 50%;
-  margin-right: .3rem;
-}
-.dot.available { background: #22c55e; }
-.dot.held      { background: #f59e0b; }
-.dot.sold      { background: #52525b; }
-
-/* Stage */
+.seat-legend { align-items: center; color: var(--textMuted); font-size: 0.85rem; }
+.seat-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; display: inline-block; }
+.dot.available { background: var(--success); }
+.dot.held { background: var(--warning); }
+.dot.sold { background: var(--disabled); }
+.stage-card, .map-card, .reserve-card { padding: 1.25rem; }
 .stage {
+  width: min(420px, 100%);
+  margin: 0 auto 0.6rem;
+  padding: 0.7rem;
   text-align: center;
-  margin-bottom: 1.5rem;
-  padding: .4rem 2rem;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent);
-  border-radius: .4rem;
-  font-size: .75rem;
-  letter-spacing: .2em;
-  color: #a1a1aa;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, transparent, rgba(249,115,22,.16), transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--primarySoft);
 }
-
-/* Map container */
-.seat-map {
-  padding: 1.5rem 1rem;
-  overflow-x: auto;
-  display: flex;
-  flex-direction: column;
-  gap: .45rem;
-  max-height: 65vh;
-  overflow-y: auto;
-}
-
-/* Row */
-.seat-row {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.row-label {
-  width: 2rem;
-  text-align: center;
-  font-size: .72rem;
-  font-weight: 600;
-  color: #71717a;
-  flex-shrink: 0;
-}
-.seats {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: .25rem;
-}
-
-/* Seat button */
-.seat-btn {
-  width: 2rem;
-  height: 2rem;
-  border-radius: .3rem;
-  border: 1px solid transparent;
-  font-size: .65rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
-  flex-shrink: 0;
+.map-card { display: grid; gap: 0.7rem; overflow-x: auto; }
+.seat-row { display: flex; align-items: center; gap: 0.7rem; }
+.row-label { width: 2rem; color: var(--textMuted); text-align: center; font-size: 0.8rem; font-weight: 700; }
+.seat-track { display: flex; gap: 0.35rem; min-width: max-content; }
+.seat {
+  width: 2.2rem;
+  height: 2.2rem;
   padding: 0;
+  border-radius: 0.7rem;
   display: grid;
   place-items: center;
+  font-size: 0.7rem;
+  background: rgba(60,51,49,.72);
+  color: var(--text);
 }
-.seat-btn.available {
-  background: rgba(34,197,94,.18);
-  border-color: #22c55e;
-  color: #86efac;
-}
-.seat-btn.available:hover {
-  background: rgba(34,197,94,.35);
-  transform: scale(1.15);
-}
-.seat-btn.held {
-  background: rgba(245,158,11,.14);
-  border-color: #f59e0b;
-  color: #fcd34d;
-  cursor: not-allowed;
-}
-.seat-btn.sold {
-  background: rgba(82,82,91,.2);
-  border-color: #3f3f46;
-  color: #52525b;
-  cursor: not-allowed;
-}
-.seat-btn.selected {
-  background: rgba(249,115,22,.35) !important;
-  border-color: #f97316 !important;
-  color: #fed7aa !important;
-  box-shadow: 0 0 0 2px #f97316;
-  transform: scale(1.2);
-}
-
-/* Action bar */
-.action-bar {
-  margin-top: 1rem;
-  padding: .9rem 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.selection-info {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  flex-wrap: wrap;
-}
-.actions {
-  display: flex;
-  gap: .6rem;
-}
-.badge.warning {
-  background: rgba(245,158,11,.2);
-  border-color: #f59e0b;
-  color: #fcd34d;
-}
-.muted { color: #71717a; font-size: .9rem; }
-
-/* Loading */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3rem;
-  gap: 1rem;
-  color: #a1a1aa;
-}
-.spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 3px solid rgba(255,255,255,.1);
-  border-top-color: #f97316;
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: #71717a;
-}
+.seat.available { border-color: rgba(82,209,140,.35); background: rgba(82,209,140,.16); color: #d7ffe7; }
+.seat.held { border-color: rgba(255,176,32,.34); background: rgba(255,176,32,.14); color: #ffe2a5; }
+.seat.sold { border-color: rgba(109,93,87,.4); background: rgba(109,93,87,.22); color: #bca9a0; }
+.seat.selected { border-color: rgba(249,115,22,.55); background: rgba(249,115,22,.22); color: var(--primarySoft); }
+.reserve-copy { display: grid; gap: 0.45rem; }
+.reserve-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.empty-map, .loading-card { text-align: center; }
 </style>

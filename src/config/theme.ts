@@ -1,73 +1,93 @@
-export interface ThemeColors {
+export interface ThemePalette {
+  background: string
+  surface: string
+  surfaceLow: string
+  surfaceHigh: string
+  surfaceHighest: string
+  surfaceVariant: string
+  text: string
+  textMuted: string
   primary: string
+  primarySoft: string
   secondary: string
-  accent: string
+  tertiary: string
   success: string
   warning: string
   error: string
-  info: string
-  light: string
-  dark: string
+  outline: string
+  outlineSoft: string
 }
 
 export interface ThemeConfig {
-  colors: ThemeColors
-  shadows: {
-    sm: string
-    md: string
-    lg: string
-    xl: string
-  }
-  borderRadius: {
-    sm: string
-    md: string
-    lg: string
-    xl: string
-  }
+  palette: ThemePalette
+  colors: Record<string, string>
+  shadows: Record<string, string>
+  radii: Record<string, string>
 }
 
 const theme: ThemeConfig = {
+  palette: {
+    background: '#191210',
+    surface: '#211a18',
+    surfaceLow: '#261e1c',
+    surfaceHigh: '#302826',
+    surfaceHighest: '#3c3331',
+    surfaceVariant: 'rgba(60, 51, 49, 0.68)',
+    text: '#eedfdc',
+    textMuted: '#c9b2a7',
+    primary: '#f97316',
+    primarySoft: '#ffb690',
+    secondary: '#e8a75c',
+    tertiary: '#ffb800',
+    success: '#52d18c',
+    warning: '#ffb020',
+    error: '#ff8c7a',
+    outline: '#a78b7d',
+    outlineSoft: 'rgba(88, 66, 55, 0.25)',
+  },
   colors: {
-    primary: '#6366f1',
-    secondary: '#64748b',
-    accent: '#f59e0b',
-    success: '#22c55e',
-    warning: '#f59e0b',
-    error: '#ef4444',
-    info: '#3b82f6',
-    light: '#f8fafc',
-    dark: '#0f172a',
+    primary: '#f97316',
+    secondary: '#e8a75c',
+    tertiary: '#ffb800',
+    background: '#191210',
+    surface: '#211a18',
+    surfaceLow: '#261e1c',
+    surfaceHigh: '#302826',
+    surfaceHighest: '#3c3331',
+    text: '#eedfdc',
+    textMuted: '#c9b2a7',
+    success: '#52d18c',
+    warning: '#ffb020',
+    error: '#ff8c7a',
+    outline: '#a78b7d',
   },
   shadows: {
-    sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-    md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-    lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-    xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+    sm: '0 12px 24px rgba(0, 0, 0, 0.22)',
+    md: '0 20px 40px rgba(0, 0, 0, 0.32)',
+    lg: '0 28px 56px rgba(0, 0, 0, 0.38)',
+    xl: '0 36px 72px rgba(0, 0, 0, 0.44)',
   },
-  borderRadius: {
-    sm: '0.125rem',
-    md: '0.375rem',
-    lg: '0.5rem',
-    xl: '0.75rem',
+  radii: {
+    sm: '0.75rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    pill: '999px',
   },
 }
 
 export function applyThemeVariables(): void {
   const root = document.documentElement
-  const { colors, shadows, borderRadius } = theme
 
-  // Apply colors
-  Object.entries(colors).forEach(([key, value]) => {
-    root.style.setProperty(`--color-${key}`, value)
+  Object.entries(theme.palette).forEach(([key, value]) => {
+    root.style.setProperty(`--${key}`, value)
   })
 
-  // Apply shadows
-  Object.entries(shadows).forEach(([key, value]) => {
+  Object.entries(theme.shadows).forEach(([key, value]) => {
     root.style.setProperty(`--shadow-${key}`, value)
   })
 
-  // Apply border radius
-  Object.entries(borderRadius).forEach(([key, value]) => {
+  Object.entries(theme.radii).forEach(([key, value]) => {
     root.style.setProperty(`--radius-${key}`, value)
   })
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CalendarDays, MapPin, Tag, Users, ArrowRight } from 'lucide-vue-next'
 import api from '@/api/client'
 import { isDemoMode, mockServices } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
@@ -56,14 +55,8 @@ const load = async () => {
   notFound.value = false
   try {
     const eventId = route.params.eventId as string
-
     if (isDemoMode()) {
-      try {
-        const raw = await mockServices.getEvent(eventId)
-        eventData.value = raw
-      } catch {
-        notFound.value = true
-      }
+      eventData.value = await mockServices.getEvent(eventId)
     } else {
       const { data } = await api.get(`/events/${eventId}`)
       const raw = data?.data
@@ -81,16 +74,13 @@ const load = async () => {
       const cached = localStorage.getItem(cacheKey())
       if (cached) {
         eventData.value = JSON.parse(cached)
-        toast.push('Offline mode: showing cached event details.', 'info', 3200)
+        toast.push('Showing cached event details.', 'info', 3200)
       } else {
         try {
-          const eventId = route.params.eventId as string
-          const raw = await mockServices.getEvent(eventId)
-          eventData.value = raw
+          eventData.value = await mockServices.getEvent(route.params.eventId as string)
           toast.push('Backend unavailable. Showing demo event.', 'info', 3200)
         } catch {
           notFound.value = true
-          toast.push('Could not load event details.', 'error', 3200)
         }
       }
     }
@@ -99,249 +89,126 @@ const load = async () => {
   }
 }
 
-const goToSeats = () => {
-  router.push(`/events/${route.params.eventId}/seats`)
-}
+const goToSeats = () => router.push(`/events/${route.params.eventId}/seats`)
 
 onMounted(load)
 </script>
 
 <template>
-  <section class="page event-detail-page">
-
-    <!-- Not found -->
-    <article v-if="notFound" class="glass not-found">
-      <Tag :size="40" class="not-found-icon" />
-      <h2>Event not found</h2>
-      <p class="small">This event may have been removed or the link is incorrect.</p>
-      <button class="secondary" @click="$router.push('/events')">Browse Events</button>
+  <section class="page event-page">
+    <article v-if="notFound" class="glass fallback-card">
+      <span class="badge">Unavailable</span>
+      <h1 class="section-title">We couldn’t find that event.</h1>
+      <p class="section-subtitle">The event may have been removed, sold out, or the link may be outdated.</p>
+      <button class="secondary" @click="$router.push('/events')">Back to Events</button>
     </article>
 
-    <!-- Loading skeleton -->
     <template v-else-if="loading">
-      <div class="hero-skeleton" />
-      <div class="detail-body">
-        <div class="skeleton-line wide" />
-        <div class="skeleton-line medium" />
-        <div class="skeleton-line narrow" />
-      </div>
+      <div class="hero-skeleton"></div>
+      <article class="glass info-skeleton">
+        <div class="line wide"></div>
+        <div class="line mid"></div>
+        <div class="line short"></div>
+      </article>
     </template>
 
-    <!-- Event detail -->
     <template v-else-if="eventData">
-      <!-- Hero image -->
-      <div class="hero-wrap">
-        <img
-          v-if="eventData.image"
-          :src="eventData.image"
-          :alt="eventData.name"
-          class="hero-img"
-        />
-        <div v-else class="hero-placeholder">
-          <Tag :size="48" />
+      <article class="detail-hero">
+        <div class="hero-image-wrap">
+          <img v-if="eventData.image" :src="eventData.image" :alt="eventData.name" class="hero-image" />
+          <div v-else class="hero-image placeholder"></div>
+          <div class="hero-glow"></div>
+          <div class="hero-content">
+            <div class="hero-tags">
+              <span class="badge">Event Details</span>
+              <StatusBadge :label="eventData.type" />
+            </div>
+            <h1 class="section-title">{{ eventData.name }}</h1>
+            <p class="hero-meta">{{ formatDate(eventData.date) }}</p>
+            <p v-if="eventData.venue?.name" class="hero-meta">
+              {{ eventData.venue.name }}<span v-if="eventData.venue.address"> · {{ eventData.venue.address }}</span>
+            </p>
+          </div>
         </div>
-        <div class="hero-overlay" />
-        <div class="hero-badge">
-          <StatusBadge :label="eventData.type" />
-        </div>
-      </div>
+      </article>
 
-      <!-- Detail body -->
-      <div class="detail-body glass">
-        <h1 class="event-name">{{ eventData.name }}</h1>
+      <div class="detail-grid">
+        <article class="glass copy-card">
+          <span class="badge">About this event</span>
+          <p class="body-copy">{{ eventData.description || 'Premium live experiences with verified ticketing, protected resale, and smooth entry-day flows.' }}</p>
+        </article>
 
-        <div class="meta-row">
-          <span class="meta-item">
-            <CalendarDays :size="15" />
-            {{ formatDate(eventData.date) }}
-          </span>
-          <span v-if="eventData.venue?.name" class="meta-item">
-            <MapPin :size="15" />
-            {{ eventData.venue.name }}
-            <span v-if="eventData.venue.address" class="meta-address">· {{ eventData.venue.address }}</span>
-          </span>
-          <span v-if="eventData.seatsAvailable !== undefined" class="meta-item">
-            <Users :size="15" />
-            {{ eventData.seatsAvailable }} seats available
-          </span>
-        </div>
-
-        <p v-if="eventData.description" class="description">{{ eventData.description }}</p>
-
-        <div class="price-row">
-          <span class="price-label">From</span>
-          <span class="price-value">SGD {{ eventData.price.toFixed(2) }}</span>
-        </div>
-
-        <button class="select-seats-btn" @click="goToSeats">
-          Select Seats
-          <ArrowRight :size="16" />
-        </button>
+        <article class="glass booking-card">
+          <span class="badge">Booking</span>
+          <div class="metric">
+            <small>Starting from</small>
+            <strong>SGD {{ eventData.price.toFixed(2) }}</strong>
+          </div>
+          <div class="metric" v-if="eventData.seatsAvailable !== undefined">
+            <small>Seats available</small>
+            <strong>{{ eventData.seatsAvailable }}</strong>
+          </div>
+          <button @click="goToSeats">Select Seats</button>
+        </article>
       </div>
     </template>
-
   </section>
 </template>
 
 <style scoped>
-.event-detail-page {
-  max-width: 860px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-/* Not found */
-.not-found {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 3rem 2rem;
-  text-align: center;
-}
-.not-found-icon { color: var(--muted); }
-.not-found h2 { font-size: 1.4rem; }
-.not-found p { color: var(--muted); }
-
-/* Hero */
-.hero-wrap {
+.event-page { display: grid; gap: 1.25rem; }
+.detail-hero { position: relative; }
+.hero-image-wrap {
   position: relative;
-  width: 100%;
-  aspect-ratio: 21 / 9;
+  min-height: 440px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  border-radius: 1rem 1rem 0 0;
-  background: var(--surface-2);
+  background: var(--surfaceLow);
 }
-
-.hero-img {
+.hero-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  min-height: 440px;
 }
-
-.hero-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  background: var(--surface-2);
-}
-
-.hero-overlay {
+.hero-image.placeholder { background: linear-gradient(135deg, rgba(249,115,22,.12), rgba(232,167,92,.08)); }
+.hero-glow {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%);
-  pointer-events: none;
+  background: linear-gradient(180deg, rgba(25,18,16,.12) 0%, rgba(25,18,16,.86) 84%);
 }
-
-.hero-badge {
+.hero-content {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.8rem;
 }
-
-/* Skeleton */
+.hero-tags { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.hero-meta { color: var(--textMuted); }
+.detail-grid { display: grid; grid-template-columns: 1.5fr 0.9fr; gap: 1rem; }
+.copy-card, .booking-card, .fallback-card, .info-skeleton {
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.9rem;
+}
+.body-copy { line-height: 1.8; color: var(--textMuted); }
+.metric { display: grid; gap: 0.2rem; }
+.metric small { color: var(--textMuted); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric strong { font-family: "Plus Jakarta Sans", Inter, sans-serif; font-size: 1.75rem; color: var(--primarySoft); }
 .hero-skeleton {
-  width: 100%;
-  aspect-ratio: 21 / 9;
-  border-radius: 1rem 1rem 0 0;
-  background: var(--surface-2);
-  animation: shimmer 1.4s infinite;
+  min-height: 440px;
+  border-radius: var(--radius-xl);
+  background: rgba(60,51,49,.42);
 }
-
-.skeleton-line {
-  height: 1rem;
-  border-radius: .4rem;
-  background: var(--surface-2);
-  animation: shimmer 1.4s infinite;
-  margin-bottom: .75rem;
-}
-.skeleton-line.wide { width: 70%; }
-.skeleton-line.medium { width: 45%; }
-.skeleton-line.narrow { width: 25%; }
-
-@keyframes shimmer {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
-/* Detail body */
-.detail-body {
-  border-radius: 0 0 1rem 1rem;
-  padding: 1.75rem 2rem 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.event-name {
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -.02em;
-}
-
-.meta-row {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .88rem;
-  color: var(--muted);
-}
-
-.meta-address {
-  color: var(--muted);
-  opacity: .75;
-}
-
-.description {
-  font-size: .95rem;
-  color: var(--muted);
-  line-height: 1.65;
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
-}
-
-.price-row {
-  display: flex;
-  align-items: baseline;
-  gap: .5rem;
-}
-
-.price-label {
-  font-size: .82rem;
-  color: var(--muted);
-}
-
-.price-value {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: var(--accent);
-}
-
-.select-seats-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  align-self: flex-start;
-  padding: .75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: .75rem;
-}
-
-@media (max-width: 600px) {
-  .detail-body { padding: 1.25rem 1rem 1.5rem; }
-  .hero-wrap { aspect-ratio: 16 / 9; }
+.line { height: 0.95rem; border-radius: 999px; background: rgba(60,51,49,.55); }
+.line.wide { width: 70%; }
+.line.mid { width: 48%; }
+.line.short { width: 34%; }
+@media (max-width: 860px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .hero-image-wrap, .hero-image { min-height: 360px; }
 }
 </style>
