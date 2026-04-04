@@ -27,8 +27,8 @@ let demoModeEnabled = false
 
 // Exponential backoff configuration for retry
 const MAX_RETRY_ATTEMPTS = 3
-const INITIAL_BACKOFF_MS = 2000
-const MAX_BACKOFF_MS = 15000
+const INITIAL_BACKOFF_MS = import.meta.env.PROD ? 2000 : 500
+const MAX_BACKOFF_MS = import.meta.env.PROD ? 15000 : 3000
 const RETRYABLE_STATUS_CODES = [429, 503, 408, 504]
 
 const calculateBackoff = (attempt: number): number => {
