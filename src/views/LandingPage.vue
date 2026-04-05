@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/client'
-import { isDemoMode, mockServices } from '@/services/mockData'
+import { isDemoMode, mockEvents, mockServices } from '@/services/mockData'
 import { resolveEventImage } from '@/utils/eventMedia'
 import type { EventSummary } from '@/types'
 
@@ -53,6 +53,8 @@ const mapEvent = (event: any, index = 0): EventSummary => ({
     ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
     : undefined,
 })
+
+featuredEvents.value = mockEvents.slice(0, 3).map((event, index) => mapEvent(event, index))
 
 const loadFeaturedEvents = async () => {
   loading.value = true
@@ -146,7 +148,7 @@ onMounted(loadFeaturedEvents)
         </div>
       </div>
 
-      <div v-if="loading" class="featured-grid loading-grid">
+      <div v-if="loading && featuredEvents.length === 0" class="featured-grid loading-grid">
         <div class="loading-card hero-loading"></div>
         <div class="loading-stack">
           <div class="loading-card"></div>

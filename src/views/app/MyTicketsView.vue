@@ -86,6 +86,19 @@ const formatDate = (value?: string) => {
 }
 
 const archiveActionLabel = (ticket: Ticket) => (ticket.transferredAt ? 'Transferred' : 'Purchased')
+const ticketImage = (ticket: Ticket) =>
+  ticket.status === 'listed'
+    ? resolveEventImage({
+        eventId: ticket.eventId,
+        type: ticket.event?.type,
+        context: 'marketplace',
+      }) ||
+      ticket.event?.image ||
+      resolveEventImage({ eventId: ticket.eventId, type: ticket.event?.type, context: 'ticket' })
+    : ticket.event?.image || resolveEventImage({ eventId: ticket.eventId, type: ticket.event?.type, context: 'ticket' })
+const hasListingAction = (ticket: Ticket) => ticket.status === 'active'
+const hasTransferAction = (ticket: Ticket) => ticket.status === 'active'
+const hasUnlistAction = (ticket: Ticket) => ticket.status === 'listed'
 
 const startListing = (ticketId: string, price?: number) => {
   listingTicketId.value = ticketId
@@ -197,7 +210,7 @@ watch([loading, tickets], ([isLoading, items]) => {
           <div v-else class="ticket-stack">
             <article v-for="ticket in activeTickets" :key="ticket.ticketId" class="ticket-card">
               <div class="ticket-media">
-                <img v-if="ticket.event?.image" :src="ticket.event.image" :alt="ticket.event.name" />
+                <img v-if="ticketImage(ticket)" :src="ticketImage(ticket)" :alt="ticket.event?.name || 'Ticketed event'" />
               </div>
 
               <div class="ticket-copy">
@@ -216,31 +229,59 @@ watch([loading, tickets], ([isLoading, items]) => {
                   </div>
 
                   <div class="ticket-actions">
-                    <RouterLink :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`"><button>View QR</button></RouterLink>
-                    <RouterLink v-if="ticket.status === 'active'" :to="`/transfer/initiate?ticketId=${ticket.ticketId}`">
-                      <button class="secondary">Transfer</button>
+                    <RouterLink v-if="ticket.status !== 'listed'" :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`">
+                      <button class="ticket-primary-action">View QR</button>
                     </RouterLink>
-
-                    <template v-if="ticket.status === 'active'">
-                      <div v-if="listingTicketId === ticket.ticketId" class="action-inline">
-                        <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price" />
-                        <button :disabled="listingLoading" @click="submitListing(ticket.ticketId)">{{ listingLoading ? 'Listing...' : 'Confirm' }}</button>
-                        <button class="secondary" @click="cancelListing">Cancel</button>
-                      </div>
-                      <button v-else class="secondary" @click="startListing(ticket.ticketId, ticket.price)">List Ticket</button>
-                    </template>
-
-                    <template v-else-if="ticket.status === 'listed'">
-                      <div v-if="unlistingTicketId === ticket.ticketId" class="action-inline">
-                        <button :disabled="unlistingLoading" @click="confirmUnlist(ticket.ticketId)">
-                          {{ unlistingLoading ? 'Removing...' : 'Confirm Unlist' }}
-                        </button>
-                        <button class="secondary" @click="cancelUnlisting">Cancel</button>
-                      </div>
-                      <button v-else class="secondary" @click="startUnlisting(ticket.ticketId)">Unlist</button>
-                    </template>
+                    <button
+                      v-else-if="unlistingTicketId !== ticket.ticketId"
+                      class="secondary ticket-primary-action"
+                      type="button"
+                      @click="startUnlisting(ticket.ticketId)"
+                    >
+                      Unlist
+                    </button>
                   </div>
                 </div>
+
+                <div class="ticket-link-actions">
+                  <RouterLink v-if="hasTransferAction(ticket)" :to="`/transfer/initiate?ticketId=${ticket.ticketId}`">Transfer</RouterLink>
+                  <RouterLink v-if="ticket.status === 'listed'" :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`">View QR</RouterLink>
+
+                  <button
+                    v-if="hasListingAction(ticket) && listingTicketId !== ticket.ticketId"
+                    class="ticket-link-button"
+                    type="button"
+                    @click="startListing(ticket.ticketId, ticket.price)"
+                  >
+                    List Ticket
+                  </button>
+
+                  <button
+                    v-if="hasUnlistAction(ticket) && unlistingTicketId !== ticket.ticketId"
+                    class="ticket-link-button"
+                    type="button"
+                    @click="startUnlisting(ticket.ticketId)"
+                  >
+                    Unlist
+                  </button>
+                </div>
+
+                <template v-if="listingTicketId === ticket.ticketId">
+                  <div class="action-inline">
+                    <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price" />
+                    <button :disabled="listingLoading" @click="submitListing(ticket.ticketId)">{{ listingLoading ? 'Listing...' : 'Confirm' }}</button>
+                    <button class="secondary" @click="cancelListing">Cancel</button>
+                  </div>
+                </template>
+
+                <template v-if="unlistingTicketId === ticket.ticketId">
+                  <div class="action-inline">
+                    <button :disabled="unlistingLoading" @click="confirmUnlist(ticket.ticketId)">
+                      {{ unlistingLoading ? 'Removing...' : 'Confirm Unlist' }}
+                    </button>
+                    <button class="secondary" @click="cancelUnlisting">Cancel</button>
+                  </div>
+                </template>
               </div>
             </article>
           </div>
@@ -445,6 +486,34 @@ watch([loading, tickets], ([isLoading, items]) => {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.ticket-primary-action {
+  min-width: 7.25rem;
+}
+
+.ticket-link-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ticket-link-actions a,
+.ticket-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ticket-link-button:hover,
+.ticket-link-actions a:hover {
+  color: var(--text);
+  transform: none;
+  filter: none;
 }
 
 .action-inline input {

@@ -16,8 +16,13 @@ const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
   { value: 'concert', label: 'Music' },
   { value: 'sports', label: 'Sports' },
   { value: 'theater', label: 'Theater' },
-  { value: 'conference', label: 'Conference' },
-  { value: 'festival', label: 'Festival' },
+]
+const listingFallbackImages = [
+  '/stitch-media/listing/listing-featured-rooftop.jpg',
+  '/stitch-media/listing/listing-neon-resonance.jpg',
+  '/stitch-media/listing/listing-obsidian-jazz.jpg',
+  '/stitch-media/listing/listing-midnight-gallery.jpg',
+  '/stitch-media/listing/listing-kinetic-summit.jpg',
 ]
 
 const loading = ref(false)
@@ -37,19 +42,20 @@ watch(
 
 const buildCacheKey = () => `events_list:${page.value}:${typeFilter.value}`
 
-const mapEvent = (event: any): EventSummary => ({
+const mapEvent = (event: any, index = 0): EventSummary => ({
   eventId: event.eventId || event.event_id,
   name: event.name,
   date: event.date || event.eventDate || event.event_date,
   venueId: event.venueId || event.venue_id || '',
   price: Number(event.price || 0),
   type: (event.type || 'other') as EventType,
-  image: resolveEventImage({
-    image: event.image,
-    eventId: event.eventId || event.event_id,
-    type: (event.type || 'other') as EventType,
-    context: 'event',
-  }),
+  image:
+    resolveEventImage({
+      eventId: event.eventId || event.event_id,
+      context: 'listing',
+    }) ||
+    event.image ||
+    listingFallbackImages[index % listingFallbackImages.length],
   seatsAvailable: event.seatsAvailable,
   venue: event.venue
     ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
@@ -68,14 +74,14 @@ const load = async () => {
         limit: 10,
         type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
       })
-      events.value = result.events
+      events.value = result.events.map((event, index) => mapEvent(event, index))
       totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
       return
     }
 
     const { data } = await api.get('/events', { params })
     const raw = data?.data?.events || data?.data || []
-    events.value = raw.map(mapEvent)
+    events.value = raw.map((event: any, index: number) => mapEvent(event, index))
     const pagination = data?.data?.pagination || data?.pagination || {}
     const total = pagination.total || events.value.length
     const limit = pagination.limit || 10
@@ -95,7 +101,7 @@ const load = async () => {
           limit: 10,
           type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
         })
-        events.value = result.events
+        events.value = result.events.map((event, index) => mapEvent(event, index))
         totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
         toast.push('Backend unavailable. Showing demo events.', 'info', 3200)
       } catch {
@@ -210,9 +216,6 @@ onMounted(load)
             <p>{{ featuredEvent.venue?.name || 'Featured venue' }}</p>
             <div class="feature-actions">
               <button type="button" @click="router.push(`/events/${featuredEvent.eventId}`)">Get Tickets</button>
-              <button class="secondary" type="button" @click="toggleFavorite(featuredEvent.eventId)">
-                {{ favoriteIds.includes(featuredEvent.eventId) ? 'Favorited' : 'Save Event' }}
-              </button>
             </div>
           </div>
         </article>
@@ -328,21 +331,23 @@ onMounted(load)
 .listing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem;
+  gap: 1.35rem;
 }
 
 .event-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 1.35rem;
   background: rgba(19, 19, 19, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  min-height: 18rem;
+  min-height: 17rem;
 }
 
 .event-card-feature {
   grid-column: span 2;
-  min-height: 31rem;
+  min-height: 24rem;
 }
 
 .event-card img {
@@ -385,8 +390,8 @@ onMounted(load)
 
 .card-copy {
   display: grid;
-  gap: 0.75rem;
-  padding: 1.4rem;
+  gap: 0.65rem;
+  padding: 1.2rem;
 }
 
 .featured-copy {
@@ -395,7 +400,7 @@ onMounted(load)
   bottom: 0;
   left: 0;
   z-index: 1;
-  padding: 1.8rem;
+  padding: 1.5rem;
 }
 
 .feature-topline {
@@ -435,11 +440,12 @@ onMounted(load)
 }
 
 .featured-copy h2 {
-  font-size: clamp(2.2rem, 4.5vw, 4rem);
+  max-width: 28rem;
+  font-size: clamp(1.9rem, 4vw, 3rem);
 }
 
 .card-copy h3 {
-  font-size: 1.45rem;
+  font-size: 1.22rem;
 }
 
 .card-copy p,
@@ -456,6 +462,10 @@ onMounted(load)
   gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.feature-actions button {
+  min-width: 8.75rem;
 }
 
 .full-button {
