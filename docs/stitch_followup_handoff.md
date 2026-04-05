@@ -15,6 +15,7 @@ Branch: `codex/stitch-integration`
 - Staff navbar must not show `Scanner`; scanner access belongs in the profile left column.
 - Admin navbar must not show `Dashboard`; dashboard belongs in the profile-family left column.
 - Demo, staff, and admin accounts should use a reduced top nav.
+- Admin mobile nav should also stay reduced rather than exposing extra top-level destinations.
 - Demo, staff, and admin accounts must not show the notification bell.
 
 ### Login / offline
@@ -103,11 +104,12 @@ These routes are compulsory frontend-facing integrations and need real UI surfac
 
 - Now covered explicitly:
   - `/auth/logout` is expected to be called from shared logout actions.
-- Still needs explicit audit / likely missing dedicated frontend usage:
-  - `/events/{eventId}/seats/{inventoryId}`
-  - `/transfer/{transferId}/cancel`
-- Needs confirmation that the current surface is sufficient rather than just an internal helper:
-  - `/transfer/pending`
+  - `/events/{eventId}/seats/{inventoryId}` is called when selecting a live seat to hydrate seat detail.
+  - `/transfer/pending` is surfaced through the notifications flow and seller polling helper.
+  - `/transfer/{transferId}/cancel` is now surfaced in the transfer UI for buyer wait states and OTP states.
+  - frontend route guards are tightened for protected transfer detail and QR routes.
+- Remaining route-contract ambiguity is mostly product/navigation, not missing endpoint wiring:
+  - live admin still lacks a clean universal sidebar target for the event-specific dashboard route
 
 ## Known unresolved point
 

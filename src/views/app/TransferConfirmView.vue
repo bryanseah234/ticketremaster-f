@@ -51,6 +51,11 @@ const verifyCopy = computed(() =>
     ? 'To protect your assets, please enter the 6-digit security code sent to your registered mobile device.'
     : 'The buyer has confirmed. Enter your 6-digit seller code to finalize the transfer and settle the ledger.',
 )
+const canCancelTransfer = computed(() => {
+  if (!auth.isLoggedIn) return false
+  if (status.value === 'pending_seller_acceptance') return !isSeller.value
+  return status.value === 'pending_buyer_otp' || status.value === 'pending_seller_otp'
+})
 
 const loadTransfer = async () => {
   if (isDemoMode()) {
@@ -234,6 +239,28 @@ const resendOtp = async () => {
   }
 }
 
+const cancelTransfer = async () => {
+  loading.value = true
+  otpError.value = ''
+  try {
+    if (isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      transfer.value = { ...transfer.value, status: 'cancelled' }
+      toast.push('Transfer cancelled.', 'info', 3200)
+      return
+    }
+
+    await api.post(`/transfer/${route.params.transferId}/cancel`)
+    transfer.value = { ...transfer.value, status: 'cancelled' }
+    toast.push('Transfer cancelled.', 'info', 3200)
+  } catch (error: any) {
+    otpError.value = error?.response?.data?.error?.message || 'Could not cancel transfer.'
+    toast.push(otpError.value, 'error', 3200)
+  } finally {
+    loading.value = false
+  }
+}
+
 let pollTimer: number | undefined
 let countdownTimer: number | undefined
 
@@ -320,6 +347,10 @@ onUnmounted(() => {
               {{ resendLoading ? 'Sending...' : 'Resend Code' }}
             </button>
           </div>
+
+          <button v-if="canCancelTransfer" class="secondary cancel-transfer-button" type="button" :disabled="loading" @click="cancelTransfer">
+            {{ loading ? 'Cancelling...' : 'Cancel Transfer' }}
+          </button>
         </article>
 
         <div class="trust-grid">
@@ -392,6 +423,9 @@ onUnmounted(() => {
 
           <template v-else-if="status === 'pending_seller_acceptance'">
             <p class="accept-note">The request has been submitted. We’ll update this page the moment the seller accepts the transfer.</p>
+            <button v-if="canCancelTransfer" class="secondary" :disabled="loading" type="button" @click="cancelTransfer">
+              {{ loading ? 'Cancelling...' : 'Cancel Request' }}
+            </button>
           </template>
 
           <template v-else-if="status === 'completed'">
@@ -549,6 +583,10 @@ onUnmounted(() => {
   width: 100%;
   border-radius: 999px;
   padding-block: 0.95rem;
+}
+
+.cancel-transfer-button {
+  width: 100%;
 }
 
 .warning-box,

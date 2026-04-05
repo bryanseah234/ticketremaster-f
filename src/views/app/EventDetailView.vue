@@ -208,8 +208,7 @@ onMounted(load)
   text-align: center;
 }
 
-.detail-pill,
-.panel-label {
+.detail-pill {
   width: fit-content;
   padding: 0.5rem 0.95rem;
   border-radius: 999px;
@@ -219,6 +218,21 @@ onMounted(load)
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.panel-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.14);
+  color: var(--primary);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 

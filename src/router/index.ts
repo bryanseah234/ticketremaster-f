@@ -164,6 +164,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/transfer/:transferId',
     component: () => import('@/views/app/TransferConfirmView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/credits/topup',
@@ -181,7 +182,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true } as RouteMeta,
   },
   { path: '/marketplace', component: () => import('@/views/app/MarketplaceView.vue') },
-  { path: '/ticket-qr/:qrHash', component: () => import('@/views/app/TicketQrView.vue') },
+  {
+    path: '/ticket-qr/:qrHash',
+    component: () => import('@/views/app/TicketQrView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
+  },
   {
     path: '/staff/scan',
     component: () => import('@/views/app/StaffScannerView.vue'),

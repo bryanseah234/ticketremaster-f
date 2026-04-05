@@ -37,10 +37,6 @@ const mobileNav = computed(() => {
   }
   if (auth.isAdmin) {
     return [
-      { to: '/events', label: 'Events' },
-      { to: '/marketplace', label: 'Marketplace' },
-      { to: '/admin/events/new', label: 'Create Event' },
-      { to: '/admin/users', label: 'Users' },
       { to: '/profile', label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
