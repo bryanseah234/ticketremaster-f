@@ -12,7 +12,7 @@ export default defineConfig(({ mode }): UserConfig => {
   const plugins = [
     vue(),
     // Only load devtools in development
-    ...(mode !== 'production' ? [vueDevTools()] : []),
+    ...(mode !== 'production' && env.VITE_ENABLE_VUE_DEVTOOLS === 'true' ? [vueDevTools()] : []),
   ]
   
   // Add bundle analyzer in build mode (no auto-open in CI)

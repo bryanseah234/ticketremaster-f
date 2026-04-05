@@ -74,6 +74,10 @@ onMounted(() => {
 
       <div class="profile-content">
         <article class="glass account-card">
+          <div class="watermark-shell" aria-hidden="true">
+            <IdentificationIcon class="watermark-icon" />
+          </div>
+
           <div class="card-heading">
             <div class="icon-shell">
               <IdentificationIcon class="card-icon" />
@@ -142,6 +146,8 @@ onMounted(() => {
 }
 
 .account-card {
+  position: relative;
+  overflow: hidden;
   padding: 1.5rem;
   border-radius: 1.5rem;
   background: rgba(34, 31, 30, 0.84);
@@ -155,7 +161,7 @@ onMounted(() => {
 }
 
 .card-heading {
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.35rem;
 }
 
 .card-heading h2 {
@@ -188,6 +194,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  max-width: 48rem;
 }
 
 .field-full {
@@ -206,6 +213,23 @@ onMounted(() => {
 
 .primary-action {
   margin-top: 1.35rem;
+  width: fit-content;
+  border-radius: 0.8rem;
+  padding-inline: 1.4rem;
+  padding-block: 0.9rem;
+}
+
+.watermark-shell {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.6rem;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.watermark-icon {
+  width: 4rem;
+  height: 4rem;
 }
 
 @media (max-width: 980px) {
