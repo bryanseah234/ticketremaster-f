@@ -148,9 +148,14 @@ const canUseMockData = (url: string, method: string): boolean => {
     '/venues',
     '/marketplace',
     '/tickets',
-    '/transfers',
+    '/transfer/',
+    '/transfer/pending',
     '/users',
     '/auth/me',
+    '/credits/balance',
+    '/credits/transactions',
+    '/admin/users',
+    '/admin/events/',
   ]
   return readOnlyPaths.some(path => url.includes(path))
 }

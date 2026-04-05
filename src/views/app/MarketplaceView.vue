@@ -28,10 +28,22 @@ const myTickets = ref<{ ticketId: string; label: string }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalListings.value / pageSize)))
+const averagePrice = computed(() =>
+  filteredListings.value.length
+    ? filteredListings.value.reduce((sum, listing) => sum + Number(listing.price || 0), 0) / filteredListings.value.length
+    : 0,
+)
+const demandIndex = computed(() => {
+  if (filteredListings.value.length >= 8) return 'High'
+  if (filteredListings.value.length >= 4) return 'Medium'
+  return 'Emerging'
+})
 
 const eventNames = computed(() => {
   const names = new Set<string>()
-  listings.value.forEach(listing => { if (listing.event?.name) names.add(listing.event.name) })
+  listings.value.forEach((listing) => {
+    if (listing.event?.name) names.add(listing.event.name)
+  })
   return Array.from(names).sort()
 })
 
@@ -77,14 +89,17 @@ const loadListings = async (page = currentPage.value) => {
       price: Number(item.price ?? 0),
       status: (item.status?.toLowerCase() ?? 'active') as MarketplaceListing['status'],
       createdAt: item.createdAt,
-      event: (item.event || item.eventName) ? {
-        eventId: item.event?.eventId ?? item.eventId ?? '',
-        name: item.event?.name ?? item.eventName ?? '',
-        date: item.event?.date ?? item.eventDate ?? '',
-        venueId: '',
-        price: 0,
-        type: 'other',
-      } : undefined,
+      event: (item.event || item.eventName)
+        ? {
+            eventId: item.event?.eventId ?? item.eventId ?? '',
+            name: item.event?.name ?? item.eventName ?? '',
+            date: item.event?.date ?? item.eventDate ?? '',
+            venueId: '',
+            price: 0,
+            type: 'other',
+            image: item.event?.image ?? undefined,
+          }
+        : undefined,
     }))
     totalListings.value = data?.pagination?.total ?? listings.value.length
     currentPage.value = page
@@ -162,192 +177,410 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page marketplace-page">
-    <header class="marketplace-hero glass">
-      <div class="hero-copy">
-        <span class="badge">Marketplace</span>
-        <h1 class="section-title">Verified resale listings from real ticket holders.</h1>
-        <p class="section-subtitle">Browse resale inventory, compare prices, and initiate protected transfers with confidence.</p>
-      </div>
-      <div class="hero-actions">
-        <button v-if="auth.state.accessToken" class="secondary" @click="showListForm = !showListForm; if (showListForm) loadMyTickets()">
-          {{ showListForm ? 'Close listing form' : 'List a Ticket' }}
-        </button>
+  <section class="marketplace-page">
+    <header class="marketplace-header">
+      <span class="eyebrow">Marketplace</span>
+      <h1><span>Authentic</span> Access.</h1>
+
+      <div class="header-controls">
+        <label class="search-shell">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input v-model="search" placeholder="Search events, artists, or venues..." type="text" />
+        </label>
+
+        <div class="chip-row">
+          <button class="filter-chip" :class="{ active: !eventFilter }" @click="eventFilter = ''">All Categories</button>
+          <button
+            v-for="name in eventNames.slice(0, 3)"
+            :key="name"
+            class="filter-chip"
+            :class="{ active: eventFilter === name }"
+            @click="eventFilter = eventFilter === name ? '' : name"
+          >
+            {{ name }}
+          </button>
+          <button class="filter-chip" :class="{ active: priceSort !== null }" @click="togglePriceSort">
+            Price
+            <span v-if="priceSort === 'asc'">↑</span>
+            <span v-else-if="priceSort === 'desc'">↓</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <transition name="fade">
-      <article v-if="showListForm" class="glass list-form">
-        <div>
-          <span class="badge">New Listing</span>
-          <h2>List your ticket</h2>
+    <div class="marketplace-layout">
+      <div class="listings-column">
+        <h2>Verified Listings</h2>
+
+        <div v-if="loading" class="listings-grid">
+          <article v-for="n in 4" :key="n" class="listing-card skeleton-card"></article>
         </div>
-        <div class="grid-2">
+
+        <div v-else-if="filteredListings.length === 0" class="empty-card">No listings found.</div>
+
+        <div v-else class="listings-grid">
+          <article v-for="listing in filteredListings" :key="listing.listingId" class="listing-card">
+            <div class="listing-media">
+              <img v-if="listing.event?.image" :src="listing.event.image" :alt="listing.event?.name || 'Listing image'" />
+              <span class="verified-pill">Verified Seller</span>
+            </div>
+
+            <div class="listing-copy">
+              <div class="listing-topline">
+                <h3>{{ listing.event?.name || 'Event' }}</h3>
+                <span class="listing-price">SGD {{ Number(listing.price).toFixed(0) }}</span>
+              </div>
+
+              <p>{{ listing.event?.date ? new Date(listing.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : 'Date TBA' }}</p>
+              <p v-if="listing.sellerName" class="muted-line">Listed by {{ listing.sellerName }}</p>
+              <p class="seat-line">{{ listing.ticketId.slice(0, 8).toUpperCase() }}</p>
+
+              <button
+                :disabled="listing.status !== 'active' || buyLoadingIds[listing.listingId]"
+                @click="buyListing(listing.listingId)"
+              >
+                {{ buyLoadingIds[listing.listingId] ? 'Buying...' : 'Buy Ticket' }}
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <div v-if="totalPages > 1" class="pagination">
+          <button class="secondary" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Prev</button>
+          <span>Page {{ currentPage }} of {{ totalPages }}</span>
+          <button class="secondary" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">Next</button>
+        </div>
+      </div>
+
+      <aside class="sidebar-column">
+        <article class="seller-card">
+          <h3>Got extra tickets?</h3>
+          <p>List your tickets in minutes. We verify your purchase automatically for a secure sale.</p>
+
+          <ul class="seller-list">
+            <li>Automatic Transfer</li>
+            <li>Zero-Fraud Policy</li>
+            <li>Instant Payouts</li>
+          </ul>
+
+          <button
+            v-if="auth.state.accessToken"
+            class="secondary"
+            @click="showListForm = !showListForm; if (showListForm) loadMyTickets()"
+          >
+            {{ showListForm ? 'Close Listing Form' : 'Start Listing' }}
+          </button>
+        </article>
+
+        <article v-if="showListForm" class="seller-card list-form">
+          <h3>New Listing</h3>
+
           <div>
             <label>Ticket</label>
             <select v-if="myTickets.length" v-model="listTicketId">
               <option v-for="ticket in myTickets" :key="ticket.ticketId" :value="ticket.ticketId">{{ ticket.label }}</option>
             </select>
-            <p v-else class="small muted">No active tickets available to list.</p>
+            <p v-else class="muted-line">No active tickets available to list.</p>
           </div>
+
           <div>
             <label>Asking Price</label>
             <input v-model.number="listPrice" type="number" min="1" />
           </div>
-        </div>
-        <div class="list-actions">
+
           <button :disabled="listLoading" @click="listTicket">{{ listLoading ? 'Creating...' : 'Create Listing' }}</button>
-        </div>
-      </article>
-    </transition>
+        </article>
 
-    <article class="glass filter-bar">
-      <input v-model="search" placeholder="Search by event name or listing ID" class="search-col" />
-      <select v-model="eventFilter" class="event-col">
-        <option value="">All Events</option>
-        <option v-for="name in eventNames" :key="name" :value="name">{{ name }}</option>
-      </select>
-      <button class="secondary sort-btn" @click="togglePriceSort">
-        Price
-        <span v-if="priceSort === 'asc'">↑</span>
-        <span v-else-if="priceSort === 'desc'">↓</span>
-      </button>
-      <button class="ghost reset-btn" @click="search = ''; eventFilter = ''; priceSort = null">Reset</button>
-    </article>
-
-    <p class="small muted">{{ filteredListings.length }} listing{{ filteredListings.length !== 1 ? 's' : '' }}</p>
-
-    <div v-if="loading" class="glass empty-state">Loading listings...</div>
-    <div v-else-if="filteredListings.length === 0" class="glass empty-state">No listings found.</div>
-    <div v-else class="listings-grid">
-      <article v-for="listing in filteredListings" :key="listing.listingId" class="glass listing-card">
-        <div class="listing-copy">
-          <span class="badge">Live Listing</span>
-          <p class="small muted">{{ listing.event?.date ? new Date(listing.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date TBA' }}</p>
-          <h3>{{ listing.event?.name || 'Event' }}</h3>
-          <p class="price">${{ listing.price }}</p>
-          <p v-if="listing.sellerName" class="small muted">Listed by {{ listing.sellerName }}</p>
-        </div>
-        <div class="listing-footer">
-          <span :class="['status-pill', listing.status === 'active' ? 'active' : 'inactive']">{{ listing.status }}</span>
-          <button
-            :disabled="listing.status !== 'active' || buyLoadingIds[listing.listingId]"
-            @click="buyListing(listing.listingId)"
-          >
-            {{ buyLoadingIds[listing.listingId] ? 'Buying...' : 'Buy Now' }}
-          </button>
-        </div>
-      </article>
-    </div>
-
-    <div v-if="totalPages > 1" class="pagination">
-      <button class="secondary" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Prev</button>
-      <span class="small muted">Page {{ currentPage }} of {{ totalPages }}</span>
-      <button class="secondary" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">Next</button>
+        <article class="stats-card">
+          <h4>Market Insights</h4>
+          <div class="stat-row"><span>Total Listings</span><strong>{{ filteredListings.length }}</strong></div>
+          <div class="stat-row"><span>Avg. Resale Price</span><strong>SGD {{ averagePrice.toFixed(2) }}</strong></div>
+          <div class="stat-row"><span>Demand Index</span><strong class="accent">{{ demandIndex }}</strong></div>
+        </article>
+      </aside>
     </div>
   </section>
 </template>
 
 <style scoped>
 .marketplace-page {
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
+  display: grid;
+  gap: 2rem;
+}
+
+.marketplace-header {
+  display: grid;
+  gap: 1.5rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.marketplace-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.3rem, 7vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.marketplace-header h1 span {
+  color: var(--primary);
+}
+
+.header-controls {
   display: grid;
   gap: 1rem;
+  width: min(100%, 58rem);
 }
 
-.marketplace-hero,
-.list-form,
-.filter-bar,
-.listing-card,
-.empty-state {
-  padding: 1.25rem;
+.search-shell {
+  position: relative;
+  width: min(100%, 32rem);
+  justify-self: center;
 }
 
-.marketplace-hero {
+.search-shell input {
+  padding-left: 3rem;
+  border-radius: 999px;
+  background: rgba(38, 38, 38, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 1.1rem;
+}
+
+.chip-row {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-end;
+  justify-content: center;
   flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
-.hero-copy {
+.filter-chip {
+  padding: 0.82rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(38, 38, 38, 0.82);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.filter-chip.active {
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--primary);
+  border-color: rgba(249, 115, 22, 0.2);
+}
+
+.marketplace-layout {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1.45fr) minmax(19rem, 0.8fr);
+  gap: 1.5rem;
 }
 
-.list-form,
-.listing-copy {
+.listings-column,
+.sidebar-column {
   display: grid;
-  gap: 0.8rem;
+  gap: 1rem;
 }
 
-.list-form h2,
-.listing-copy h3 {
-  font-family: "Plus Jakarta Sans", Inter, sans-serif;
-}
-
-.filter-bar {
-  display: grid;
-  grid-template-columns: 2fr 1.3fr auto auto;
-  gap: 0.6rem;
-  align-items: center;
+.listings-column h2 {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .listings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.listing-card,
+.seller-card,
+.stats-card,
+.empty-card {
+  border-radius: 1.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(26, 25, 25, 0.9);
+  overflow: hidden;
 }
 
 .listing-card {
   display: grid;
-  gap: 1rem;
 }
 
-.price {
-  font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 1.8rem;
+.listing-media {
+  position: relative;
+  height: 12rem;
+  background: rgba(19, 19, 19, 0.82);
+}
+
+.listing-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+}
+
+.listing-card:hover .listing-media img {
+  transform: scale(1.04);
+}
+
+.verified-pill {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  color: #fff;
+  font-size: 0.62rem;
   font-weight: 800;
-  color: var(--primarySoft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.listing-footer,
-.list-actions,
+.listing-copy,
+.seller-card,
+.stats-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem;
+}
+
+.listing-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.listing-topline h3,
+.seller-card h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.listing-price {
+  color: var(--primary);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.listing-copy p,
+.seller-card p,
+.muted-line,
+.pagination,
+.stat-row span {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.seat-line {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.seller-list {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.seller-list li {
+  position: relative;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.seller-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+}
+
+.list-form label {
+  margin-bottom: 0.45rem;
+}
+
+.stats-card h4 {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.stat-row,
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
+.stat-row strong {
+  font-weight: 800;
 }
 
-.status-pill.active {
-  background: rgba(82, 209, 140, 0.14);
-  color: var(--success);
+.accent {
+  color: var(--primary);
 }
 
-.status-pill.inactive {
-  background: rgba(109, 93, 87, 0.22);
-  color: var(--textMuted);
-}
-
-.empty-state {
+.empty-card {
+  padding: 2rem;
   text-align: center;
 }
 
-@media (max-width: 760px) {
-  .filter-bar {
+.skeleton-card {
+  min-height: 21rem;
+  background: linear-gradient(90deg, rgba(32, 31, 31, 0.7), rgba(44, 44, 44, 0.9), rgba(32, 31, 31, 0.7));
+}
+
+@media (max-width: 980px) {
+  .marketplace-layout,
+  .listings-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .marketplace-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
   }
 }
 </style>

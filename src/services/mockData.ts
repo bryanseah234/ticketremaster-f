@@ -104,7 +104,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-001',
     price: 299.99,
     type: 'sports',
-    image: '/resell.jpg',
+    image: '/hero-sports.jpg',
     venue: {
       venueId: 'demo-venue-001',
       name: 'Madison Square Garden',
@@ -119,6 +119,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-002',
     price: 89.99,
     type: 'theater',
+    image: '/hero-theater.jpeg',
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -133,6 +134,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-003',
     price: 499.99,
     type: 'conference',
+    image: '/hero-conference.jpeg',
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',
@@ -147,6 +149,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-002',
     price: 79.99,
     type: 'festival',
+    image: '/hero-festival.jpeg',
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -161,6 +164,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-003',
     price: 59.99,
     type: 'other',
+    image: '/hero-jazz.jpg',
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',
@@ -349,6 +353,8 @@ const defaultConfig: MockServiceConfig = {
   offlineMode: true,
 }
 
+const DEMO_MODE_KEY = 'ticketremaster_demo_mode'
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const mockServices = {
@@ -512,11 +518,14 @@ export const mockServices = {
 export function isDemoMode(): boolean {
   const urlParams = new URLSearchParams(window.location.search)
   if (urlParams.get('demo') === 'true') return true
+  if (sessionStorage.getItem(DEMO_MODE_KEY) === 'true') return true
   return !!(window as unknown as Record<string, unknown>).__demoMode
 }
 
 export function setDemoMode(enabled: boolean): void {
   ;(window as unknown as Record<string, unknown>).__demoMode = enabled
+  if (enabled) sessionStorage.setItem(DEMO_MODE_KEY, 'true')
+  else sessionStorage.removeItem(DEMO_MODE_KEY)
 }
 
 export function getDemoBannerMessage(): string {

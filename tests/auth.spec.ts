@@ -80,13 +80,11 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/register');
+        await page.fill('input[placeholder*="your name"]', 'New Demo User');
         await page.fill('input[placeholder*="email"]', 'new@example.com');
-        await page.fill('input[placeholder*="+65"]', '+6591234567');
-        // Fill both password fields (password + confirm)
-        const passwordInputs = page.locator('input[type="password"]');
-        await passwordInputs.nth(0).fill('password123');
-        await passwordInputs.nth(1).fill('password123');
-        await page.click('button:has-text("Create Account")');
+        await page.fill('input[placeholder*="Phone number"]', '91234567');
+        await page.fill('input[type="password"]', 'password123');
+        await page.click('button:has-text("Register Account")');
 
         // Should redirect to verify (OTP step) or login
         await expect(page).toHaveURL(/\/(verify|login)/, { timeout: 10000 });
@@ -104,12 +102,11 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/register');
+        await page.fill('input[placeholder*="your name"]', 'Valid User');
         await page.fill('input[placeholder*="email"]', 'valid@example.com');
-        await page.fill('input[placeholder*="+65"]', '+6591234567');
-        const passwordInputs = page.locator('input[type="password"]');
-        await passwordInputs.nth(0).fill('password123');
-        await passwordInputs.nth(1).fill('password123');
-        await page.click('button:has-text("Create Account")');
+        await page.fill('input[placeholder*="Phone number"]', '91234567');
+        await page.fill('input[type="password"]', 'password123');
+        await page.click('button:has-text("Register Account")');
 
         const toast = page.locator('.toast.error').first();
         await expect(toast).toBeVisible({ timeout: 10000 });
@@ -127,12 +124,11 @@ test.describe('Authentication Flow', () => {
         });
 
         await page.goto('/register');
+        await page.fill('input[placeholder*="your name"]', 'Existing User');
         await page.fill('input[placeholder*="email"]', 'existing@example.com');
-        await page.fill('input[placeholder*="+65"]', '+6591234567');
-        const passwordInputs = page.locator('input[type="password"]');
-        await passwordInputs.nth(0).fill('password123');
-        await passwordInputs.nth(1).fill('password123');
-        await page.click('button:has-text("Create Account")');
+        await page.fill('input[placeholder*="Phone number"]', '91234567');
+        await page.fill('input[type="password"]', 'password123');
+        await page.click('button:has-text("Register Account")');
 
         const toast = page.locator('.toast.error').first();
         await expect(toast).toBeVisible({ timeout: 10000 });

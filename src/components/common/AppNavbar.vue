@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { Bars3Icon, BellIcon, UserCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { useSellerNotifications } from '@/composables/useSellerNotifications'
@@ -16,41 +17,60 @@ const balanceLoading = ref(false)
 const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
 
-const items = computed(() => {
+const primaryNav = computed(() => {
+  if (auth.isStaff) {
+    return [{ to: '/staff/scan', label: 'Scanner' }]
+  }
+  if (auth.isAdmin) {
+    return [
+      { to: '/events', label: 'Events' },
+      { to: '/admin/events/demo-event-001/dashboard', label: 'Dashboard' },
+    ]
+  }
+  return [
+    { to: '/events', label: 'Events' },
+    { to: '/marketplace', label: 'Marketplace' },
+  ]
+})
+
+const mobileNav = computed(() => {
   if (auth.isStaff) {
     return [
       { to: '/staff/scan', label: 'Scanner' },
       { to: '/notifications', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   if (auth.isAdmin) {
     return [
-      { to: '/', label: 'Home' },
       { to: '/events', label: 'Events' },
-      { to: '/help', label: 'Support' },
-      { to: '/notifications', label: 'Notifications' },
+      { to: '/marketplace', label: 'Marketplace' },
       { to: '/admin/events/new', label: 'Create Event' },
       { to: '/admin/events/demo-event-001/dashboard', label: 'Dashboard' },
+      { to: '/admin/users', label: 'Users' },
+      { to: '/notifications', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   if (auth.isLoggedIn) {
     return [
-      { to: '/', label: 'Home' },
       { to: '/events', label: 'Events' },
       { to: '/marketplace', label: 'Marketplace' },
       { to: '/tickets', label: 'My Tickets' },
+      { to: '/credits/topup', label: 'Credits' },
       { to: '/notifications', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   return [
-    { to: '/', label: 'Home' },
     { to: '/events', label: 'Events' },
     { to: '/marketplace', label: 'Marketplace' },
-    { to: '/help', label: 'Support' },
     { to: '/login', label: 'Login' },
+    { to: '/register', label: 'Register' },
+    { to: '/help', label: 'Support' },
   ]
 })
 
@@ -85,8 +105,12 @@ const balanceLabel = computed(() => {
   if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return null
   if (balanceLoading.value) return 'Credits ...'
   if (balance.value === null) return 'Credits --'
-  return `Credits $${balance.value}`
+  return `Credits $${balance.value.toFixed(0)}`
 })
+
+const profileRoute = computed(() => (auth.isLoggedIn ? '/profile' : '/login'))
+
+const isActive = (target: string) => route.path === target || route.path.startsWith(`${target}/`)
 
 watch(() => auth.isLoggedIn, () => {
   if (auth.isLoggedIn) {
@@ -113,212 +137,244 @@ const logout = () => {
 </script>
 
 <template>
-  <header class="header">
-    <div class="shell">
-      <RouterLink to="/" class="brand">
-        <img src="/logo.svg" alt="TicketRemaster logo" />
-        <div>
-          <strong>TicketRemaster</strong>
-          <span>Verified resale, elevated live experiences.</span>
-        </div>
-      </RouterLink>
+  <header class="nav-shell">
+    <div class="nav-pill">
+      <RouterLink to="/" class="brand">TicketRemaster</RouterLink>
 
-      <button class="menu-toggle mobile-only" :class="{ active: mobileMenuOpen }" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle navigation">
-        <span></span>
-        <span></span>
-      </button>
-
-      <div class="nav-cluster desktop-only">
-        <RouterLink v-if="balanceLabel" to="/credits/topup" class="credit-pill">{{ balanceLabel }}</RouterLink>
-        <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="notify-pill">
-          Notifications
-          <span v-if="notifications.length">{{ notifications.length }}</span>
+      <nav class="desktop-nav" aria-label="Primary">
+        <RouterLink
+          v-for="item in primaryNav"
+          :key="item.to"
+          :to="item.to"
+          class="center-link"
+          :class="{ active: isActive(item.to) }"
+        >
+          {{ item.label }}
         </RouterLink>
-        <span v-if="isDemoMode()" class="badge">Demo</span>
-        <nav class="nav-list">
-          <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="nav-link">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn" class="ghost nav-logout" @click="logout">Logout</button>
-        </nav>
+      </nav>
+
+      <div class="action-cluster">
+        <RouterLink v-if="balanceLabel" to="/credits/topup" class="balance-chip">
+          {{ balanceLabel }}
+        </RouterLink>
+        <span v-if="isDemoMode()" class="demo-chip">Demo</span>
+        <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="icon-button" aria-label="Notifications">
+          <BellIcon class="icon" />
+          <span v-if="notifications.length" class="icon-count">{{ notifications.length }}</span>
+        </RouterLink>
+        <RouterLink :to="profileRoute" class="icon-button profile-button" :aria-label="auth.isLoggedIn ? 'Profile' : 'Login'">
+          <UserCircleIcon class="icon" />
+        </RouterLink>
+        <button
+          class="icon-button mobile-toggle"
+          type="button"
+          :aria-label="mobileMenuOpen ? 'Close navigation' : 'Open navigation'"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <XMarkIcon v-if="mobileMenuOpen" class="icon" />
+          <Bars3Icon v-else class="icon" />
+        </button>
       </div>
     </div>
 
-    <nav v-if="mobileMenuOpen" class="mobile-menu glass">
-      <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-link">{{ item.label }}</RouterLink>
-      <RouterLink v-if="balanceLabel" to="/credits/topup" class="mobile-link">{{ balanceLabel }}</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="mobile-link">
-        Notifications<span v-if="notifications.length"> ({{ notifications.length }})</span>
+    <nav v-if="mobileMenuOpen" class="mobile-panel" aria-label="Mobile">
+      <RouterLink
+        v-for="item in mobileNav"
+        :key="item.to"
+        :to="item.to"
+        class="mobile-link"
+      >
+        {{ item.label }}
       </RouterLink>
-      <button v-if="auth.isLoggedIn" class="ghost mobile-logout" @click="logout">Logout</button>
+      <button v-if="auth.isLoggedIn" class="mobile-link mobile-logout" type="button" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
 
 <style scoped>
-.header {
-  position: sticky;
-  top: 0;
+.nav-shell {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
   z-index: 100;
-  padding: 0.9rem 0.75rem 0;
+  width: min(90%, 64rem);
+  transform: translateX(-50%);
 }
 
-.shell {
-  width: min(1240px, 100%);
-  margin: 0 auto;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--outlineSoft);
-  border-radius: var(--radius-pill);
-  background: rgba(60, 51, 49, 0.58);
-  backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-sm);
-  display: flex;
+.nav-pill {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 1rem;
+  min-height: 4rem;
+  padding: 0.8rem 1.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(14, 14, 14, 0.7);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  min-width: 0;
-}
-
-.brand img {
-  width: 2rem;
-  height: 2rem;
-}
-
-.brand strong {
-  display: block;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 0.95rem;
-  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  white-space: nowrap;
 }
 
-.brand span {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--textMuted);
-}
-
-.nav-cluster {
+.desktop-nav {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 0.7rem;
-  margin-left: auto;
+  gap: 1.75rem;
 }
 
-.credit-pill,
-.notify-pill {
+.center-link {
+  padding-bottom: 0.2rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: color 0.18s ease, border-color 0.18s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.center-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.action-cluster {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.balance-chip,
+.demo-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.5rem 0.85rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--outlineSoft);
-  background: rgba(60, 51, 49, 0.72);
-  color: var(--textMuted);
-  font-size: 0.82rem;
+  padding: 0.48rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.notify-pill span {
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.3rem;
-  border-radius: 999px;
+.demo-chip {
+  color: var(--primary);
+}
+
+.icon-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(249, 115, 22, 0.18);
-  color: var(--primarySoft);
-  font-size: 0.7rem;
-  font-weight: 700;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
 }
 
-.nav-list {
-  display: flex;
-  align-items: center;
+.profile-button {
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.18);
+  color: var(--primary);
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.icon-count {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.1rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #1f0d03;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1rem;
+  text-align: center;
+}
+
+.mobile-toggle {
+  display: none;
+}
+
+.mobile-panel {
+  margin-top: 0.75rem;
+  display: grid;
   gap: 0.35rem;
-  flex-wrap: wrap;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.75rem;
+  background: rgba(14, 14, 14, 0.84);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.32);
 }
 
-.nav-link {
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--radius-pill);
-  color: var(--textMuted);
-  font-size: 0.88rem;
+.mobile-link {
+  display: block;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  color: rgba(255, 255, 255, 0.84);
   font-weight: 600;
 }
 
-.nav-link.router-link-active {
-  background: rgba(249, 115, 22, 0.14);
-  color: var(--primarySoft);
-}
-
-.nav-logout {
-  padding-inline: 0.9rem;
-}
-
-.menu-toggle {
-  display: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-left: auto;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--outlineSoft);
-  background: rgba(60, 51, 49, 0.72);
-  position: relative;
-}
-
-.menu-toggle span {
-  position: absolute;
-  left: 0.8rem;
-  right: 0.8rem;
-  height: 2px;
-  background: var(--text);
-}
-
-.menu-toggle span:first-child {
-  top: 1rem;
-}
-
-.menu-toggle span:last-child {
-  top: 1.5rem;
-}
-
-.mobile-menu {
-  width: min(1240px, calc(100% - 1.5rem));
-  margin: 0.6rem auto 0;
-  padding: 0.8rem;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.mobile-link,
 .mobile-logout {
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--radius-md);
+  width: 100%;
+  justify-content: flex-start;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.desktop-only {
-  display: flex;
-}
+@media (max-width: 900px) {
+  .nav-pill {
+    grid-template-columns: auto 1fr auto;
+    padding-inline: 1rem;
+  }
 
-.mobile-only {
-  display: none;
-}
-
-@media (max-width: 1080px) {
-  .desktop-only {
+  .desktop-nav,
+  .balance-chip,
+  .demo-chip {
     display: none;
   }
 
-  .mobile-only {
+  .mobile-toggle {
     display: inline-flex;
   }
+}
 
-  .brand span {
-    display: none;
+@media (max-width: 540px) {
+  .nav-shell {
+    top: 1rem;
+    width: min(94%, 40rem);
+  }
+
+  .nav-pill {
+    min-height: 3.6rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .brand {
+    font-size: 0.78rem;
   }
 }
 </style>

@@ -1,52 +1,78 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import {
+  CreditCardIcon,
+  DevicePhoneMobileIcon,
+  IdentificationIcon,
+  LifebuoyIcon,
+  LockClosedIcon,
+  QrCodeIcon,
+  TicketIcon,
+  UserCircleIcon,
+} from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
-import ProfileField from '@/components/ui/ProfileField.vue'
-import StatusBadge from '@/components/ui/StatusBadge.vue'
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const router = useRouter()
-
-const balance = ref<number | null>(null)
+const toast = useToast()
 const profile = ref<Record<string, unknown> | null>(null)
-const transactions = ref<any[]>([])
-const loadingTxns = ref(false)
 
-const displayUser = computed(() => profile.value || auth.state.user)
+const displayUser = computed(() => (profile.value || auth.state.user || null) as Record<string, unknown> | null)
 
-function relativeTime(isoDate: string | null | undefined): string {
-  if (!isoDate) return '—'
-  const diff = Date.now() - new Date(isoDate).getTime()
-  const seconds = Math.floor(diff / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  const months = Math.floor(days / 30)
-  const years = Math.floor(days / 365)
-  if (years >= 1) return `${years} year${years > 1 ? 's' : ''} ago`
-  if (months >= 1) return `${months} month${months > 1 ? 's' : ''} ago`
-  if (days >= 1) return `${days} day${days > 1 ? 's' : ''} ago`
-  if (hours >= 1) return `${hours} hour${hours > 1 ? 's' : ''} ago`
-  if (minutes >= 1) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
-  return 'just now'
-}
+const sidebarLinks = computed(() =>
+  auth.isStaff
+    ? [
+        { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
+        { key: 'scanner', to: '/staff/scan', label: 'Scanner', icon: QrCodeIcon },
+        { key: 'support', to: '/help', label: 'Support', icon: LifebuoyIcon },
+      ]
+    : [
+        { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
+        { key: 'credits', to: '/credits/topup', label: 'Credits', icon: CreditCardIcon },
+        { key: 'tickets', to: '/tickets', label: 'Tickets', icon: TicketIcon },
+      ],
+)
 
-const createdAtRelative = computed(() => relativeTime((displayUser.value as Record<string, unknown>)?.createdAt as string | null))
-const roleLabel = computed(() => {
-  const role = displayUser.value?.role as string | undefined
-  if (role === 'admin') return 'admin'
-  if (role === 'staff') return 'staff'
-  return 'user'
+const fullName = computed(() => {
+  const explicitName = (displayUser.value?.fullName as string) || (displayUser.value?.name as string)
+  if (explicitName) return explicitName
+  const email = (displayUser.value?.email as string) || 'TicketRemaster Guest'
+  return email
+    .split('@')[0]
+    .split(/[._-]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 })
+
+const phoneValue = computed(
+  () =>
+    ((displayUser.value?.phoneNumber as string) || (displayUser.value?.phone as string) || '+65 0000 0000')
+      .replace(/(\+\d{2})(\d{4})(\d{4})/, '$1 $2 $3'),
+)
+
+const roleTone = computed(() => {
+  if (auth.isAdmin) return 'Administrator account'
+  if (auth.isStaff) return 'Staff operations account'
+  return 'Customer account'
+})
+
+const secondaryNote = computed(() =>
+  isDemoMode()
+    ? 'Enabled via seeded demo protections'
+    : 'Enabled via your registered device',
+)
 
 const loadProfile = async () => {
   if (isDemoMode()) {
     profile.value = null
     return
   }
+
   if (!auth.state.user?.userId) return
   try {
     const { data } = await api.get('/auth/me')
@@ -56,38 +82,8 @@ const loadProfile = async () => {
   }
 }
 
-const loadBalance = async () => {
-  if (auth.isStaff || auth.isAdmin) return
-  if (isDemoMode()) {
-    const stored = sessionStorage.getItem('demo_balance')
-    balance.value = stored !== null ? parseFloat(stored) : 500
-    return
-  }
-  try {
-    const { data } = await api.get('/credits/balance')
-    balance.value = data?.data?.creditBalance ?? data?.creditBalance ?? 0
-  } catch {
-    balance.value = null
-  }
-}
-
-const loadTransactions = async () => {
-  loadingTxns.value = true
-  try {
-    if (isDemoMode()) {
-      transactions.value = [
-        { id: 'demo-topup-001', reason: 'topup', delta: 100, createdAt: '2026-04-03T10:00:00Z' },
-        { id: 'demo-purchase-001', reason: 'ticket_purchase', delta: -149.99, createdAt: '2026-04-01T18:30:00Z' },
-      ]
-      return
-    }
-    const { data } = await api.get('/credits/transactions')
-    transactions.value = data?.data?.transactions || data?.data || []
-  } catch {
-    transactions.value = []
-  } finally {
-    loadingTxns.value = false
-  }
+const notifyReadonly = (feature: string) => {
+  toast.info(`${feature} is still read-only in this build.`, 3200)
 }
 
 const logout = () => {
@@ -95,222 +91,349 @@ const logout = () => {
   router.push('/login')
 }
 
-const txnLabel = (reason: string) => {
-  if (reason === 'topup') return 'Top up'
-  if (reason === 'ticket_purchase') return 'Ticket purchase'
-  if (reason === 'p2p_sent') return 'Transfer sent'
-  if (reason === 'p2p_received') return 'Transfer received'
-  return reason
-}
-
 onMounted(() => {
   loadProfile()
-  loadBalance()
-  loadTransactions()
 })
 </script>
 
 <template>
   <section class="page profile-page">
-    <article class="glass profile-hero">
-      <div class="hero-main">
-        <div class="avatar">{{ (displayUser?.email as string)?.[0]?.toUpperCase() || '?' }}</div>
-        <div class="hero-copy">
-          <span class="badge">Profile</span>
-          <h1 class="section-title">{{ displayUser?.email || 'Account' }}</h1>
-          <div class="hero-tags">
-            <StatusBadge :label="roleLabel" />
-            <span v-if="(displayUser?.isFlagged as boolean)" class="badge flagged">Flagged</span>
+    <header class="profile-header">
+      <h1>User<span>Profile</span></h1>
+    </header>
+
+    <div class="profile-layout">
+      <aside class="glass account-sidebar">
+        <nav class="sidebar-nav">
+          <RouterLink
+            v-for="item in sidebarLinks"
+            :key="item.key"
+            :to="item.to"
+            class="side-link"
+            :class="{ active: item.key === 'profile' }"
+          >
+            <component :is="item.icon" class="side-icon" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </nav>
+
+        <button class="sidebar-logout" type="button" @click="logout">Log Out</button>
+      </aside>
+
+      <div class="profile-content">
+        <article class="glass account-card">
+          <div class="card-heading">
+            <div class="icon-shell">
+              <IdentificationIcon class="card-icon" />
+            </div>
+            <div>
+              <h2>Account Details</h2>
+              <p>{{ roleTone }}</p>
+            </div>
           </div>
+
+          <div class="field-grid">
+            <div class="field-stack">
+              <label for="profile-full-name">Full Name</label>
+              <input id="profile-full-name" name="fullName" :value="fullName" readonly />
+            </div>
+
+            <div class="field-stack">
+              <label for="profile-email">Email Address</label>
+              <input id="profile-email" name="email" :value="(displayUser?.email as string) || 'demo@ticketremaster.com'" readonly />
+            </div>
+
+            <div class="field-stack field-full">
+              <label for="profile-phone">Phone Number</label>
+              <input id="profile-phone" name="phone" :value="phoneValue" readonly />
+            </div>
+          </div>
+
+          <button class="primary-action" type="button" @click="notifyReadonly('Profile editing')">Update Information</button>
+        </article>
+
+        <article class="glass security-card">
+          <div class="security-copy">
+            <div class="icon-shell muted">
+              <LockClosedIcon class="card-icon" />
+            </div>
+            <div>
+              <h2>Security &amp; Password</h2>
+              <p>Update your password to keep your assets secure.</p>
+            </div>
+          </div>
+
+          <button class="secondary" type="button" @click="notifyReadonly('Password changes')">Change Password</button>
+        </article>
+
+        <div class="preference-grid">
+          <article class="panel preference-card">
+            <DevicePhoneMobileIcon class="preference-icon" />
+            <div>
+              <strong>Two-Factor Auth</strong>
+              <span>{{ secondaryNote }}</span>
+            </div>
+          </article>
+
+          <article class="panel preference-card">
+            <TicketIcon class="preference-icon" />
+            <div>
+              <strong>Device Management</strong>
+              <span>{{ isDemoMode() ? '3 seeded sessions in Demo Mode' : 'Sessions monitored across your active devices' }}</span>
+            </div>
+          </article>
         </div>
-      </div>
-      <div class="hero-actions">
-        <RouterLink v-if="!auth.isStaff && !auth.isAdmin" to="/credits/topup"><button>Top Up</button></RouterLink>
-        <button class="secondary" @click="logout">Log Out</button>
-      </div>
-    </article>
 
-    <div class="profile-grid">
-      <article class="glass detail-card">
-        <span class="badge">Account Details</span>
-        <ProfileField label="Email" :value="(displayUser?.email as string) || null" />
-        <ProfileField
-          label="Phone"
-          :value="((displayUser?.phoneNumber as string) || (displayUser?.phone as string)) || null"
-          :masked="true"
-          addLabel="phone"
-        />
-        <div class="profile-field">
-          <span class="field-label">Role</span>
-          <div class="field-value-wrap"><StatusBadge :label="roleLabel" /></div>
-        </div>
-        <div class="profile-field">
-          <span class="field-label">Member Since</span>
-          <div class="field-value-wrap"><span class="field-value">{{ createdAtRelative }}</span></div>
-        </div>
-      </article>
-
-      <article class="glass side-card" v-if="!auth.isStaff && !auth.isAdmin">
-        <span class="badge">Credits</span>
-        <strong class="balance">${{ balance?.toLocaleString() ?? '—' }}</strong>
-        <p class="small muted">Track your balance, top-up activity, and purchases from one place.</p>
-        <RouterLink to="/tickets" class="inline-link">View My Tickets</RouterLink>
-      </article>
-    </div>
-
-    <article v-if="!auth.isStaff && !auth.isAdmin" class="glass txn-card">
-      <div class="txn-head">
-        <span class="badge">Credit History</span>
-        <p class="small muted" v-if="loadingTxns">Loading...</p>
-      </div>
-
-      <div v-if="!loadingTxns && transactions.length === 0" class="small muted">No transactions yet.</div>
-      <div v-else class="txn-list">
-        <div v-for="txn in transactions" :key="txn.txnId || txn.id" class="txn-row">
+        <article v-if="!auth.isStaff" class="glass wallet-shortcut">
           <div>
-            <p class="txn-label">{{ txnLabel(txn.reason) }}</p>
-            <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' }) : '—' }}</p>
+            <span class="eyebrow">Wallet</span>
+            <h3>Jump straight to credits or your ticket vault without leaving the profile surface.</h3>
           </div>
-          <span :class="['txn-amount', txn.delta > 0 ? 'positive' : 'negative']">
-            {{ txn.delta > 0 ? '+' : '' }}${{ Math.abs(txn.delta) }}
-          </span>
-        </div>
+
+          <div class="wallet-actions">
+            <RouterLink to="/credits/topup"><button type="button">Open Credits</button></RouterLink>
+            <RouterLink to="/tickets"><button class="secondary" type="button">View Tickets</button></RouterLink>
+          </div>
+        </article>
       </div>
-    </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .profile-page {
   display: grid;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.profile-hero,
-.detail-card,
-.side-card,
-.txn-card {
-  padding: 1.25rem;
+.profile-header {
+  text-align: center;
 }
 
-.profile-hero,
-.hero-main,
-.hero-actions,
-.hero-tags,
-.profile-grid,
-.txn-head,
-.txn-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.profile-hero,
-.txn-head,
-.txn-row {
-  justify-content: space-between;
-  align-items: center;
-}
-
-.hero-main {
-  align-items: center;
-}
-
-.avatar {
-  width: 4.5rem;
-  height: 4.5rem;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(249, 115, 22, 0.18);
-  color: var(--primarySoft);
+.profile-header h1 {
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 1.7rem;
+  font-size: clamp(2.7rem, 7vw, 4.35rem);
   font-weight: 800;
+  letter-spacing: -0.07em;
 }
 
-.hero-copy,
-.detail-card,
-.side-card,
-.txn-card,
-.txn-list {
+.profile-header span {
+  color: var(--primary);
+}
+
+.profile-layout {
   display: grid;
-  gap: 0.8rem;
-}
-
-.profile-grid {
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.5rem;
   align-items: start;
+}
+
+.account-sidebar {
+  position: sticky;
+  top: 6.8rem;
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr;
+  gap: 1rem;
+  padding: 0.85rem;
+  border-radius: 1.35rem;
+  background: rgba(34, 31, 30, 0.84);
 }
 
-.balance {
-  font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 2rem;
-  color: var(--primarySoft);
+.sidebar-nav {
+  display: grid;
+  gap: 0.35rem;
 }
 
-.inline-link {
-  color: var(--primarySoft);
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 1rem;
+  color: var(--textMuted);
   font-weight: 600;
 }
 
-.profile-field {
+.side-link.active {
+  background: rgba(249, 115, 22, 0.16);
+  color: var(--primarySoft);
+  border: 1px solid rgba(249, 115, 22, 0.22);
+}
+
+.side-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.sidebar-logout {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.profile-content {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.account-card,
+.security-card,
+.wallet-shortcut {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(34, 31, 30, 0.84);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.card-heading,
+.security-copy {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--outlineSoft);
 }
 
-.profile-field:last-child {
-  border-bottom: 0;
+.card-heading {
+  margin-bottom: 1.2rem;
 }
 
-.field-label {
-  min-width: 120px;
+.card-heading h2,
+.security-copy h2 {
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.card-heading p,
+.security-copy p {
+  margin-top: 0.2rem;
   color: var(--textMuted);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+}
+
+.icon-shell {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.08));
+  color: var(--primary);
+}
+
+.icon-shell.muted {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.card-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.field-stack {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field-stack input {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.primary-action {
+  margin-top: 1.35rem;
+}
+
+.security-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.preference-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.preference-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.3rem;
+}
+
+.preference-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--primary);
+}
+
+.preference-card strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.95rem;
+}
+
+.preference-card span {
+  color: var(--textMuted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.wallet-shortcut {
+  display: grid;
+  gap: 1rem;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.field-value-wrap {
-  flex: 1;
+.wallet-shortcut h3 {
+  margin-top: 0.35rem;
+  font-size: 1.15rem;
+  line-height: 1.45;
 }
 
-.txn-list {
-  gap: 0;
+.wallet-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.txn-row {
-  padding: 0.85rem 0;
-  border-bottom: 1px solid var(--outlineSoft);
-}
-
-.txn-row:last-child {
-  border-bottom: 0;
-}
-
-.txn-label {
-  margin-bottom: 0.15rem;
-}
-
-.txn-amount {
-  font-weight: 700;
-}
-
-.positive { color: var(--success); }
-.negative { color: var(--error); }
-
-.flagged {
-  background: rgba(255, 140, 122, 0.16);
-  color: var(--error);
-}
-
-@media (max-width: 860px) {
-  .profile-grid {
+@media (max-width: 980px) {
+  .profile-layout {
     grid-template-columns: 1fr;
+  }
+
+  .account-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .field-grid,
+  .preference-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .security-card {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import {
+  BoltIcon,
+  CreditCardIcon,
+  ShieldCheckIcon,
+  TicketIcon,
+  UserCircleIcon,
+} from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
+
+const FALLBACK_TRANSFER_IMAGE =
+  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1400&auto=format&fit=crop'
 
 const route = useRoute()
 const toast = useToast()
@@ -14,99 +24,111 @@ const transfer = ref<any>(null)
 const otp = ref('')
 const loading = ref(false)
 const resendLoading = ref(false)
-const showSuccessBanner = ref(false)
 const otpError = ref('')
-const otpAttempts = ref(0)
 const rateLimited = ref(false)
 const rateLimitCountdown = ref(0)
+const otpInput = ref<HTMLInputElement | null>(null)
 
 const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
-const role = computed(() => (isSeller.value ? 'seller' : 'buyer'))
-const countdownFormatted = computed(() => `${String(Math.floor(rateLimitCountdown.value / 60)).padStart(2, '0')}:${String(rateLimitCountdown.value % 60).padStart(2, '0')}`)
-
-const steps = computed(() =>
-  isSeller.value
-    ? [
-        { key: 'pending_seller_acceptance', label: 'Accept request' },
-        { key: 'pending_buyer_otp', label: 'Buyer verifies' },
-        { key: 'pending_seller_otp', label: 'Your OTP' },
-        { key: 'completed', label: 'Complete' },
-      ]
-    : [
-        { key: 'pending_seller_acceptance', label: 'Request sent' },
-        { key: 'pending_buyer_otp', label: 'Your OTP' },
-        { key: 'pending_seller_otp', label: 'Seller verifies' },
-        { key: 'completed', label: 'Complete' },
-      ],
+const isOtpStage = computed(() => status.value === 'pending_buyer_otp' || status.value === 'pending_seller_otp')
+const verifyMode = computed<'buyer' | 'seller'>(() => (status.value === 'pending_seller_otp' ? 'seller' : 'buyer'))
+const countdownFormatted = computed(
+  () =>
+    `${String(Math.floor(rateLimitCountdown.value / 60)).padStart(2, '0')}:${String(rateLimitCountdown.value % 60).padStart(2, '0')}`,
 )
+const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
+const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?.image || FALLBACK_TRANSFER_IMAGE)
 
-const stepIndex = computed(() => {
-  const index = steps.value.findIndex((step) => step.key === status.value)
-  return index === -1 ? 0 : index
-})
+const sidebarLinks = [
+  { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
+  { key: 'credits', to: '/credits/topup', label: 'Credits', icon: CreditCardIcon },
+  { key: 'tickets', to: '/tickets', label: 'Tickets', icon: TicketIcon },
+]
+
+const verifyCopy = computed(() =>
+  verifyMode.value === 'buyer'
+    ? 'To protect your assets, please enter the 6-digit security code sent to your registered mobile device.'
+    : 'The buyer has confirmed. Enter your 6-digit seller code to finalize the transfer and settle the ledger.',
+)
 
 const loadTransfer = async () => {
   if (isDemoMode()) {
-    transfer.value = {
-      status: 'pending_seller_acceptance',
+    const baseTransfer = {
       transferId: route.params.transferId,
+      status: 'pending_seller_acceptance',
       creditAmount: 180,
-      eventName: 'Afterlight: Echoes of Eternity',
-      eventDate: '2026-04-13T20:00:00Z',
-      seatRow: 'A',
-      seatNumber: 2,
-      venueName: 'Singapore Indoor Stadium',
+      sellerId: 'demo-seller-001',
+      sellerName: 'Julian Vane',
+      buyerId: auth.state.user?.userId ?? 'demo-user-001',
+      eventName: 'Afterlife: Echoes of Eternity',
+      eventDate: '2026-10-24T22:00:00Z',
+      venueName: 'The Obsidian Dome',
+      seatRow: '12',
+      seatNumber: 'GA Floor',
+      location: 'The Obsidian Dome',
+      eventImage: FALLBACK_TRANSFER_IMAGE,
+    }
+    transfer.value = {
+      ...baseTransfer,
+      ...(transfer.value || {}),
+      status: transfer.value?.status || baseTransfer.status,
+      completedAt: transfer.value?.completedAt,
     }
     return
   }
+
   try {
     const { data } = await api.get(`/transfer/${route.params.transferId}`)
     const raw = data?.data || data || null
-    if (raw) {
-      transfer.value = {
-        ...raw,
-        sellerId: raw.sellerId || raw.seller_id,
-        buyerId: raw.buyerId || raw.buyer_id,
-        creditAmount: raw.creditAmount || raw.credit_amount,
-        completedAt: raw.completedAt || raw.completed_at,
-        eventName: raw.eventName || raw.event_name,
-        eventDate: raw.eventDate || raw.event_date,
-        venueName: raw.venueName || raw.venue_name,
-        seatRow: raw.seatRow || raw.seat_row,
-        seatNumber: raw.seatNumber || raw.seat_number,
-      }
+    if (!raw) return
+
+    transfer.value = {
+      ...raw,
+      sellerId: raw.sellerId || raw.seller_id,
+      buyerId: raw.buyerId || raw.buyer_id,
+      sellerName: raw.sellerName || raw.seller_name || 'Seller',
+      creditAmount: raw.creditAmount || raw.credit_amount,
+      completedAt: raw.completedAt || raw.completed_at,
+      eventName: raw.eventName || raw.event_name,
+      eventDate: raw.eventDate || raw.event_date,
+      venueName: raw.venueName || raw.venue_name,
+      seatRow: raw.seatRow || raw.seat_row,
+      seatNumber: raw.seatNumber || raw.seat_number,
+      location: raw.location || raw.venueName || raw.venue_name,
+      eventImage: raw.eventImage || raw.event_image || raw.image,
     }
   } catch {
     if (!transfer.value) {
       transfer.value = {
-        status: 'pending_seller_acceptance',
         transferId: route.params.transferId,
+        status: 'pending_seller_acceptance',
         creditAmount: 180,
-        eventName: 'Afterlight: Echoes of Eternity',
-        eventDate: '2026-04-13T20:00:00Z',
-        seatRow: 'A',
-        seatNumber: 2,
-        venueName: 'Singapore Indoor Stadium',
+        sellerId: 'demo-seller-001',
+        sellerName: 'Julian Vane',
+        buyerId: auth.state.user?.userId ?? 'demo-user-001',
+        eventName: 'Afterlife: Echoes of Eternity',
+        eventDate: '2026-10-24T22:00:00Z',
+        venueName: 'The Obsidian Dome',
+        seatRow: '12',
+        seatNumber: 'GA Floor',
+        location: 'The Obsidian Dome',
+        eventImage: FALLBACK_TRANSFER_IMAGE,
       }
     }
   }
-}
-
-const handleRateLimit = () => {
-  rateLimited.value = true
-  rateLimitCountdown.value = 900
 }
 
 const acceptTransfer = async () => {
   loading.value = true
   try {
     if (isDemoMode()) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 900))
       transfer.value = { ...transfer.value, status: 'pending_buyer_otp' }
       toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
       return
     }
+
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
     transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
     toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
@@ -120,6 +142,13 @@ const acceptTransfer = async () => {
 const rejectTransfer = async () => {
   loading.value = true
   try {
+    if (isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      transfer.value = { ...transfer.value, status: 'cancelled' }
+      toast.push('Transfer rejected.', 'info', 3200)
+      return
+    }
+
     await api.post(`/transfer/${route.params.transferId}/seller-reject`)
     transfer.value = { ...transfer.value, status: 'cancelled' }
     toast.push('Transfer rejected.', 'info', 3200)
@@ -130,44 +159,55 @@ const rejectTransfer = async () => {
   }
 }
 
-const verifyOtp = async (mode: 'buyer' | 'seller') => {
+const handleRateLimit = () => {
+  rateLimited.value = true
+  rateLimitCountdown.value = 900
+}
+
+const handleOtpInput = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 6)
+  otp.value = value
+}
+
+const focusOtpInput = () => {
+  otpInput.value?.focus()
+}
+
+const verifyOtp = async () => {
   if (rateLimited.value) return
+
   loading.value = true
   otpError.value = ''
   try {
-    if (isDemoMode()) {
-      if (otp.value.length < 6) {
-        otpError.value = 'Enter a 6-digit OTP.'
-        return
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      transfer.value =
-        mode === 'buyer'
-          ? { ...transfer.value, status: 'pending_seller_otp' }
-          : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
-      otp.value = ''
-      otpAttempts.value = 0
-      showSuccessBanner.value = mode === 'seller'
-      toast.push(mode === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
+    if (otp.value.length < 6) {
+      otpError.value = 'Enter a 6-digit OTP.'
       return
     }
 
-    const endpoint = mode === 'buyer' ? 'buyer-verify' : 'seller-verify'
+    if (isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      transfer.value =
+        verifyMode.value === 'buyer'
+          ? { ...transfer.value, status: 'pending_seller_otp' }
+          : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
+      otp.value = ''
+      toast.push(verifyMode.value === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
+      return
+    }
+
+    const endpoint = verifyMode.value === 'buyer' ? 'buyer-verify' : 'seller-verify'
     const { data } = await api.post(`/transfer/${route.params.transferId}/${endpoint}`, { otp: otp.value })
     transfer.value =
-      mode === 'buyer'
+      verifyMode.value === 'buyer'
         ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
         : { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
-    otpAttempts.value = 0
-    showSuccessBanner.value = mode === 'seller'
-    toast.push(mode === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
+    toast.push(verifyMode.value === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
   } catch (error: any) {
     if (error?.response?.status === 429) {
       handleRateLimit()
       otpError.value = 'Too many attempts. Please wait 15 minutes before trying again.'
     } else {
-      otpAttempts.value++
       otp.value = ''
       otpError.value = error?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
     }
@@ -179,6 +219,12 @@ const verifyOtp = async (mode: 'buyer' | 'seller') => {
 const resendOtp = async () => {
   resendLoading.value = true
   try {
+    if (isDemoMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      toast.push('A new demo code is ready.', 'success', 2800)
+      return
+    }
+
     await api.post(`/transfer/${route.params.transferId}/resend-otp`)
     toast.push('New OTP sent to your phone.', 'success', 3200)
   } catch {
@@ -193,6 +239,7 @@ let countdownTimer: number | undefined
 
 onMounted(async () => {
   await loadTransfer()
+
   pollTimer = window.setInterval(async () => {
     if (['completed', 'failed', 'cancelled', 'expired'].includes(status.value)) {
       clearInterval(pollTimer)
@@ -217,141 +264,508 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="transfer-page">
-    <div v-if="showSuccessBanner" class="success-banner">
-      <span>Ticket successfully transferred.</span>
-      <RouterLink to="/tickets"><button>View Tickets</button></RouterLink>
-    </div>
-
+  <section class="page transfer-page">
     <header class="transfer-header">
-      <span class="eyebrow">Transfer Ledger</span>
-      <h1>Incoming Transfer</h1>
+      <h1 v-if="isOtpStage">Ticket<span>Transfer</span></h1>
+      <h1 v-else>Incoming Transfer</h1>
     </header>
 
-    <div class="transfer-layout">
-      <article class="preview-card panel">
-        <div class="preview-image"></div>
-        <div class="preview-copy">
-          <span class="preview-badge">VIP Access</span>
-          <h2>{{ transfer?.eventName || 'Afterlight: Echoes of Eternity' }}</h2>
-          <div class="preview-grid">
-            <div><span class="meta-label">Role</span><strong>{{ role }}</strong></div>
-            <div><span class="meta-label">Date</span><strong>{{ transfer?.eventDate ? new Date(transfer.eventDate).toLocaleDateString('en-SG') : 'TBA' }}</strong></div>
-            <div><span class="meta-label">Venue</span><strong>{{ transfer?.venueName || 'Venue TBA' }}</strong></div>
-            <div><span class="meta-label">Seat</span><strong>{{ transfer?.seatRow && transfer?.seatNumber ? `Row ${transfer.seatRow} • Seat ${transfer.seatNumber}` : 'Assigned' }}</strong></div>
+    <div v-if="isOtpStage" class="otp-layout">
+      <aside class="glass otp-sidebar">
+        <nav class="sidebar-nav">
+          <RouterLink
+            v-for="item in sidebarLinks"
+            :key="item.key"
+            :to="item.to"
+            class="side-link"
+            :class="{ active: item.key === 'tickets' }"
+          >
+            <component :is="item.icon" class="side-icon" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </nav>
+      </aside>
+
+      <div class="otp-main">
+        <article class="glass otp-card">
+          <p class="otp-copy">{{ verifyCopy }}</p>
+
+          <div v-if="rateLimited" class="warning-box">
+            Too many attempts. Try again in <strong>{{ countdownFormatted }}</strong>.
           </div>
-        </div>
-      </article>
 
-      <article class="action-card panel">
-        <div class="step-row">
-          <div v-for="(step, index) in steps" :key="step.key" class="step-item">
-            <span class="step-dot" :class="{ active: stepIndex === index, done: stepIndex > index }">{{ stepIndex > index ? '✓' : index + 1 }}</span>
-            <small>{{ step.label }}</small>
+          <div v-else class="otp-grid" @click="focusOtpInput">
+            <input
+              ref="otpInput"
+              class="otp-hidden-input"
+              :value="otp"
+              maxlength="6"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              @input="handleOtpInput"
+              @keyup.enter="verifyOtp"
+            />
+            <span v-for="(digit, index) in otpDigits" :key="index" class="otp-box">{{ digit }}</span>
           </div>
-        </div>
 
-        <template v-if="status === 'pending_seller_acceptance' && isSeller">
-          <h3>Review the transfer request.</h3>
-          <p class="muted">This transfer is irreversible once accepted and verified by both parties.</p>
-          <div class="actions">
-            <button :disabled="loading" @click="acceptTransfer">{{ loading ? 'Processing...' : 'Accept Transfer' }}</button>
-            <button class="secondary" :disabled="loading" @click="rejectTransfer">Decline</button>
-          </div>
-        </template>
-
-        <template v-else-if="status === 'pending_seller_acceptance'">
-          <h3>Request sent to seller.</h3>
-          <p class="muted">We’ll update this page as soon as the seller accepts the transfer.</p>
-        </template>
-
-        <template v-else-if="status === 'pending_buyer_otp' || status === 'pending_seller_otp'">
-          <h3>Verify transfer</h3>
-          <p class="muted">Enter the 6-digit security code sent to your registered device.</p>
-
-          <div v-if="rateLimited" class="warning-box">Too many attempts. Try again in <strong>{{ countdownFormatted }}</strong>.</div>
-
-          <div v-else class="otp-shell">
-            <input v-model="otp" maxlength="6" inputmode="numeric" placeholder="123456" @keyup.enter="verifyOtp(status === 'pending_buyer_otp' ? 'buyer' : 'seller')" />
-            <button :disabled="loading || otp.length < 6" @click="verifyOtp(status === 'pending_buyer_otp' ? 'buyer' : 'seller')">
-              {{ loading ? 'Verifying...' : 'Verify & Complete' }}
-            </button>
-          </div>
+          <button class="otp-submit" :disabled="loading || otp.length < 6 || rateLimited" @click="verifyOtp">
+            {{ loading ? 'Verifying...' : 'Verify & Complete' }}
+          </button>
 
           <p v-if="otpError" class="error-text">{{ otpError }}</p>
-          <button v-if="!rateLimited" class="secondary" :disabled="resendLoading" @click="resendOtp">
-            {{ resendLoading ? 'Sending...' : 'Resend Code' }}
-          </button>
-        </template>
 
-        <template v-else-if="status === 'completed'">
-          <h3>Transfer complete.</h3>
-          <p class="muted">The transfer has been verified and settled successfully.</p>
-          <div class="summary-box">
-            <div><span class="meta-label">Credits</span><strong>SGD {{ transfer?.creditAmount ?? '0.00' }}</strong></div>
-            <div><span class="meta-label">Transfer ID</span><strong>{{ route.params.transferId }}</strong></div>
+          <div class="resend-block">
+            <p>Didn’t receive the code?</p>
+            <button class="resend-link" type="button" :disabled="resendLoading || rateLimited" @click="resendOtp">
+              {{ resendLoading ? 'Sending...' : 'Resend Code' }}
+            </button>
           </div>
-          <RouterLink :to="isSeller ? '/marketplace' : '/tickets'"><button>{{ isSeller ? 'Back to Marketplace' : 'View Tickets' }}</button></RouterLink>
-        </template>
+        </article>
 
-        <template v-else>
-          <h3>Transfer {{ status }}.</h3>
-          <p class="muted">This transfer is no longer active.</p>
-          <RouterLink to="/marketplace"><button class="secondary">Back to Marketplace</button></RouterLink>
-        </template>
+        <div class="trust-grid">
+          <article class="glass trust-card">
+            <div class="trust-icon">
+              <ShieldCheckIcon class="mini-icon" />
+            </div>
+            <div>
+              <span>Encrypted</span>
+              <strong>End-to-end secure transfer</strong>
+            </div>
+          </article>
+
+          <article class="glass trust-card">
+            <div class="trust-icon">
+              <BoltIcon class="mini-icon" />
+            </div>
+            <div>
+              <span>Instant</span>
+              <strong>Tickets delivered immediately</strong>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="accept-layout">
+      <article class="glass accept-card">
+        <div class="accept-media" :style="{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.65)), url(${eventPoster})` }">
+          <div class="accept-overlay">
+            <span class="accept-badge">VIP Access</span>
+            <h2>{{ transfer?.eventName || 'Afterlife: Echoes of Eternity' }}</h2>
+          </div>
+        </div>
+
+        <div class="accept-body">
+          <div class="info-grid">
+            <div>
+              <span>Sender</span>
+              <strong>{{ transfer?.sellerName || 'Julian Vane' }}</strong>
+            </div>
+            <div>
+              <span>Date &amp; Time</span>
+              <strong>{{ transfer?.eventDate ? new Date(transfer.eventDate).toLocaleString('en-SG', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'TBA' }}</strong>
+            </div>
+            <div>
+              <span>Location</span>
+              <strong>{{ transfer?.location || transfer?.venueName || 'The Obsidian Dome' }}</strong>
+            </div>
+            <div>
+              <span>Section / Row</span>
+              <strong>{{ transfer?.seatNumber && transfer?.seatRow ? `${transfer.seatNumber} • Row ${transfer.seatRow}` : 'Assigned' }}</strong>
+            </div>
+          </div>
+
+          <div class="authenticity-box">
+            <ShieldCheckIcon class="mini-icon" />
+            <div>
+              <strong>Authenticity Guaranteed</strong>
+              <p>This ticket has been digitally verified via the Remaster Ledger. Transfer is irreversible once accepted.</p>
+            </div>
+          </div>
+
+          <template v-if="status === 'pending_seller_acceptance' && isSeller">
+            <button class="accept-button" :disabled="loading" @click="acceptTransfer">
+              {{ loading ? 'Processing...' : 'Accept Transfer' }}
+            </button>
+            <button class="decline-button" :disabled="loading" type="button" @click="rejectTransfer">Decline Transfer</button>
+          </template>
+
+          <template v-else-if="status === 'pending_seller_acceptance'">
+            <p class="accept-note">The request has been submitted. We’ll update this page the moment the seller accepts the transfer.</p>
+          </template>
+
+          <template v-else-if="status === 'completed'">
+            <div class="completion-box">
+              <strong>Transfer complete.</strong>
+              <p>The transfer has been verified and settled successfully.</p>
+              <div class="completion-grid">
+                <div>
+                  <span>Credits</span>
+                  <strong>${{ Number(transfer?.creditAmount || 0).toFixed(2) }}</strong>
+                </div>
+                <div>
+                  <span>Transfer ID</span>
+                  <strong>{{ route.params.transferId }}</strong>
+                </div>
+              </div>
+            </div>
+            <RouterLink :to="isSeller ? '/marketplace' : '/tickets'">
+              <button type="button">{{ isSeller ? 'Back to Marketplace' : 'View Tickets' }}</button>
+            </RouterLink>
+          </template>
+
+          <template v-else>
+            <div class="completion-box">
+              <strong>Transfer {{ status }}.</strong>
+              <p>This transfer is no longer active.</p>
+            </div>
+            <RouterLink to="/marketplace">
+              <button class="secondary" type="button">Back to Marketplace</button>
+            </RouterLink>
+          </template>
+        </div>
       </article>
     </div>
   </section>
 </template>
 
 <style scoped>
-.transfer-page, .transfer-header { display: grid; gap: 1rem; }
+.transfer-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.transfer-header {
+  text-align: center;
+}
+
 .transfer-header h1 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 4.8rem); line-height: .95; letter-spacing: -.05em;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.8rem, 8vw, 4.8rem);
+  font-weight: 800;
+  letter-spacing: -0.08em;
 }
-.eyebrow, .meta-label {
-  font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+
+.transfer-header span {
+  color: var(--primary);
 }
-.eyebrow { color: var(--primary); }
-.meta-label { color: var(--text-dim); display: block; margin-bottom: .35rem; }
-.transfer-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(21rem,.95fr); gap: 1.25rem; }
-.preview-card, .action-card { display: grid; gap: 1rem; overflow: hidden; }
-.preview-image {
-  min-height: 18rem; border-radius: 1.25rem;
-  background: linear-gradient(180deg, rgba(249,115,22,.18), rgba(0,0,0,.3)), url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80') center/cover;
+
+.otp-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
 }
-.preview-copy h2 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.1rem); line-height: .96; letter-spacing: -.04em;
+
+.otp-sidebar {
+  position: sticky;
+  top: 6.8rem;
+  padding: 0.85rem;
+  border-radius: 1.35rem;
+  background: rgba(34, 31, 30, 0.84);
 }
-.preview-badge, .status-pill {
-  width: fit-content; padding: .45rem .75rem; border-radius: 999px; background: rgba(249,115,22,.14);
-  color: var(--primary); font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+
+.sidebar-nav {
+  display: grid;
+  gap: 0.35rem;
 }
-.preview-grid, .summary-box { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
-.preview-grid strong, .summary-box strong { display: block; }
-.step-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .75rem; }
-.step-item { display: grid; gap: .45rem; justify-items: center; text-align: center; }
-.step-item small { color: var(--text-muted); font-size: .74rem; }
-.step-dot {
-  width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.08); color: var(--text-muted); background: rgba(255,255,255,.03); font-weight: 700;
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 1rem;
+  color: var(--textMuted);
+  font-weight: 600;
 }
-.step-dot.active { border-color: rgba(249,115,22,.5); color: var(--primary); background: rgba(249,115,22,.12); }
-.step-dot.done { border-color: rgba(249,115,22,.5); color: #111; background: var(--primary); }
-.action-card h3 { margin: 0; font-size: 1.5rem; }
-.muted { margin: 0; color: var(--text-muted); line-height: 1.7; }
-.actions, .otp-shell { display: flex; gap: .75rem; flex-wrap: wrap; }
-.otp-shell input { flex: 1 1 12rem; letter-spacing: .2em; text-align: center; font-size: 1.2rem; }
-.warning-box, .summary-box {
-  padding: 1rem; border-radius: 1rem; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05);
+
+.side-link.active {
+  background: rgba(249, 115, 22, 0.18);
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  color: var(--primarySoft);
 }
-.warning-box { color: #f6a94d; }
-.error-text { margin: 0; color: #ff8f84; }
-.success-banner {
-  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 20; display: flex; gap: .75rem; align-items: center;
-  padding: .9rem 1rem; border-radius: 1rem; background: rgba(50,210,122,.16); border: 1px solid rgba(50,210,122,.22);
+
+.side-icon {
+  width: 1rem;
+  height: 1rem;
 }
-@media (max-width: 900px) {
-  .transfer-layout, .preview-grid, .summary-box, .step-row { grid-template-columns: 1fr; }
+
+.otp-main {
+  display: grid;
+  gap: 1.4rem;
+  justify-items: center;
+}
+
+.otp-card,
+.trust-card,
+.accept-card {
+  border-radius: 1.55rem;
+  background: rgba(34, 31, 30, 0.84);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.otp-card {
+  width: min(100%, 33rem);
+  display: grid;
+  gap: 1rem;
+  padding: 1.8rem 1.6rem;
+  text-align: center;
+}
+
+.otp-copy {
+  color: var(--textMuted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.otp-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.otp-hidden-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.otp-box {
+  display: grid;
+  place-items: center;
+  height: 4.5rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--primary);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.otp-submit {
+  width: 100%;
+  border-radius: 999px;
+  padding-block: 0.95rem;
+}
+
+.warning-box,
+.completion-box {
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.warning-box {
+  color: #f6b15d;
+}
+
+.error-text {
+  margin: 0;
+  color: #ff8f84;
+}
+
+.resend-block {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+}
+
+.resend-block p {
+  color: var(--textMuted);
+  font-size: 0.84rem;
+}
+
+.resend-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.resend-link:hover {
+  transform: none;
+  filter: none;
+}
+
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: min(100%, 33rem);
+}
+
+.trust-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+}
+
+.trust-icon,
+.authenticity-box .mini-icon {
+  color: var(--primary);
+}
+
+.trust-card span {
+  display: block;
+  color: var(--textMuted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.trust-card strong {
+  font-size: 0.92rem;
+}
+
+.mini-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.accept-layout {
+  display: grid;
+  justify-content: center;
+}
+
+.accept-card {
+  width: min(100%, 33rem);
+  overflow: hidden;
+}
+
+.accept-media {
+  min-height: 17rem;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+}
+
+.accept-overlay {
+  width: 100%;
+  padding: 1.35rem 1.3rem;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72));
+}
+
+.accept-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.18);
+  color: var(--primarySoft);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.accept-overlay h2 {
+  margin-top: 0.75rem;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2rem, 5vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.accept-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem 1.3rem 1.45rem;
+}
+
+.info-grid,
+.completion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.info-grid span,
+.completion-grid span {
+  display: block;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.info-grid strong,
+.completion-grid strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+}
+
+.authenticity-box {
+  display: flex;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.authenticity-box strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.authenticity-box p,
+.accept-note,
+.completion-box p {
+  margin: 0;
+  color: var(--textMuted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.accept-button {
+  width: 100%;
+  border-radius: 0.9rem;
+  padding-block: 0.95rem;
+}
+
+.decline-button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.83rem;
+  font-weight: 500;
+}
+
+.decline-button:hover {
+  transform: none;
+  filter: none;
+  color: #fff;
+}
+
+@media (max-width: 980px) {
+  .otp-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .otp-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .trust-grid,
+  .info-grid,
+  .completion-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -50,7 +50,7 @@ The frontend includes a **Demo Mode** that allows UI development and testing wit
    http://localhost:5173/demo-login
    ```
 
-2. **Click a demo account button** or enter credentials manually
+2. **Click one of the three seeded demo personas**
 
 3. **Explore the UI** — All read-only features work with mock data
 
@@ -75,6 +75,7 @@ The frontend includes a **Demo Mode** that allows UI development and testing wit
 - ❌ Real Stripe charges (replaced by "Simulate Top Up" button)
 - ❌ Real OTP SMS (OTP flow simulated with any 6-digit input)
 - ❌ Real-time WebSocket updates
+- ❌ Ad-hoc demo accounts beyond the three seeded personas
 
 ## Testing Observability
 
