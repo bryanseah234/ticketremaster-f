@@ -228,7 +228,7 @@ onUnmounted(() => {
 <template>
   <section class="page credits-page">
     <header class="credits-header">
-      <h1>Account<span>Credits</span></h1>
+      <h1>Account <span>Credits</span></h1>
     </header>
 
     <div class="credits-layout">

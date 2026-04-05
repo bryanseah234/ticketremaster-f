@@ -66,7 +66,7 @@ onMounted(() => {
 <template>
   <section class="page profile-page">
     <header class="profile-header">
-      <h1>User<span>Profile</span></h1>
+      <h1>User <span>Profile</span></h1>
     </header>
 
     <div class="profile-layout">

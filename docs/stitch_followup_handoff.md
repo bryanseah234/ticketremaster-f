@@ -25,6 +25,7 @@ Branch: `codex/stitch-integration`
 - The primary sign-in button should remain visible but disabled.
 - Demo entry should continue through the same `Launch` button in the demo panel.
 - Do not swap the login page into a separate offline-specific layout.
+- Apply the same lockout principle to registration and verification entry: preserve the online layout, disable live inputs/actions, and keep the demo path available.
 
 ### Profile-family shell
 
@@ -108,6 +109,9 @@ These routes are compulsory frontend-facing integrations and need real UI surfac
   - `/transfer/pending` is surfaced through the notifications flow and seller polling helper.
   - `/transfer/{transferId}/cancel` is now surfaced in the transfer UI for buyer wait states and OTP states.
   - frontend route guards are tightened for protected transfer detail and QR routes.
+  - auth entry pages now react to live backend outage separately from demo sessions so the Stitch auth layouts remain visible but disabled.
+- Extra frontend routes that are not part of the current browser-facing backend contract should not call backend services:
+  - `AdminUserManagementView` is now a frontend-only preview route and no longer issues unsupported live admin user calls.
 - Remaining route-contract ambiguity is mostly product/navigation, not missing endpoint wiring:
   - live admin still lacks a clean universal sidebar target for the event-specific dashboard route
 

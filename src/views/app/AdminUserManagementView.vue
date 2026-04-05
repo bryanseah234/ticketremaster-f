@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockAdminUser, mockStaffUser, mockUser } from '@/services/mockData'
 
@@ -62,19 +61,12 @@ const loadUsers = async () => {
   loading.value = true
   error.value = ''
   try {
-    if (isDemoMode()) {
-      users.value = demoUsers
-      return
+    users.value = demoUsers
+    if (!isDemoMode()) {
+      toast.info('Standalone user management is currently a frontend-only preview and does not call live admin services.', 3600)
     }
-    const endpoint =
-      search.value.trim().length > 0
-        ? `/admin/users/search?q=${encodeURIComponent(search.value.trim())}`
-        : `/admin/users${filter.value === 'all' ? '' : `?flagged=${filter.value === 'flagged' ? 'true' : 'false'}`}`
-
-    const { data } = await api.get(endpoint)
-    users.value = Array.isArray(data) ? data : data?.users || []
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to fetch users'
+  } catch {
+    error.value = 'Failed to prepare the preview users.'
     if (!users.value.length) users.value = demoUsers
   } finally {
     loading.value = false
@@ -84,22 +76,20 @@ const loadUsers = async () => {
 const promoteToStaff = async (user: UserRecord) => {
   if (!window.confirm(`Promote ${user.email} to staff?`)) return
   try {
-    await api.patch(`/users/${user.userId}`, { role: 'staff' })
     user.role = 'staff'
-    toast.push('User promoted to staff.', 'success', 2400)
-  } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'Failed to promote user.', 'error', 3000)
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
 const demoteToUser = async (user: UserRecord) => {
   if (!window.confirm(`Demote ${user.email} back to user?`)) return
   try {
-    await api.patch(`/users/${user.userId}`, { role: 'user' })
     user.role = 'user'
-    toast.push('User demoted to user.', 'success', 2400)
-  } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'Failed to demote user.', 'error', 3000)
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
@@ -107,11 +97,10 @@ const toggleFlag = async (user: UserRecord) => {
   const nextFlag = !user.isFlagged
   if (!window.confirm(`${nextFlag ? 'Flag' : 'Unflag'} ${user.email}?`)) return
   try {
-    await api.patch(`/admin/users/${user.userId}/flag`, { isFlagged: nextFlag })
     user.isFlagged = nextFlag
-    toast.push(nextFlag ? 'User flagged.' : 'User unflagged.', 'success', 2400)
-  } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'Failed to update user flag.', 'error', 3000)
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
@@ -144,6 +133,10 @@ onMounted(loadUsers)
         <button :class="{ active: filter === 'flagged' }" @click="filter = 'flagged'; loadUsers()">Flagged</button>
         <button :class="{ active: filter === 'clean' }" @click="filter = 'clean'; loadUsers()">Clean</button>
       </div>
+    </section>
+
+    <section class="state-shell panel preview-note">
+      This route remains available as a frontend preview only. Live admin user operations stay out of the current browser-facing API contract.
     </section>
 
     <div v-if="loading" class="state-shell panel">Loading users…</div>
