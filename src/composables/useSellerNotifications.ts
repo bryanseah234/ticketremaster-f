@@ -46,7 +46,7 @@ export function useSellerNotifications() {
 
       // Check for pending transfers
       const response = await api.get('/transfer/pending')
-      const pendingTransfers = response.data?.data || []
+      const pendingTransfers = response.data?.data?.transfers ?? response.data?.data ?? []
 
       if (pendingTransfers.length > 0) {
         state.value.notifications = pendingTransfers.map((t: any) => ({
