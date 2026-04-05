@@ -10,12 +10,9 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-// listingId can come from query param or manual input
 const listingIdInput = ref((route.query.listingId as string) || '')
 const loading = ref(false)
 const errorMsg = ref('')
-
-// Listing details (shown when listingId is pre-filled via query param)
 const listingDetails = ref<MarketplaceListing | null>(null)
 const detailsLoading = ref(false)
 
@@ -24,13 +21,12 @@ const fetchListingDetails = async (id: string) => {
   detailsLoading.value = true
   try {
     if (isDemoMode()) {
-      const found = mockListings.find(l => l.listingId === id) ?? null
-      listingDetails.value = found
+      listingDetails.value = mockListings.find(listing => listing.listingId === id) ?? null
       return
     }
-    const res = await api.get('/marketplace', { params: { page: 1, limit: 100 } })
-    const items: MarketplaceListing[] = res.data?.data?.listings ?? []
-    listingDetails.value = items.find(l => l.listingId === id) ?? null
+    const response = await api.get('/marketplace', { params: { page: 1, limit: 100 } })
+    const items: MarketplaceListing[] = response.data?.data?.listings ?? []
+    listingDetails.value = items.find(listing => listing.listingId === id) ?? null
   } catch {
     listingDetails.value = null
   } finally {
@@ -46,121 +42,112 @@ const initiateTransfer = async () => {
   }
   errorMsg.value = ''
   loading.value = true
-
   try {
     if (isDemoMode()) {
       await new Promise(resolve => setTimeout(resolve, 1000))
       toast.push('Transfer initiated (demo mode).', 'success', 3200)
-      router.push(`/transfer/demo-transfer-001`)
+      router.push('/transfer/demo-transfer-001')
       return
     }
-
     const { data } = await api.post('/transfer/initiate', { listingId: id })
     const transferId = data?.data?.transferId
     toast.push('Transfer initiated. Waiting for seller to accept.', 'success', 3200)
-    if (transferId) {
-      router.push(`/transfer/${transferId}`)
-    }
+    if (transferId) router.push(`/transfer/${transferId}`)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
     const status = e?.response?.status
-    if (status === 404 || code === 'LISTING_NOT_FOUND') {
-      errorMsg.value = 'Listing not found or no longer available.'
-    } else if (status === 402 || code === 'INSUFFICIENT_CREDITS') {
-      errorMsg.value = 'Insufficient credits. Please top up your balance.'
-    } else if (status === 403 || code === 'AUTH_FORBIDDEN') {
-      errorMsg.value = "You can't purchase your own listing."
-    } else {
-      errorMsg.value = e?.response?.data?.error?.message || 'Transfer initiation failed.'
-    }
+    if (status === 404 || code === 'LISTING_NOT_FOUND') errorMsg.value = 'Listing not found or no longer available.'
+    else if (status === 402 || code === 'INSUFFICIENT_CREDITS') errorMsg.value = 'Insufficient credits. Please top up your balance.'
+    else if (status === 403 || code === 'AUTH_FORBIDDEN') errorMsg.value = "You can't purchase your own listing."
+    else errorMsg.value = e?.response?.data?.error?.message || 'Transfer initiation failed.'
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
-  const qId = route.query.listingId as string
-  if (qId) fetchListingDetails(qId)
+  const id = route.query.listingId as string
+  if (id) fetchListingDetails(id)
 })
 </script>
 
 <template>
-  <section class="page" style="max-width:560px;">
-    <article class="glass initiate-card">
-      <h1 class="section-title">Buy Ticket</h1>
-      <p class="section-subtitle">Initiate a transfer from a marketplace listing.</p>
-
-      <!-- Listing details preview (when listingId provided via query) -->
-      <div v-if="detailsLoading" class="detail-skeleton small muted">Loading listing details...</div>
-      <div v-else-if="listingDetails" class="listing-preview glass-inner">
-        <div class="preview-row">
-          <span class="preview-label">Event</span>
-          <span>{{ listingDetails.event?.name || '—' }}</span>
+  <section class="page">
+    <div class="auth-shell transfer-shell">
+      <article class="glass auth-card">
+        <span class="badge">Transfer Initiation</span>
+        <div>
+          <h1 class="section-title">Start a protected purchase transfer.</h1>
+          <p class="section-subtitle">Confirm the listing you want to buy, then we’ll notify the seller and begin the OTP flow.</p>
         </div>
-        <div class="preview-row">
-          <span class="preview-label">Date</span>
-          <span>{{ listingDetails.event?.date ? new Date(listingDetails.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}</span>
-        </div>
-        <div class="preview-row">
-          <span class="preview-label">Price</span>
-          <span class="price-highlight">${{ listingDetails.price }}</span>
-        </div>
-        <div class="preview-row">
-          <span class="preview-label">Seller</span>
-          <span>{{ listingDetails.sellerName || listingDetails.sellerId.slice(0, 8) + '...' }}</span>
-        </div>
-        <div class="preview-row">
-          <span class="preview-label">Status</span>
-          <span :class="['status-pill', listingDetails.status === 'active' ? 'active' : 'inactive']">{{ listingDetails.status }}</span>
-        </div>
-      </div>
 
-      <!-- Listing ID input -->
-      <div>
-        <label>Listing ID</label>
-        <input
-          v-model="listingIdInput"
-          placeholder="e.g. lst_001"
-          :disabled="loading"
-          @keyup.enter="initiateTransfer"
-        />
-      </div>
+        <div v-if="detailsLoading" class="small muted">Loading listing details...</div>
+        <article v-else-if="listingDetails" class="panel preview-card">
+          <div class="preview-row">
+            <span class="preview-label">Event</span>
+            <span>{{ listingDetails.event?.name || '—' }}</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Date</span>
+            <span>{{ listingDetails.event?.date ? new Date(listingDetails.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Price</span>
+            <strong class="price-highlight">${{ listingDetails.price }}</strong>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Status</span>
+            <span class="badge">{{ listingDetails.status }}</span>
+          </div>
+        </article>
 
-      <!-- Error message -->
-      <p v-if="errorMsg" class="error-msg small">{{ errorMsg }}</p>
+        <form class="auth-form" @submit.prevent="initiateTransfer">
+          <div>
+            <label>Listing ID</label>
+            <input v-model="listingIdInput" placeholder="e.g. lst_001" />
+          </div>
 
-      <button :disabled="loading || !listingIdInput.trim()" @click="initiateTransfer">
-        {{ loading ? 'Initiating...' : 'Buy Now' }}
-      </button>
+          <p v-if="errorMsg" class="field-error">{{ errorMsg }}</p>
 
-      <p class="small muted hint">
-        Credits will be held until the seller accepts and both parties verify via OTP.
-      </p>
-    </article>
+          <button :disabled="loading || !listingIdInput.trim()" type="submit">
+            {{ loading ? 'Initiating...' : 'Continue' }}
+          </button>
+        </form>
+
+        <p class="small muted">Credits stay protected until the seller accepts and both sides complete OTP verification.</p>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.initiate-card { padding: 1.5rem; display: grid; gap: 1rem; }
+.transfer-shell {
+  width: min(640px, 100%);
+}
 
-.listing-preview {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: .85rem;
+.preview-card {
   padding: 1rem;
   display: grid;
-  gap: .5rem;
+  gap: 0.45rem;
 }
-.preview-row { display: flex; justify-content: space-between; align-items: center; font-size: .9rem; padding: .3rem 0; border-bottom: 1px solid var(--border); }
-.preview-row:last-child { border-bottom: none; }
-.preview-label { color: var(--muted); font-size: .82rem; }
-.price-highlight { font-weight: 700; color: var(--accent); font-size: 1rem; }
 
-.status-pill { font-size: .78rem; padding: .2rem .55rem; border-radius: 999px; font-weight: 600; }
-.status-pill.active { background: rgba(34,197,94,.12); color: var(--success); }
-.status-pill.inactive { background: rgba(113,113,122,.12); color: var(--disabled); }
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.25rem 0;
+}
 
-.error-msg { color: #f87171; margin: 0; }
-.hint { margin: 0; }
-.detail-skeleton { padding: .5rem 0; }
+.preview-label {
+  color: var(--textMuted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.price-highlight {
+  color: var(--primarySoft);
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+}
 </style>

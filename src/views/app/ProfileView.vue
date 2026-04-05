@@ -13,13 +13,9 @@ const router = useRouter()
 const balance = ref<number | null>(null)
 const profile = ref<Record<string, unknown> | null>(null)
 const transactions = ref<any[]>([])
-const loadingProfile = ref(false)
 const loadingTxns = ref(false)
 
-// Merged display user: prefer fetched profile, fall back to auth store
 const displayUser = computed(() => profile.value || auth.state.user)
-
-// ── Relative timestamp ─────────────────────────────────────────────
 
 function relativeTime(isoDate: string | null | undefined): string {
   if (!isoDate) return '—'
@@ -39,14 +35,6 @@ function relativeTime(isoDate: string | null | undefined): string {
 }
 
 const createdAtRelative = computed(() => relativeTime((displayUser.value as Record<string, unknown>)?.createdAt as string | null))
-const createdAtISO = computed(() => {
-  const d = (displayUser.value as Record<string, unknown>)?.createdAt as string | null
-  if (!d) return ''
-  return new Date(d).toISOString()
-})
-
-// ── Role label ─────────────────────────────────────────────────────
-
 const roleLabel = computed(() => {
   const role = displayUser.value?.role as string | undefined
   if (role === 'admin') return 'admin'
@@ -54,23 +42,17 @@ const roleLabel = computed(() => {
   return 'user'
 })
 
-// ── Data loading ───────────────────────────────────────────────────
-
 const loadProfile = async () => {
-  // In demo mode, auth.state.user is already populated by demoLogin — skip API call
   if (isDemoMode()) {
-    profile.value = null // rely on displayUser computed falling back to auth.state.user
+    profile.value = null
     return
   }
   if (!auth.state.user?.userId) return
-  loadingProfile.value = true
   try {
     const { data } = await api.get('/auth/me')
     profile.value = data?.data || data || null
   } catch {
-    // fall back to auth store user
-  } finally {
-    loadingProfile.value = false
+    profile.value = null
   }
 }
 
@@ -117,356 +99,206 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page">
-    <!-- Header -->
-    <article class="profile-header glass card">
-      <div class="profile-content">
+  <section class="page profile-page">
+    <article class="glass profile-hero">
+      <div class="hero-main">
         <div class="avatar">{{ (displayUser?.email as string)?.[0]?.toUpperCase() || '?' }}</div>
-        <div class="profile-info">
-          <h1 class="profile-email">{{ displayUser?.email || '—' }}</h1>
-          <div class="profile-badges">
+        <div class="hero-copy">
+          <span class="badge">Profile</span>
+          <h1 class="section-title">{{ displayUser?.email || 'Account' }}</h1>
+          <div class="hero-tags">
             <StatusBadge :label="roleLabel" />
-            <span v-if="(displayUser?.isFlagged as boolean)" class="badge flagged">⚠ Flagged</span>
+            <span v-if="(displayUser?.isFlagged as boolean)" class="badge flagged">Flagged</span>
           </div>
         </div>
-        <div class="profile-actions">
-          <RouterLink to="/credits/topup" v-if="!auth.isStaff && !auth.isAdmin">
-            <button class="primary">Top Up</button>
-          </RouterLink>
-          <button class="danger" @click="logout">Log Out</button>
-        </div>
+      </div>
+      <div class="hero-actions">
+        <RouterLink v-if="!auth.isStaff && !auth.isAdmin" to="/credits/topup"><button>Top Up</button></RouterLink>
+        <button class="secondary" @click="logout">Log Out</button>
       </div>
     </article>
 
-    <!-- Account Details -->
-    <article class="glass card account-details">
-      <h2 class="card-title">Account Details</h2>
-
-      <!-- Email: read-only identifier -->
-      <ProfileField
-        label="Email"
-        :value="(displayUser?.email as string) || null"
-      />
-
-      <!-- Phone: masked, Add CTA when null -->
-      <ProfileField
-        label="Phone"
-        :value="((displayUser?.phoneNumber as string) || (displayUser?.phone as string)) || null"
-        :masked="true"
-        addLabel="phone"
-      />
-
-      <!-- Role: StatusBadge -->
-      <div class="profile-field">
-        <span class="field-label">Role</span>
-        <div class="field-value-wrap">
-          <StatusBadge :label="roleLabel" />
+    <div class="profile-grid">
+      <article class="glass detail-card">
+        <span class="badge">Account Details</span>
+        <ProfileField label="Email" :value="(displayUser?.email as string) || null" />
+        <ProfileField
+          label="Phone"
+          :value="((displayUser?.phoneNumber as string) || (displayUser?.phone as string)) || null"
+          :masked="true"
+          addLabel="phone"
+        />
+        <div class="profile-field">
+          <span class="field-label">Role</span>
+          <div class="field-value-wrap"><StatusBadge :label="roleLabel" /></div>
         </div>
-      </div>
-
-      <!-- Created At: relative + ISO tooltip -->
-      <div class="profile-field">
-        <span class="field-label">Member since</span>
-        <div class="field-value-wrap">
-          <span
-            class="field-value"
-            :title="createdAtISO"
-          >{{ createdAtRelative }}</span>
+        <div class="profile-field">
+          <span class="field-label">Member Since</span>
+          <div class="field-value-wrap"><span class="field-value">{{ createdAtRelative }}</span></div>
         </div>
-      </div>
+      </article>
 
-      <!-- isFlagged: warning badge only when true -->
-      <div v-if="(displayUser?.isFlagged as boolean) === true" class="profile-field">
-        <span class="field-label">Account status</span>
-        <div class="field-value-wrap">
-          <span class="badge flagged">⚠ Account flagged</span>
-        </div>
-      </div>
-    </article>
-
-    <div class="layout" :class="{ 'admin-layout': auth.isAdmin }">
-      <!-- Left column: Credit History -->
-      <div class="left-col">
-        <article v-if="!auth.isStaff && !auth.isAdmin" class="glass card">
-          <h2 class="card-title">Credit History</h2>
-          <div v-if="balance !== null" class="balance-row">
-            <span class="balance-label">Balance</span>
-            <span class="balance-value">${{ balance.toLocaleString() }}</span>
-          </div>
-          <div v-if="loadingTxns" class="muted small">Loading...</div>
-          <div v-else-if="transactions.length === 0" class="muted small">No transactions yet.</div>
-          <div v-else class="txn-list">
-            <div v-for="txn in transactions" :key="txn.txnId || txn.id" class="txn-row">
-              <div>
-                <p class="txn-label">{{ txnLabel(txn.reason) }}</p>
-                <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' }) : '—' }}</p>
-              </div>
-              <span :class="['txn-amount', txn.delta > 0 ? 'positive' : 'negative']">
-                {{ txn.delta > 0 ? '+' : '' }}${{ Math.abs(txn.delta) }}
-              </span>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <!-- Right column -->
-      <div v-if="!auth.isAdmin" class="right-col">
-        <article class="glass card">
-          <h2 class="card-title">My Tickets</h2>
-          <div class="muted small">
-            <RouterLink to="/tickets" class="ticket-link">View your tickets →</RouterLink>
-          </div>
-        </article>
-      </div>
+      <article class="glass side-card" v-if="!auth.isStaff && !auth.isAdmin">
+        <span class="badge">Credits</span>
+        <strong class="balance">${{ balance?.toLocaleString() ?? '—' }}</strong>
+        <p class="small muted">Track your balance, top-up activity, and purchases from one place.</p>
+        <RouterLink to="/tickets" class="inline-link">View My Tickets</RouterLink>
+      </article>
     </div>
+
+    <article v-if="!auth.isStaff && !auth.isAdmin" class="glass txn-card">
+      <div class="txn-head">
+        <span class="badge">Credit History</span>
+        <p class="small muted" v-if="loadingTxns">Loading...</p>
+      </div>
+
+      <div v-if="!loadingTxns && transactions.length === 0" class="small muted">No transactions yet.</div>
+      <div v-else class="txn-list">
+        <div v-for="txn in transactions" :key="txn.txnId || txn.id" class="txn-row">
+          <div>
+            <p class="txn-label">{{ txnLabel(txn.reason) }}</p>
+            <p class="small muted">{{ txn.createdAt ? new Date(txn.createdAt).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' }) : '—' }}</p>
+          </div>
+          <span :class="['txn-amount', txn.delta > 0 ? 'positive' : 'negative']">
+            {{ txn.delta > 0 ? '+' : '' }}${{ Math.abs(txn.delta) }}
+          </span>
+        </div>
+      </div>
+    </article>
   </section>
 </template>
 
 <style scoped>
-/* Profile Header */
-.profile-header {
-  padding: 1.5rem;
-  margin-bottom: 1.2rem;
+.profile-page {
+  display: grid;
+  gap: 1rem;
 }
 
-.profile-content {
+.profile-hero,
+.detail-card,
+.side-card,
+.txn-card {
+  padding: 1.25rem;
+}
+
+.profile-hero,
+.hero-main,
+.hero-actions,
+.hero-tags,
+.profile-grid,
+.txn-head,
+.txn-row {
   display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-hero,
+.txn-head,
+.txn-row {
+  justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
+}
+
+.hero-main {
+  align-items: center;
 }
 
 .avatar {
   width: 4.5rem;
   height: 4.5rem;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 1.8rem;
-  font-weight: 700;
   display: grid;
   place-items: center;
-  flex-shrink: 0;
+  background: rgba(249, 115, 22, 0.18);
+  color: var(--primarySoft);
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 1.7rem;
+  font-weight: 800;
 }
 
-.profile-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.profile-email {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin: 0 0 0.4rem 0;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-badges {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.profile-actions {
-  display: flex;
+.hero-copy,
+.detail-card,
+.side-card,
+.txn-card,
+.txn-list {
+  display: grid;
   gap: 0.8rem;
-  flex-shrink: 0;
 }
 
-.profile-actions button {
-  padding: 0.6rem 1.2rem;
-  font-size: 0.9rem;
+.profile-grid {
+  align-items: start;
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+}
+
+.balance {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 2rem;
+  color: var(--primarySoft);
+}
+
+.inline-link {
+  color: var(--primarySoft);
   font-weight: 600;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
-.profile-actions .primary {
-  background: var(--accent);
-  border: 2px solid var(--accent);
-  color: var(--accent-ink);
-}
-
-.profile-actions .danger {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #f87171;
-}
-
-.profile-actions .danger:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-/* Account Details */
-.account-details {
-  margin-bottom: 1.2rem;
-}
-
-/* Shared profile-field row (mirrors ProfileField.vue layout for custom rows) */
 .profile-field {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 0.65rem 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--outlineSoft);
 }
 
 .profile-field:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .field-label {
-  font-size: 0.82rem;
-  color: var(--muted);
   min-width: 120px;
-  flex-shrink: 0;
+  color: var(--textMuted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .field-value-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   flex: 1;
-  min-width: 0;
 }
 
-.field-value {
-  font-size: 0.9rem;
-  color: var(--text);
-  cursor: default;
-}
-
-/* Balance row inside credit card */
-.balance-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.balance-label {
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.balance-value {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-/* Layout */
-.layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 1.2rem;
-  align-items: start;
-}
-
-.layout.admin-layout {
-  grid-template-columns: 1fr;
-}
-
-.left-col,
-.right-col {
-  display: grid;
-  gap: 1.2rem;
-}
-
-/* Cards */
-.card {
-  padding: 1.2rem;
-  display: grid;
-  gap: 0;
-  border-radius: 1rem;
-}
-
-.card-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 0.75rem 0;
-}
-
-/* Transaction List */
 .txn-list {
-  display: grid;
   gap: 0;
 }
 
 .txn-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--outlineSoft);
 }
 
 .txn-row:last-child {
-  border-bottom: none;
+  border-bottom: 0;
 }
 
 .txn-label {
-  font-size: 0.92rem;
   margin-bottom: 0.15rem;
 }
 
 .txn-amount {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .positive { color: var(--success); }
-.negative { color: #f87171; }
+.negative { color: var(--error); }
 
-.muted { color: var(--muted); }
-.small { font-size: 0.82rem; }
-
-.badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  border-radius: 999px;
-  background: rgba(249, 115, 22, 0.15);
-  color: var(--accent);
-  border: 1px solid rgba(249, 115, 22, 0.3);
-}
-
-.badge.flagged {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-  border-color: rgba(239, 68, 68, 0.3);
-}
-
-.ticket-link {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.ticket-link:hover {
-  text-decoration: underline;
+.flagged {
+  background: rgba(255, 140, 122, 0.16);
+  color: var(--error);
 }
 
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
-
-  .profile-content {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .profile-actions {
-    width: 100%;
-    justify-content: center;
+  .profile-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
