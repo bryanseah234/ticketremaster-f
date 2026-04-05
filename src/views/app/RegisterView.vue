@@ -67,8 +67,8 @@ const submit = async () => {
     const resp = await api.post('/auth/register', { email: form.value.email, phoneNumber: form.value.phone, password: form.value.password })
     const userId = resp.data?.data?.userId
     if (userId) localStorage.setItem('pendingUserId', userId)
-    toast.push('Account created! Please verify your phone number.', 'success', 3000)
-    router.push('/verify')
+    toast.push('Account created! Please log in.', 'success', 3000)
+    router.push('/login')
   } catch (e: any) {
     toast.push(extractError(e), 'error', 3200)
   } finally {

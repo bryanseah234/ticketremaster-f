@@ -38,15 +38,9 @@ export default defineConfig(({ mode }): UserConfig => {
       host: '127.0.0.1',
       port: 3000,
       proxy: {
-        '/proxy/auth': {
-          target: env.VITE_PROXY_AUTH_URL || 'http://host.docker.internal:6010',
+        '^/(auth|users|events|venues|marketplace|transfer|credits|tickets|checkout|purchase|qr|scan|verify|webhooks)': {
+          target: env.VITE_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:8000',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/proxy\/auth/, '')
-        },
-        '/proxy/events': {
-          target: env.VITE_PROXY_EVENTS_URL || 'http://host.docker.internal:6001',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/proxy\/events/, '')
         },
         // WebSocket proxy for real-time updates
         '/socket.io': {
