@@ -146,6 +146,33 @@ const loadSeats = async () => {
   }
 }
 
+const selectSeat = async (seat: Seat) => {
+  selectedSeat.value = seat
+
+  const eventId = String(route.params.eventId)
+  if (isDemoMode() || eventId.startsWith('demo-')) return
+
+  try {
+    const { data } = await api.get(`/events/${eventId}/seats/${seat.inventoryId}`)
+    const raw = data?.data
+    if (!raw) return
+
+    selectedSeat.value = {
+      ...seat,
+      inventoryId: raw.inventoryId || seat.inventoryId,
+      seatId: raw.seatId || seat.seatId,
+      rowNumber: raw.rowNumber ?? seat.rowNumber,
+      seatNumber: raw.seatNumber ?? seat.seatNumber,
+      status: (raw.status ?? seat.status).toUpperCase() as Seat['status'],
+      heldUntil: raw.heldUntil ?? seat.heldUntil,
+      section: raw.section || seat.section,
+      price: Number(raw.price ?? seat.price ?? eventData.value?.price ?? 0),
+    }
+  } catch {
+    // Keep the optimistic local seat selection if the detail lookup fails.
+  }
+}
+
 const reserveSeat = async () => {
   if (!selectedSeat.value || !auth.state.user) return
 
@@ -291,7 +318,7 @@ onUnmounted(() => {
                     chosen: selectedSeat?.inventoryId === seat.inventoryId
                   }"
                   :disabled="seat.status !== 'AVAILABLE'"
-                  @click="selectedSeat = seat"
+                  @click="selectSeat(seat)"
                 >
                   {{ seat.seatNumber }}
                 </button>

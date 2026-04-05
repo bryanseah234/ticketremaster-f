@@ -1,32 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { Bars3Icon, BellIcon, UserCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { useSellerNotifications } from '@/composables/useSellerNotifications'
+import { useLogout } from '@/composables/useLogout'
 import { isDemoMode } from '@/services/mockData'
 
 const auth = useAuthStore()
 const route = useRoute()
-const router = useRouter()
 const { notifications, checkNotifications } = useSellerNotifications()
+const { logout } = useLogout()
 
 const balance = ref<number | null>(null)
 const balanceLoading = ref(false)
 const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
+const minimalTopNav = computed(() => auth.isAdmin || auth.isStaff || (auth.isLoggedIn && isDemoMode()))
+const showNotifications = computed(() => auth.isLoggedIn && !auth.isStaff && !auth.isAdmin && !isDemoMode())
 
 const primaryNav = computed(() => {
-  if (auth.isStaff) {
-    return [{ to: '/staff/scan', label: 'Scanner' }]
-  }
-  if (auth.isAdmin) {
-    return [
-      { to: '/events', label: 'Events' },
-      { to: '/admin/events/demo-event-001/dashboard', label: 'Dashboard' },
-    ]
-  }
+  if (minimalTopNav.value) return []
   return [
     { to: '/events', label: 'Events' },
     { to: '/marketplace', label: 'Marketplace' },
@@ -36,8 +31,6 @@ const primaryNav = computed(() => {
 const mobileNav = computed(() => {
   if (auth.isStaff) {
     return [
-      { to: '/staff/scan', label: 'Scanner' },
-      { to: '/notifications', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
@@ -47,9 +40,7 @@ const mobileNav = computed(() => {
       { to: '/events', label: 'Events' },
       { to: '/marketplace', label: 'Marketplace' },
       { to: '/admin/events/new', label: 'Create Event' },
-      { to: '/admin/events/demo-event-001/dashboard', label: 'Dashboard' },
       { to: '/admin/users', label: 'Users' },
-      { to: '/notifications', label: 'Notifications' },
       { to: '/profile', label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
@@ -60,7 +51,7 @@ const mobileNav = computed(() => {
       { to: '/marketplace', label: 'Marketplace' },
       { to: '/tickets', label: 'My Tickets' },
       { to: '/credits/topup', label: 'Credits' },
-      { to: '/notifications', label: 'Notifications' },
+      ...(showNotifications.value ? [{ to: '/notifications', label: 'Notifications' }] : []),
       { to: '/profile', label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
@@ -115,7 +106,7 @@ const isActive = (target: string) => route.path === target || route.path.startsW
 watch(() => auth.isLoggedIn, () => {
   if (auth.isLoggedIn) {
     scheduleBalance()
-    checkNotifications()
+    if (showNotifications.value) checkNotifications()
   }
 })
 
@@ -126,14 +117,10 @@ watch(() => route.fullPath, () => {
 onMounted(() => {
   if (auth.isLoggedIn) {
     scheduleBalance()
-    checkNotifications()
+    if (showNotifications.value) checkNotifications()
   }
 })
 
-const logout = () => {
-  auth.clearSession()
-  router.push('/login')
-}
 </script>
 
 <template>
@@ -141,7 +128,7 @@ const logout = () => {
     <div class="nav-pill">
       <RouterLink to="/" class="brand">TicketRemaster</RouterLink>
 
-      <nav class="desktop-nav" aria-label="Primary">
+      <nav v-if="primaryNav.length" class="desktop-nav" aria-label="Primary">
         <RouterLink
           v-for="item in primaryNav"
           :key="item.to"
@@ -158,7 +145,7 @@ const logout = () => {
           {{ balanceLabel }}
         </RouterLink>
         <span v-if="isDemoMode()" class="demo-chip">Demo</span>
-        <RouterLink v-if="auth.isLoggedIn" to="/notifications" class="icon-button" aria-label="Notifications">
+        <RouterLink v-if="showNotifications" to="/notifications" class="icon-button" aria-label="Notifications">
           <BellIcon class="icon" />
           <span v-if="notifications.length" class="icon-count">{{ notifications.length }}</span>
         </RouterLink>
