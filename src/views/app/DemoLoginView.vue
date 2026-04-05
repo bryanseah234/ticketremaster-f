@@ -1,125 +1,215 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import { ArrowRightIcon, ComputerDesktopIcon, ShieldCheckIcon, UserIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { mockServices, setDemoMode } from '@/services/mockData'
-import type { AuthUser } from '@/types'
+import type { UserRole } from '@/types'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
-
-const email = ref('demo@ticketremaster.com')
-const password = ref('demo1234')
-const loading = ref(false)
-const error = ref('')
+const loadingRole = ref<UserRole | null>(null)
 
 const demoAccounts = [
-  { email: 'demo@ticketremaster.com', role: 'user', label: 'Demo User', caption: 'Marketplace & ticket wallet access' },
-  { email: 'admin@ticketremaster.com', role: 'admin', label: 'Demo Admin', caption: 'Global oversight & editorial control' },
-  { email: 'staff@ticketremaster.com', role: 'staff', label: 'Demo Staff', caption: 'Operations & hospitality terminal' },
+  {
+    email: 'demo@ticketremaster.com',
+    role: 'user' as const,
+    label: 'Demo User',
+    caption: 'Marketplace & ticket wallet access',
+    icon: UserIcon,
+  },
+  {
+    email: 'admin@ticketremaster.com',
+    role: 'admin' as const,
+    label: 'Demo Admin',
+    caption: 'Global oversight & editorial control',
+    icon: ShieldCheckIcon,
+  },
+  {
+    email: 'staff@ticketremaster.com',
+    role: 'staff' as const,
+    label: 'Demo Staff',
+    caption: 'Operations & hospitality terminal',
+    icon: ComputerDesktopIcon,
+  },
 ]
 
-const useDemoAccount = async (accountEmail: string) => {
-  email.value = accountEmail
-  password.value = 'demo1234'
-  await handleDemoLogin()
+const destinationByRole: Record<UserRole, string> = {
+  user: '/events',
+  admin: '/admin/events',
+  staff: '/staff/scan',
 }
 
-const handleDemoLogin = async () => {
-  loading.value = true
-  error.value = ''
+const useDemoAccount = async (role: UserRole) => {
+  loadingRole.value = role
   try {
-    setDemoMode(true)
-    const result = await mockServices.login(email.value, password.value)
-    const role = email.value.includes('admin') ? 'admin' : email.value.includes('staff') ? 'staff' : 'user'
-    const authUser: AuthUser = {
-      userId: result.user.userId,
-      email: result.user.email,
-      role: role as AuthUser['role'],
-      isFlagged: result.user.isFlagged,
-      isAdmin: result.user.isAdmin,
-    }
-    auth.setSession({ access_token: result.token, refresh_token: 'demo-refresh-token', user: authUser })
-    toast.success('Demo login successful! You are now in demo mode.')
-
-    if (role === 'admin') router.push('/admin/events')
-    else if (role === 'staff') router.push('/staff/scan')
-    else router.push('/events')
-  } catch {
-    error.value = 'Invalid demo credentials. Try demo@ticketremaster.com / demo1234'
-    toast.error(error.value)
+    auth.demoLogin(role, 'manual')
+    toast.success('Demo session ready. You are now exploring offline-safe flows.', 3200)
+    router.push(destinationByRole[role])
   } finally {
-    loading.value = false
+    loadingRole.value = null
   }
 }
 </script>
 
 <template>
-  <section class="demo-page">
-    <article class="demo-shell panel">
-      <div class="hero-copy">
-        <span class="eyebrow">Obsidian Hearth</span>
-        <h1>Select your persona.</h1>
-        <p>Choose an identity to explore the product with seeded data and safe, non-destructive flows.</p>
-      </div>
-
-      <div class="persona-stack">
-        <button v-for="account in demoAccounts" :key="account.email" class="persona-card" :disabled="loading" @click="useDemoAccount(account.email)">
-          <div>
-            <strong>{{ account.label }}</strong>
-            <p>{{ account.caption }}</p>
-          </div>
-          <span>›</span>
-        </button>
-      </div>
-
-      <form class="manual-form" @submit.prevent="handleDemoLogin">
-        <label>
-          <span>Email</span>
-          <input v-model="email" type="email" required placeholder="demo@ticketremaster.com" />
-        </label>
-        <label>
-          <span>Password</span>
-          <input v-model="password" type="password" required placeholder="demo1234" />
-        </label>
-
-        <p v-if="error" class="error-text">{{ error }}</p>
-
-        <div class="actions">
-          <button type="submit" :disabled="loading">{{ loading ? 'Logging in...' : 'Demo Login' }}</button>
-          <RouterLink to="/login"><button class="secondary" type="button">Regular Login</button></RouterLink>
+  <section class="page demo-page">
+    <div class="demo-shell">
+      <article class="glass demo-card">
+        <div class="demo-copy">
+          <h1>Select Your Persona</h1>
+          <p>Choose an identity to explore the obsidian hearth.</p>
         </div>
-      </form>
-    </article>
+
+        <div class="persona-stack">
+          <button
+            v-for="account in demoAccounts"
+            :key="account.email"
+            class="persona-card"
+            :disabled="loadingRole !== null"
+            @click="useDemoAccount(account.role)"
+          >
+            <div class="persona-icon">
+              <component :is="account.icon" class="icon" />
+            </div>
+            <div class="persona-copy">
+              <strong>{{ account.label }}</strong>
+              <span>{{ account.caption }}</span>
+            </div>
+            <ArrowRightIcon class="chevron" />
+          </button>
+        </div>
+
+        <p class="demo-note">Only the three seeded demo personas are available when live services are unavailable.</p>
+
+        <div class="demo-actions">
+          <RouterLink to="/login" class="plain-link">Regular Login</RouterLink>
+          <RouterLink to="/help" class="plain-link">Support</RouterLink>
+        </div>
+      </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.demo-page { display: grid; place-items: center; min-height: calc(100vh - 10rem); }
+.demo-page {
+  min-height: calc(100vh - 12rem);
+  display: grid;
+  place-items: center;
+}
+
 .demo-shell {
-  width: min(100%, 34rem); display: grid; gap: 1.25rem; padding: clamp(1.5rem, 4vw, 2.25rem);
-  background: radial-gradient(circle at center, rgba(249,115,22,.1), transparent 45%), rgba(18,18,18,.88);
+  width: min(100%, 30rem);
 }
-.eyebrow {
-  color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+
+.demo-card {
+  display: grid;
+  gap: 1.35rem;
+  padding: clamp(1.5rem, 4vw, 2rem);
+  border-radius: 1.6rem;
+  background: rgba(34, 31, 30, 0.84);
+  border-color: rgba(255, 255, 255, 0.06);
 }
-.hero-copy { display: grid; gap: .8rem; text-align: center; }
-.hero-copy h1 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 3.5rem); line-height: .95; letter-spacing: -.05em;
+
+.demo-copy {
+  display: grid;
+  gap: 0.45rem;
+  text-align: center;
 }
-.hero-copy p { margin: 0; color: var(--text-muted); line-height: 1.7; }
-.persona-stack, .manual-form { display: grid; gap: .8rem; }
+
+.demo-copy h1 {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(1.95rem, 5vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.demo-copy p {
+  color: var(--textMuted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.persona-stack {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .persona-card {
-  display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.1rem;
-  border-radius: 1rem; border: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.03); text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  text-align: left;
 }
-.persona-card strong { display: block; margin-bottom: .25rem; font-size: 1.05rem; }
-.persona-card p { margin: 0; color: var(--text-muted); }
-.persona-card span { color: var(--primary); font-size: 1.5rem; line-height: 1; }
-.manual-form label { display: grid; gap: .35rem; }
-.manual-form span { color: var(--text-dim); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
-.error-text { margin: 0; color: #ff8f84; }
+
+.persona-card:hover:not(:disabled) {
+  border-color: rgba(249, 115, 22, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.persona-icon {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.85rem;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--primary);
+}
+
+.icon,
+.chevron {
+  width: 1rem;
+  height: 1rem;
+}
+
+.persona-copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.persona-copy strong {
+  font-size: 1rem;
+}
+
+.persona-copy span {
+  color: var(--textMuted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.chevron {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.demo-note {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.demo-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.plain-link {
+  color: var(--textMuted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.plain-link:hover {
+  color: var(--primarySoft);
+}
 </style>

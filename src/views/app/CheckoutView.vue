@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { RouterLink, useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockEvents } from '@/services/mockData'
@@ -31,6 +31,21 @@ const holdDisplay = computed(() => {
 })
 
 const holdWarning = computed(() => holdSeconds.value > 0 && holdSeconds.value < 60)
+const orderVenue = computed(() => order.value?.event?.venueName || order.value?.event?.venue || 'Venue TBA')
+const orderDate = computed(() => {
+  const value = order.value?.event?.eventDate
+  if (!value) return 'Date TBA'
+  return new Date(value).toLocaleDateString('en-SG', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+})
+const seatLabel = computed(() =>
+  order.value?.seat ? `${order.value.seat.rowNumber}-${order.value.seat.seatNumber}` : 'Seat pending',
+)
 
 const loadOrder = () => {
   const raw = localStorage.getItem('pendingOrder')
@@ -176,16 +191,18 @@ onUnmounted(() => {
 <template>
   <section class="checkout-page">
     <template v-if="ticket">
-      <article class="success-shell panel">
+      <article class="success-shell">
         <span class="eyebrow">Purchase Complete</span>
         <h1>Ticket secured.</h1>
         <p>Your order for {{ eventName || order?.event?.name || 'this event' }} has been confirmed and moved into your wallet.</p>
+
         <div class="success-grid">
           <div><span class="meta-label">Ticket ID</span><strong>{{ ticket.ticketId }}</strong></div>
           <div><span class="meta-label">Status</span><strong>{{ ticket.status?.toUpperCase() || 'ACTIVE' }}</strong></div>
           <div><span class="meta-label">Price Paid</span><strong>SGD {{ Number(ticket.price ?? totalAmount).toFixed(2) }}</strong></div>
-          <div><span class="meta-label">Seat</span><strong>{{ order?.seat ? `${order.seat.rowNumber}-${order.seat.seatNumber}` : 'Assigned' }}</strong></div>
+          <div><span class="meta-label">Seat</span><strong>{{ seatLabel }}</strong></div>
         </div>
+
         <div class="hero-actions">
           <RouterLink :to="`/tickets/${ticket.ticketId}`"><button>Show QR Code</button></RouterLink>
           <RouterLink to="/tickets"><button class="secondary">My Tickets</button></RouterLink>
@@ -196,52 +213,87 @@ onUnmounted(() => {
     <template v-else>
       <header class="checkout-header">
         <span class="eyebrow">Finalize Order</span>
-        <h1>{{ eventName || order?.event?.name || 'Checkout' }}</h1>
-        <p>Confirm the held seat, review your balance, and complete the credit purchase before the reservation window closes.</p>
+        <h1>
+          {{ eventName || order?.event?.name || 'Checkout' }}
+        </h1>
+        <div class="header-meta">
+          <span>{{ orderVenue }}</span>
+          <span class="meta-dot"></span>
+          <span>{{ orderDate }}</span>
+        </div>
       </header>
 
       <div class="checkout-grid">
         <section class="payment-column">
-          <article class="payment-card panel">
+          <article class="payment-card">
             <h2>Pay with Credits</h2>
+
             <div class="wallet-panel">
-              <div><span class="meta-label">Available Balance</span><strong>SGD {{ balance.toFixed(2) }}</strong></div>
-              <div><span class="meta-label">Remaining Balance</span><strong :class="{ warning: !hasEnoughCredits }">SGD {{ remainingBalance.toFixed(2) }}</strong></div>
+              <div class="wallet-card">
+                <span class="meta-label">Available Balance</span>
+                <strong>SGD {{ balance.toFixed(2) }}</strong>
+              </div>
+
+              <div class="wallet-card">
+                <span class="meta-label">Remaining Balance</span>
+                <strong :class="{ warning: !hasEnoughCredits }">SGD {{ remainingBalance.toFixed(2) }}</strong>
+              </div>
             </div>
 
             <div class="summary-lines">
-              <div><span>Seat price</span><strong>SGD {{ seatPrice.toFixed(2) }}</strong></div>
-              <div><span>Service fee</span><strong>SGD {{ serviceFee.toFixed(2) }}</strong></div>
+              <div><span>Transaction Total</span><strong>-SGD {{ totalAmount.toFixed(2) }}</strong></div>
+              <div><span>Seat Price</span><strong>SGD {{ seatPrice.toFixed(2) }}</strong></div>
+              <div><span>Service Fee</span><strong>SGD {{ serviceFee.toFixed(2) }}</strong></div>
               <div><span>Processing</span><strong>SGD {{ processingFee.toFixed(2) }}</strong></div>
-              <div class="summary-total"><span>Total amount</span><strong>SGD {{ totalAmount.toFixed(2) }}</strong></div>
             </div>
 
+            <button class="confirm-button" :disabled="loading || !hasEnoughCredits" @click="pay">
+              {{ loading ? 'Processing...' : 'Confirm Purchase' }}
+            </button>
+
+            <button class="secondary cancel-button" @click="cancel">Cancel</button>
+
+            <p class="trust-copy">Secure credit transaction • Final sale • Instant fulfillment</p>
             <p v-if="!hasEnoughCredits" class="warning-copy">Insufficient credits. Top up before this hold expires.</p>
-
-            <div class="hero-actions">
-              <button :disabled="loading || !hasEnoughCredits" @click="pay">{{ loading ? 'Processing...' : 'Confirm Purchase' }}</button>
-              <button class="secondary" @click="cancel">Cancel</button>
-            </div>
           </article>
+
+          <div class="trust-row">
+            <span>Verified</span>
+            <span>Encrypted</span>
+            <span>Protected</span>
+            <span>Instant</span>
+          </div>
         </section>
 
         <aside class="summary-column">
-          <article class="timer-card panel" :class="{ warning: holdWarning }">
-            <div><span class="meta-label">Time Remaining</span><strong>{{ holdSeconds > 0 ? holdDisplay : 'Expired' }}</strong></div>
-            <span class="status-pill">{{ holdSeconds > 0 ? 'Reserved' : 'Expired' }}</span>
+          <article class="timer-card" :class="{ warning: holdWarning }">
+            <div>
+              <span class="meta-label">Time Remaining</span>
+              <strong>{{ holdSeconds > 0 ? holdDisplay : 'Expired' }}</strong>
+            </div>
+            <div class="status-block">
+              <span class="meta-label">Status</span>
+              <span class="status-pill">{{ holdSeconds > 0 ? 'Reserved' : 'Expired' }}</span>
+            </div>
           </article>
 
-          <article class="order-card panel">
+          <article class="order-card">
             <h2>Order Summary</h2>
-            <div class="order-card-top">
+            <div class="order-top">
               <img v-if="order?.event?.image" :src="order.event.image" :alt="order.event.name" />
-              <div>
+              <div class="order-copy">
                 <strong>{{ eventName || order?.event?.name || 'Held seat' }}</strong>
-                <p>{{ order?.seat ? `Seat ${order.seat.rowNumber}-${order.seat.seatNumber}` : 'Seat pending' }}</p>
-                <p>{{ order?.event?.eventDate ? new Date(order.event.eventDate).toLocaleString() : 'Date TBA' }}</p>
+                <p>{{ order?.seat?.section || 'Selected section' }} • Seat {{ seatLabel }}</p>
+                <p>{{ orderDate }}</p>
               </div>
             </div>
-            <p class="security-copy">Secure credit transaction • Instant fulfillment • Final sale</p>
+
+            <div class="order-breakdown">
+              <div><span>Subtotal</span><strong>SGD {{ seatPrice.toFixed(2) }}</strong></div>
+              <div><span>Service Fee</span><strong>SGD {{ serviceFee.toFixed(2) }}</strong></div>
+              <div><span>Processing</span><strong>SGD {{ processingFee.toFixed(2) }}</strong></div>
+              <div class="order-total"><span>Total Amount</span><strong>SGD {{ totalAmount.toFixed(2) }}</strong></div>
+            </div>
           </article>
         </aside>
       </div>
@@ -250,44 +302,292 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.checkout-page, .checkout-header, .success-shell, .payment-card, .order-card { display: grid; gap: 1rem; }
-.checkout-header h1, .success-shell h1 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2.6rem, 6vw, 4.8rem); line-height: .95; letter-spacing: -.05em;
+.checkout-page {
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
+  display: grid;
+  gap: 2rem;
 }
-.checkout-header p, .success-shell p { margin: 0; color: var(--text-muted); max-width: 44rem; line-height: 1.7; }
-.eyebrow, .meta-label { font-size: .7rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
-.eyebrow { color: var(--primary); }
-.meta-label { color: var(--text-dim); }
-.checkout-grid { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(20rem,.85fr); gap: 1.25rem; align-items: start; }
-.payment-card { padding: 1.5rem; }
-.payment-card h2, .order-card h2 { margin: 0; font-size: 1.3rem; }
+
+.checkout-header,
+.success-shell {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.checkout-header h1,
+.success-shell h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.eyebrow,
+.meta-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  color: var(--primary);
+}
+
+.meta-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.checkout-header p,
+.success-shell p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.header-meta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.meta-dot {
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.payment-column,
+.summary-column {
+  display: grid;
+  gap: 1rem;
+}
+
+.payment-card,
+.timer-card,
+.order-card,
+.success-shell {
+  padding: 1.6rem;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(26, 25, 25, 0.84);
+  backdrop-filter: blur(20px);
+}
+
+.payment-card {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.payment-card h2,
+.order-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
 .wallet-panel {
-  display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; padding: 1.2rem;
-  border-radius: var(--radius-md); background: rgba(249,115,22,.08); border: 1px solid rgba(249,115,22,.18);
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 1.4rem;
+  background: rgba(249, 115, 22, 0.06);
+  border: 1px solid rgba(249, 115, 22, 0.16);
 }
-.wallet-panel strong, .timer-card strong { display: block; margin-top: .3rem; font-size: 1.8rem; line-height: 1; }
-.summary-lines { display: grid; gap: .7rem; }
-.summary-lines > div { display: flex; justify-content: space-between; gap: 1rem; }
-.summary-lines span { color: var(--text-muted); }
-.summary-total { padding-top: .8rem; border-top: 1px solid rgba(255,255,255,.06); }
-.summary-total strong { color: var(--primary); }
-.warning, .warning-copy { color: #f6a94d; }
-.hero-actions { display: flex; gap: .8rem; flex-wrap: wrap; }
-.summary-column { display: grid; gap: 1rem; }
-.timer-card, .order-card { padding: 1.2rem; }
-.timer-card { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+
+.wallet-card strong,
+.timer-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.summary-lines,
+.order-breakdown {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.summary-lines div,
+.order-breakdown div,
+.timer-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.summary-lines span,
+.order-breakdown span {
+  color: var(--text-muted);
+}
+
+.confirm-button {
+  padding-block: 1.25rem;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.cancel-button {
+  width: 100%;
+}
+
+.trust-copy,
+.warning-copy {
+  text-align: center;
+  line-height: 1.6;
+}
+
+.warning,
+.warning-copy {
+  color: #f4a44f;
+}
+
+.trust-row {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  opacity: 0.55;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-block {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+
 .status-pill {
-  padding: .45rem .7rem; border-radius: 999px; background: rgba(249,115,22,.14); color: var(--primary);
-  font-size: .7rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-.order-card-top { display: grid; grid-template-columns: 5rem minmax(0,1fr); gap: 1rem; }
-.order-card-top img { width: 100%; aspect-ratio: 1 / 1; border-radius: 1rem; object-fit: cover; }
-.order-card-top strong { display: block; margin-bottom: .35rem; }
-.order-card-top p, .security-copy { margin: 0; color: var(--text-muted); line-height: 1.6; }
-.success-shell { padding: 1.75rem; max-width: 52rem; }
-.success-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; padding: 1rem 0; }
-.success-grid strong { display: block; margin-top: .35rem; }
+
+.order-top {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.order-top img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 1rem;
+  object-fit: cover;
+}
+
+.order-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.order-copy strong {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.order-copy p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.order-breakdown {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.order-total {
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.order-total strong,
+.summary-lines strong,
+.success-grid strong {
+  color: #fff;
+}
+
+.success-shell {
+  max-width: 54rem;
+  justify-self: center;
+}
+
+.success-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.success-grid div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 900px) {
-  .checkout-grid, .wallet-panel, .success-grid { grid-template-columns: 1fr; }
+  .checkout-grid,
+  .success-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .checkout-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
+  }
+
+  .header-meta,
+  .timer-card {
+    align-items: start;
+  }
+
+  .meta-dot {
+    display: none;
+  }
 }
 </style>

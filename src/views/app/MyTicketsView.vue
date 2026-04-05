@@ -68,7 +68,12 @@ const archiveTickets = computed(() => tickets.value.filter((ticket) => ticket.st
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
-  return new Date(value).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(value).toLocaleDateString('en-SG', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 const startListing = (ticketId: string, price?: number) => {
@@ -86,8 +91,18 @@ const submitListing = async (ticketId: string) => {
     toast.push('Enter a valid price.', 'error', 3000)
     return
   }
+
   listingLoading.value = true
   try {
+    if (isDemoMode()) {
+      tickets.value = tickets.value.map((ticket) =>
+        ticket.ticketId === ticketId ? { ...ticket, status: 'listed', price: listingPrice.value } : ticket,
+      )
+      toast.push('Ticket listed on marketplace.', 'success', 3000)
+      listingTicketId.value = null
+      return
+    }
+
     await api.post('/marketplace/list', { ticketId, price: listingPrice.value })
     toast.push('Ticket listed on marketplace.', 'success', 3000)
     listingTicketId.value = null
@@ -110,6 +125,15 @@ const cancelUnlisting = () => {
 const confirmUnlist = async (ticketId: string) => {
   unlistingLoading.value = true
   try {
+    if (isDemoMode()) {
+      tickets.value = tickets.value.map((ticket) =>
+        ticket.ticketId === ticketId ? { ...ticket, status: 'active' } : ticket,
+      )
+      toast.push('Ticket removed from marketplace.', 'success', 3000)
+      unlistingTicketId.value = null
+      return
+    }
+
     const ticket = tickets.value.find((item: any) => item.ticketId === ticketId) as any
     if (!ticket?.listingId) {
       toast.push('Could not find listing information.', 'error', 3000)
@@ -127,6 +151,7 @@ const confirmUnlist = async (ticketId: string) => {
 }
 
 onMounted(load)
+
 watch([loading, tickets], ([isLoading, items]) => {
   if (!isLoading && items.length === 0) toast.push('No tickets yet.', 'info', 2400)
 })
@@ -135,15 +160,16 @@ watch([loading, tickets], ([isLoading, items]) => {
 <template>
   <section class="tickets-page">
     <header class="tickets-header">
-      <span class="eyebrow">Ticket Wallet</span>
-      <h1>My Tickets</h1>
+      <h1>My <span>Tickets</span></h1>
     </header>
 
     <div class="tickets-layout">
-      <aside class="sidebar panel">
-        <RouterLink to="/profile" class="side-link">Profile</RouterLink>
-        <RouterLink to="/credits/topup" class="side-link">Credits</RouterLink>
-        <span class="side-link active">Tickets</span>
+      <aside class="tickets-sidebar">
+        <nav class="sidebar-shell">
+          <RouterLink to="/profile" class="side-link">Profile</RouterLink>
+          <RouterLink to="/credits/topup" class="side-link">Credits</RouterLink>
+          <span class="side-link active">Tickets</span>
+        </nav>
       </aside>
 
       <div class="tickets-content">
@@ -154,17 +180,17 @@ watch([loading, tickets], ([isLoading, items]) => {
           </div>
 
           <div v-if="loading" class="ticket-stack">
-            <article v-for="n in 2" :key="n" class="ticket-card panel skeleton"></article>
+            <article v-for="n in 2" :key="n" class="ticket-card skeleton-card"></article>
           </div>
 
-          <div v-else-if="activeTickets.length === 0" class="empty-state panel">
+          <div v-else-if="activeTickets.length === 0" class="empty-state">
             <h3>No active tickets.</h3>
             <p>When you complete a purchase, your passes will appear here.</p>
             <RouterLink to="/events"><button>Browse Events</button></RouterLink>
           </div>
 
           <div v-else class="ticket-stack">
-            <article v-for="ticket in activeTickets" :key="ticket.ticketId" class="ticket-card panel">
+            <article v-for="ticket in activeTickets" :key="ticket.ticketId" class="ticket-card">
               <div class="ticket-media">
                 <img v-if="ticket.event?.image" :src="ticket.event.image" :alt="ticket.event.name" />
               </div>
@@ -174,6 +200,7 @@ watch([loading, tickets], ([isLoading, items]) => {
                   <span>{{ ticket.status === 'listed' ? 'Marketplace Listing' : 'Mainstage Access' }}</span>
                   <small>#{{ ticket.ticketId }}</small>
                 </div>
+
                 <h3>{{ ticket.event?.name || 'Ticketed Event' }}</h3>
                 <p>{{ ticket.venue?.name || ticket.event?.venue?.name || 'Venue TBA' }} • {{ formatDate(ticket.event?.date) }}</p>
 
@@ -185,6 +212,9 @@ watch([loading, tickets], ([isLoading, items]) => {
 
                   <div class="ticket-actions">
                     <RouterLink :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`"><button>View QR</button></RouterLink>
+                    <RouterLink v-if="ticket.status === 'active'" :to="`/transfer/initiate?ticketId=${ticket.ticketId}`">
+                      <button class="secondary">Transfer</button>
+                    </RouterLink>
 
                     <template v-if="ticket.status === 'active'">
                       <div v-if="listingTicketId === ticket.ticketId" class="action-inline">
@@ -197,7 +227,9 @@ watch([loading, tickets], ([isLoading, items]) => {
 
                     <template v-else-if="ticket.status === 'listed'">
                       <div v-if="unlistingTicketId === ticket.ticketId" class="action-inline">
-                        <button :disabled="unlistingLoading" @click="confirmUnlist(ticket.ticketId)">{{ unlistingLoading ? 'Removing...' : 'Confirm Unlist' }}</button>
+                        <button :disabled="unlistingLoading" @click="confirmUnlist(ticket.ticketId)">
+                          {{ unlistingLoading ? 'Removing...' : 'Confirm Unlist' }}
+                        </button>
                         <button class="secondary" @click="cancelUnlisting">Cancel</button>
                       </div>
                       <button v-else class="secondary" @click="startUnlisting(ticket.ticketId)">Unlist</button>
@@ -211,12 +243,14 @@ watch([loading, tickets], ([isLoading, items]) => {
 
         <section class="archive-section">
           <h2>Past &amp; Transferred</h2>
-          <div class="archive-table panel">
+
+          <div class="archive-shell">
             <div class="archive-row header">
               <span>Event</span>
               <span>Date</span>
               <span>Status</span>
             </div>
+
             <div v-for="ticket in archiveTickets" :key="ticket.ticketId" class="archive-row">
               <div>
                 <strong>{{ ticket.event?.name || 'Archived Ticket' }}</strong>
@@ -233,54 +267,292 @@ watch([loading, tickets], ([isLoading, items]) => {
 </template>
 
 <style scoped>
-.tickets-page, .tickets-header, .tickets-content, .passes-section, .archive-section { display: grid; gap: 1rem; }
-.tickets-header h1 { margin: 0; font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 4.8rem); line-height: .95; letter-spacing: -.05em; }
-.eyebrow { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
-.tickets-layout { display: grid; grid-template-columns: 16rem minmax(0,1fr); gap: 1.25rem; align-items: start; }
-.sidebar { display: grid; gap: .5rem; position: sticky; top: 7rem; padding: .8rem; }
-.side-link { padding: .9rem 1rem; border-radius: 1rem; color: var(--text-muted); }
-.side-link.active { background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.16); color: var(--primary); font-weight: 700; }
-.section-row { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
-.section-row h2, .archive-section h2 { margin: 0; font-size: 1.5rem; }
-.section-kicker { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.ticket-stack { display: grid; gap: 1rem; }
-.ticket-card { display: grid; grid-template-columns: 14rem minmax(0,1fr); overflow: hidden; padding: 0; }
-.ticket-media { min-height: 14rem; background: var(--surface-2); }
-.ticket-media img { width: 100%; height: 100%; object-fit: cover; }
-.ticket-copy { display: grid; gap: .75rem; padding: 1.4rem; }
+.tickets-page {
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
+  display: grid;
+  gap: 2rem;
+}
+
+.tickets-header {
+  text-align: center;
+}
+
+.tickets-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.94;
+  letter-spacing: -0.07em;
+}
+
+.tickets-header h1 span {
+  color: var(--primary);
+}
+
+.tickets-layout {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.tickets-sidebar {
+  position: sticky;
+  top: 7.5rem;
+}
+
+.sidebar-shell {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(38, 38, 38, 0.4);
+  backdrop-filter: blur(16px);
+}
+
+.side-link {
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.side-link.active {
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.tickets-content,
+.passes-section,
+.archive-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.section-row h2,
+.archive-section h2 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.section-kicker {
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ticket-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.ticket-card,
+.archive-shell,
+.empty-state {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(38, 38, 38, 0.4);
+  backdrop-filter: blur(16px);
+}
+
+.ticket-card {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.ticket-media {
+  min-height: 14rem;
+  background: rgba(19, 19, 19, 0.82);
+}
+
+.ticket-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.ticket-card:hover .ticket-media img {
+  transform: scale(1.04);
+}
+
+.ticket-copy {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.6rem;
+}
+
 .ticket-topline {
-  display: flex; justify-content: space-between; gap: 1rem; color: var(--primary);
-  font-size: .72rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
-.ticket-topline small { color: var(--text-dim); letter-spacing: .08em; }
-.ticket-copy h3 { margin: 0; font-size: 1.6rem; }
-.ticket-copy p { margin: 0; color: var(--text-muted); }
-.ticket-bottom { display: flex; justify-content: space-between; gap: 1rem; align-items: end; flex-wrap: wrap; margin-top: auto; }
-.ticket-status { display: flex; align-items: center; gap: .55rem; }
-.dot { width: .65rem; height: .65rem; border-radius: 999px; background: var(--text-dim); }
-.dot.active { background: #32d27a; }
-.dot.listed { background: #f6a94d; }
-.ticket-actions, .action-inline { display: flex; gap: .6rem; flex-wrap: wrap; }
-.action-inline input { min-width: 8rem; }
-.archive-table { overflow: hidden; padding: 0; }
+
+.ticket-topline small {
+  color: rgba(255, 255, 255, 0.38);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.ticket-copy h3 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ticket-copy p,
+.archive-row p,
+.empty-state p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.ticket-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: end;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.ticket-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.dot.active {
+  background: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+}
+
+.dot.listed {
+  background: #f6a94d;
+}
+
+.ticket-actions,
+.action-inline {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.action-inline input {
+  min-width: 8rem;
+}
+
+.archive-shell {
+  overflow: hidden;
+}
+
 .archive-row {
-  display: grid; grid-template-columns: minmax(0,1.6fr) 10rem 8rem; gap: 1rem; padding: 1rem 1.2rem;
-  align-items: center; border-top: 1px solid rgba(255,255,255,.05);
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 10rem 8rem;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
-.archive-row.header { border-top: 0; color: var(--text-dim); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.archive-row strong { display: block; margin-bottom: .2rem; }
-.archive-row p { margin: 0; color: var(--text-muted); }
+
+.archive-row.header {
+  border-top: 0;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.archive-row strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 1rem;
+}
+
 .archive-pill {
-  width: fit-content; padding: .45rem .75rem; border-radius: 999px; background: rgba(255,255,255,.05);
-  color: var(--text-muted); font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  width: fit-content;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-.archive-pill.used { color: #a5afbe; }
-.archive-pill.cancelled { color: #ff8f84; }
-.empty-state, .skeleton { min-height: 16rem; place-items: center; align-content: center; text-align: center; }
-.empty-state h3, .empty-state p { margin: 0; }
-.empty-state p { color: var(--text-muted); }
+
+.archive-pill.used {
+  color: #a5afbe;
+}
+
+.archive-pill.cancelled {
+  color: #ff8f84;
+}
+
+.empty-state,
+.skeleton-card {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  align-content: center;
+  min-height: 16rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.skeleton-card {
+  background: linear-gradient(90deg, rgba(32, 31, 31, 0.7), rgba(44, 44, 44, 0.9), rgba(32, 31, 31, 0.7));
+}
+
 @media (max-width: 980px) {
-  .tickets-layout, .ticket-card, .archive-row { grid-template-columns: 1fr; }
-  .sidebar { position: static; }
+  .tickets-layout,
+  .ticket-card,
+  .archive-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tickets-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .tickets-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
+  }
 }
 </style>

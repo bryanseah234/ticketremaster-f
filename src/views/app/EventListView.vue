@@ -17,7 +17,6 @@ const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
   { value: 'theater', label: 'Theater' },
   { value: 'conference', label: 'Conference' },
   { value: 'festival', label: 'Festival' },
-  { value: 'other', label: 'Other' },
 ]
 
 const loading = ref(false)
@@ -26,10 +25,14 @@ const page = ref(1)
 const totalPages = ref(1)
 const search = ref((route.query.search as string) || '')
 const typeFilter = ref<EventType | 'all'>((route.query.type as EventType | 'all') || 'all')
-const activeTab = ref<'all' | 'upcoming' | 'favorites'>('all')
+const activeView = ref<'all' | 'upcoming' | 'favorites'>('all')
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
 
-watch(favoriteIds, () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)), { deep: true })
+watch(
+  favoriteIds,
+  () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)),
+  { deep: true },
+)
 
 const buildCacheKey = () => `events_list:${page.value}:${typeFilter.value}`
 
@@ -42,7 +45,9 @@ const mapEvent = (event: any): EventSummary => ({
   type: (event.type || 'other') as EventType,
   image: event.image,
   seatsAvailable: event.seatsAvailable,
-  venue: event.venue ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address } : undefined,
+  venue: event.venue
+    ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
+    : undefined,
 })
 
 const load = async () => {
@@ -52,7 +57,11 @@ const load = async () => {
     if (typeFilter.value !== 'all') params.type = typeFilter.value
 
     if (isDemoMode() || import.meta.env.DEV) {
-      const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
+      const result = await mockServices.getEvents({
+        page: page.value,
+        limit: 10,
+        type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
+      })
       events.value = result.events
       totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
       return
@@ -75,7 +84,11 @@ const load = async () => {
       toast.push('Showing cached events.', 'info', 3200)
     } else {
       try {
-        const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
+        const result = await mockServices.getEvents({
+          page: page.value,
+          limit: 10,
+          type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
+        })
         events.value = result.events
         totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
         toast.push('Backend unavailable. Showing demo events.', 'info', 3200)
@@ -90,20 +103,21 @@ const load = async () => {
   }
 }
 
-const filteredEvents = computed(() => {
+const visibleEvents = computed(() => {
   const needle = search.value.trim().toLowerCase()
   const today = new Date().toISOString().slice(0, 10)
+
   return events.value.filter((event) => {
     const text = `${event.name} ${event.venue?.name || ''}`.toLowerCase()
     if (needle && !text.includes(needle)) return false
-    if (activeTab.value === 'upcoming' && (event.date?.slice(0, 10) || '') < today) return false
-    if (activeTab.value === 'favorites' && !favoriteIds.value.includes(event.eventId)) return false
+    if (activeView.value === 'upcoming' && (event.date?.slice(0, 10) || '') < today) return false
+    if (activeView.value === 'favorites' && !favoriteIds.value.includes(event.eventId)) return false
     return true
   })
 })
 
-const heroEvent = computed(() => filteredEvents.value[0] || null)
-const gridEvents = computed(() => filteredEvents.value.slice(heroEvent.value ? 1 : 0))
+const featuredEvent = computed(() => visibleEvents.value[0] || null)
+const secondaryEvents = computed(() => visibleEvents.value.slice(featuredEvent.value ? 1 : 0, 5))
 
 const toggleFavorite = (eventId: string) => {
   favoriteIds.value = favoriteIds.value.includes(eventId)
@@ -120,7 +134,11 @@ const setType = (value: EventType | 'all') => {
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
-  return new Date(value).toLocaleDateString('en-SG', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(value).toLocaleDateString('en-SG', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 onMounted(load)
@@ -128,78 +146,93 @@ onMounted(load)
 
 <template>
   <section class="events-page">
-    <header class="events-header">
-      <span class="eyebrow">Curated Experiences</span>
-      <h1>Browse the next unforgettable room.</h1>
-      <p>Search live events, filter by category, and pin favorites before seats move.</p>
+    <header class="listing-header">
+      <h1>
+        Curated <span>Experiences</span>
+      </h1>
 
-      <div class="toolbar panel">
-        <label class="search-wrap">
-          <span>Search</span>
-          <input v-model="search" placeholder="Search events, artists, or venues" />
+      <div class="listing-controls">
+        <label class="search-shell">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input v-model="search" placeholder="Search events, artists, or venues..." />
         </label>
 
-        <div class="tab-row">
-          <button :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">All</button>
-          <button :class="{ active: activeTab === 'upcoming' }" @click="activeTab = 'upcoming'">Upcoming</button>
-          <button :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">Favorites</button>
+        <div class="chip-row">
+          <button
+            v-for="type in EVENT_TYPES"
+            :key="type.value"
+            class="filter-chip"
+            :class="{ active: typeFilter === type.value }"
+            type="button"
+            @click="setType(type.value)"
+          >
+            {{ type.label }}
+          </button>
+          <button
+            class="filter-chip"
+            :class="{ active: activeView === 'favorites' }"
+            type="button"
+            @click="activeView = activeView === 'favorites' ? 'all' : 'favorites'"
+          >
+            Favorites
+          </button>
+          <button
+            class="filter-chip"
+            :class="{ active: activeView === 'upcoming' }"
+            type="button"
+            @click="activeView = activeView === 'upcoming' ? 'all' : 'upcoming'"
+          >
+            Upcoming
+          </button>
         </div>
-      </div>
-
-      <div class="filter-row">
-        <button v-for="type in EVENT_TYPES" :key="type.value" class="chip" :class="{ active: typeFilter === type.value }" type="button" @click="setType(type.value)">
-          {{ type.label }}
-        </button>
       </div>
     </header>
 
-    <div v-if="loading" class="loading-grid">
-      <article v-for="n in 5" :key="n" class="skeleton-card panel"></article>
+    <div v-if="loading" class="listing-grid loading-grid">
+      <div class="event-card event-card-feature loading-card"></div>
+      <div v-for="n in 4" :key="n" class="event-card loading-card"></div>
     </div>
 
     <template v-else>
-      <div v-if="heroEvent" class="hero-card">
-        <img v-if="heroEvent.image" :src="heroEvent.image" :alt="heroEvent.name" />
-        <div class="overlay"></div>
-        <div class="hero-card-content">
-          <div class="hero-meta">
-            <span class="hero-badge">Featured</span>
-            <span>{{ formatDate(heroEvent.date) }}</span>
-          </div>
-          <h2>{{ heroEvent.name }}</h2>
-          <p>{{ heroEvent.venue?.name || 'Featured venue' }}</p>
-          <div class="hero-actions">
-            <button @click="router.push(`/events/${heroEvent.eventId}`)">Get Tickets</button>
-            <button class="secondary" @click="toggleFavorite(heroEvent.eventId)">
-              {{ favoriteIds.includes(heroEvent.eventId) ? 'Favorited' : 'Save Event' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="filteredEvents.length === 0" class="empty-state panel">
+      <div v-if="visibleEvents.length === 0" class="empty-card">
         <h2>No events found.</h2>
-        <p>Try another search or switch to a different category.</p>
+        <p>Try another search or switch category.</p>
       </div>
 
-      <div v-else class="cards-grid">
-        <article v-for="event in gridEvents" :key="event.eventId" class="event-card panel">
-          <div class="event-media" @click="router.push(`/events/${event.eventId}`)">
+      <div v-else class="listing-grid">
+        <article v-if="featuredEvent" class="event-card event-card-feature">
+          <img v-if="featuredEvent.image" :src="featuredEvent.image" :alt="featuredEvent.name" />
+          <div class="card-overlay"></div>
+          <div class="card-copy featured-copy">
+            <div class="feature-topline">
+              <span class="tag tag-primary">Featured</span>
+              <span>{{ formatDate(featuredEvent.date) }}</span>
+            </div>
+            <h2>{{ featuredEvent.name }}</h2>
+            <p>{{ featuredEvent.venue?.name || 'Featured venue' }}</p>
+            <div class="feature-actions">
+              <button type="button" @click="router.push(`/events/${featuredEvent.eventId}`)">Get Tickets</button>
+              <button class="secondary" type="button" @click="toggleFavorite(featuredEvent.eventId)">
+                {{ favoriteIds.includes(featuredEvent.eventId) ? 'Favorited' : 'Save Event' }}
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article v-for="event in secondaryEvents" :key="event.eventId" class="event-card">
+          <div class="square-media">
             <img v-if="event.image" :src="event.image" :alt="event.name" />
-            <div class="overlay"></div>
+            <div class="card-overlay"></div>
             <button class="favorite-toggle" type="button" @click.stop="toggleFavorite(event.eventId)">
               {{ favoriteIds.includes(event.eventId) ? '♥' : '♡' }}
             </button>
-            <span class="event-badge">{{ event.type }}</span>
           </div>
 
-          <div class="event-copy">
+          <div class="card-copy">
+            <span class="tag">{{ event.type }}</span>
             <h3>{{ event.name }}</h3>
-            <p>{{ event.venue?.name || 'Venue TBA' }}</p>
-            <div class="event-footer">
-              <span>SGD {{ event.price.toFixed(2) }}</span>
-              <button class="secondary" @click="router.push(`/events/${event.eventId}`)">View</button>
-            </div>
+            <p>{{ formatDate(event.date) }} • {{ event.venue?.name || 'Venue TBA' }}</p>
+            <button class="secondary full-button" type="button" @click="router.push(`/events/${event.eventId}`)">Get Tickets</button>
           </div>
         </article>
       </div>
@@ -214,57 +247,269 @@ onMounted(load)
 </template>
 
 <style scoped>
-.events-page, .events-header { display: grid; gap: 1rem; }
-.eyebrow { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
-.events-header h1 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 4.8rem);
-  line-height: .95; letter-spacing: -.05em;
+.events-page {
+  display: grid;
+  gap: 2rem;
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
 }
-.events-header p { margin: 0; max-width: 42rem; color: var(--text-muted); line-height: 1.7; }
-.toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 1rem; align-items: end; padding: 1rem; }
-.search-wrap { display: grid; gap: .4rem; }
-.search-wrap span { color: var(--text-dim); font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
-.tab-row, .filter-row, .hero-actions, .pagination { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
-.tab-row button, .chip {
-  padding: .8rem 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.06);
-  background: rgba(255,255,255,.03); color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+
+.listing-header {
+  display: grid;
+  gap: 1.75rem;
+  justify-items: center;
+  text-align: center;
 }
-.tab-row button.active, .chip.active { border-color: rgba(249,115,22,.5); background: rgba(249,115,22,.16); color: var(--primary); }
-.hero-card { position: relative; overflow: hidden; min-height: 26rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,.06); }
-.hero-card > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.84)); }
-.hero-card-content { position: absolute; inset-inline: 1.5rem; bottom: 1.5rem; z-index: 1; display: grid; gap: .6rem; }
-.hero-meta { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; color: rgba(255,255,255,.76); font-size: .78rem; font-weight: 700; }
-.hero-badge, .event-badge {
-  width: fit-content; padding: .45rem .7rem; border-radius: 999px; background: rgba(249,115,22,.92);
-  color: #1e0f08; font-size: .65rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase;
+
+.listing-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.6rem, 8vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.07em;
 }
-.hero-card h2 { margin: 0; font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4rem); line-height: .96; letter-spacing: -.05em; }
-.hero-card p { margin: 0; color: rgba(255,255,255,.72); }
-.cards-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
-.event-card { overflow: hidden; padding: 0; }
-.event-media { position: relative; aspect-ratio: 1 / 1; cursor: pointer; }
-.event-media img { width: 100%; height: 100%; object-fit: cover; }
+
+.listing-header h1 span {
+  color: var(--primary);
+}
+
+.listing-controls {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 56rem);
+}
+
+.search-shell {
+  position: relative;
+  width: min(100%, 32rem);
+  justify-self: center;
+}
+
+.search-shell input {
+  padding-left: 3rem;
+  border-radius: 999px;
+  background: rgba(38, 38, 38, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 1.1rem;
+}
+
+.chip-row {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 0.82rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(38, 38, 38, 0.82);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  color: #2a1203;
+  border-color: transparent;
+}
+
+.listing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.event-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  background: rgba(19, 19, 19, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 18rem;
+}
+
+.event-card-feature {
+  grid-column: span 2;
+  min-height: 31rem;
+}
+
+.event-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+}
+
+.event-card:hover img {
+  transform: scale(1.04);
+}
+
+.square-media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.86));
+}
+
 .favorite-toggle {
-  position: absolute; top: .85rem; right: .85rem; z-index: 1; width: 2.4rem; height: 2.4rem; border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.16); background: rgba(12,12,12,.5); color: white;
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 14, 14, 0.48);
+  color: #fff;
 }
-.event-badge { position: absolute; left: .85rem; bottom: .85rem; z-index: 1; }
-.event-copy { display: grid; gap: .55rem; padding: 1rem; }
-.event-copy h3 { margin: 0; font-size: 1.2rem; line-height: 1.2; }
-.event-copy p { margin: 0; color: var(--text-muted); }
-.event-footer { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding-top: .2rem; }
-.event-footer span { color: var(--primary); font-size: 1rem; font-weight: 800; }
-.loading-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
-.skeleton-card { min-height: 18rem; }
-.empty-state { display: grid; gap: .5rem; padding: 2rem; text-align: center; }
-.empty-state h2, .empty-state p { margin: 0; }
-.empty-state p { color: var(--text-muted); }
-.pagination { justify-content: flex-end; color: var(--text-muted); }
+
+.card-copy {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.4rem;
+}
+
+.featured-copy {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 1.8rem;
+}
+
+.feature-topline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tag {
+  width: fit-content;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(38, 38, 38, 0.9);
+  color: var(--primary);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.tag-primary {
+  background: rgba(249, 115, 22, 0.95);
+  color: #230f02;
+}
+
+.featured-copy h2,
+.card-copy h3,
+.empty-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.featured-copy h2 {
+  font-size: clamp(2.2rem, 4.5vw, 4rem);
+}
+
+.card-copy h3 {
+  font-size: 1.45rem;
+}
+
+.card-copy p,
+.featured-copy p,
+.empty-card p,
+.pagination {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.feature-actions,
+.pagination {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.full-button {
+  width: 100%;
+}
+
+.empty-card {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(19, 19, 19, 0.74);
+}
+
+.pagination {
+  justify-content: flex-end;
+}
+
+.loading-card {
+  background: linear-gradient(90deg, rgba(32, 31, 31, 0.7), rgba(44, 44, 44, 0.9), rgba(32, 31, 31, 0.7));
+}
+
 @media (max-width: 980px) {
-  .cards-grid, .loading-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .listing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .event-card-feature {
+    grid-column: span 2;
+  }
 }
+
 @media (max-width: 720px) {
-  .toolbar, .cards-grid, .loading-grid { grid-template-columns: 1fr; }
+  .listing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .events-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
+  }
+
+  .event-card-feature {
+    grid-column: span 1;
+    min-height: 26rem;
+  }
+
+  .pagination {
+    justify-content: flex-start;
+  }
 }
 </style>

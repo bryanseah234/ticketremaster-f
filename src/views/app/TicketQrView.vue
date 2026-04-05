@@ -19,7 +19,6 @@ const formattedExpires = computed(() => (expiresIn.value > 0 ? `${expiresIn.valu
 const formattedDate = computed(() => {
   if (!event.value?.date) return 'Date TBA'
   return new Date(event.value.date).toLocaleDateString('en-SG', {
-    weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -86,15 +85,22 @@ onUnmounted(() => {
   <section class="qr-page">
     <div class="crumb"><RouterLink to="/tickets">Back to My Tickets</RouterLink></div>
 
-    <article class="ticket-shell panel">
+    <header class="qr-header">
+      <h2><span>Your</span> Ticket</h2>
+    </header>
+
+    <article class="ticket-shell">
       <div class="qr-column">
         <div class="qr-paper">
           <div class="qr-grid">
             <span v-for="(filled, index) in qrCells" :key="index" :class="{ filled }"></span>
           </div>
         </div>
-        <p class="qr-timer">Refreshes in <span :class="{ expiring: expiresIn < 10 }">{{ formattedExpires }}</span></p>
-        <p class="qr-reference">REF: {{ qrHash.slice(0, 14).toUpperCase() }}</p>
+
+        <div class="qr-timer">
+          <span class="timer-icon">↻</span>
+          <span>Refreshes in {{ formattedExpires }}</span>
+        </div>
       </div>
 
       <div class="details-column">
@@ -102,33 +108,32 @@ onUnmounted(() => {
           <div>
             <p class="eyebrow">Electronic Ticket</p>
             <h1>{{ event?.name || (loading ? 'Loading ticket...' : 'Ticket unavailable') }}</h1>
-            <p class="muted">{{ venue?.name || 'Venue TBA' }}</p>
+            <p class="subhead">{{ venue?.name || 'The Obsidian Hearth Series' }}</p>
           </div>
-          <span class="status-pill">{{ ticket?.status || 'active' }}</span>
+          <span class="status-pill">{{ ticket?.status || 'confirmed' }}</span>
         </div>
 
         <div class="detail-grid">
           <div>
-            <span class="meta-label">Section</span>
-            <strong>{{ ticket?.seat?.section || 'GA' }}</strong>
+            <label>Section</label>
+            <p>{{ ticket?.seat?.section || 'ORCH-A' }}</p>
           </div>
           <div>
-            <span class="meta-label">Row</span>
-            <strong>{{ ticket?.seat?.rowNumber || '--' }}</strong>
+            <label>Row</label>
+            <p>{{ ticket?.seat?.rowNumber || '12' }}</p>
           </div>
           <div>
-            <span class="meta-label">Seat</span>
-            <strong>{{ ticket?.seat?.seatNumber || '--' }}</strong>
+            <label>Seat</label>
+            <p>{{ ticket?.seat?.seatNumber || '42' }}</p>
           </div>
           <div>
-            <span class="meta-label">Ticket ID</span>
-            <strong>{{ ticket?.ticketId || qrHash }}</strong>
+            <label>Gate</label>
+            <p>{{ venue?.name ? 'North' : '--' }}</p>
           </div>
         </div>
 
         <div class="detail-list">
-          <div><span>{{ formattedDate }}</span></div>
-          <div><span>{{ formattedTime }}</span></div>
+          <div><span>{{ formattedDate }} • {{ formattedTime }}</span></div>
           <div><span>{{ venue?.address || 'Present this code to venue staff for entry verification.' }}</span></div>
         </div>
 
@@ -144,51 +149,216 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.qr-page { display: grid; gap: 1rem; max-width: 70rem; margin: 0 auto; }
-.crumb a { color: var(--text-muted); }
+.qr-page {
+  width: min(100% - 3rem, 74rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.crumb a {
+  color: var(--text-muted);
+}
+
+.qr-header {
+  text-align: center;
+}
+
+.qr-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.qr-header h2 span {
+  color: var(--primary);
+}
+
 .ticket-shell {
-  display: grid; grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); overflow: hidden; padding: 0;
-  box-shadow: 0 1.5rem 5rem rgba(249,115,22,.08);
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.7fr) minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(38, 38, 38, 0.7);
+  box-shadow: 0 24px 80px rgba(249, 115, 22, 0.12);
+  backdrop-filter: blur(20px);
 }
+
 .qr-column {
-  display: grid; place-items: center; align-content: center; gap: 1rem; padding: 2rem;
-  background: #f6f3ee; color: #111; border-right: 1px dashed rgba(0,0,0,.18);
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1rem;
+  padding: 2.5rem;
+  background: #fff;
+  color: #101010;
+  border-right: 1px dashed rgba(0, 0, 0, 0.18);
 }
+
+.qr-column::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -1rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--background);
+  transform: translateY(-50%);
+}
+
 .qr-paper {
-  padding: 1rem; border-radius: 1rem; background: white; border: 2px dashed rgba(0,0,0,.12); box-shadow: inset 0 .2rem .7rem rgba(0,0,0,.05);
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #f5f5f5;
+  border: 2px dashed rgba(0, 0, 0, 0.12);
 }
+
 .qr-grid {
-  display: grid; grid-template-columns: repeat(9, 1fr); gap: .35rem; width: 14rem; height: 14rem;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 0.3rem;
+  width: 14rem;
+  height: 14rem;
 }
-.qr-grid span { border-radius: .18rem; background: rgba(0,0,0,.06); }
-.qr-grid span.filled { background: #111; }
-.qr-timer, .qr-reference {
-  margin: 0; font-family: 'Courier New', Courier, monospace; font-weight: 700; letter-spacing: .08em;
+
+.qr-grid span {
+  border-radius: 0.18rem;
+  background: rgba(0, 0, 0, 0.08);
 }
-.qr-timer span { color: #f97316; }
-.qr-timer span.expiring { color: #dc2626; }
-.qr-reference { color: rgba(0,0,0,.5); font-size: .75rem; }
-.details-column { display: grid; gap: 1.25rem; padding: 2rem; }
-.details-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
-.eyebrow, .meta-label {
-  display: block; font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+
+.qr-grid span.filled {
+  background: #111;
 }
-.eyebrow { color: var(--primary); margin: 0 0 .5rem; }
-.meta-label { color: var(--text-dim); margin-bottom: .3rem; }
+
+.qr-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(0, 0, 0, 0.58);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.timer-icon {
+  font-size: 0.85rem;
+}
+
+.details-column {
+  display: grid;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: rgba(32, 31, 31, 0.32);
+}
+
+.details-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.eyebrow,
+.detail-grid label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .details-head h1 {
-  margin: 0 0 .25rem; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.2rem); line-height: .95; letter-spacing: -.04em;
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  line-height: 0.96;
+  letter-spacing: -0.05em;
 }
-.muted { margin: 0; color: var(--text-muted); }
+
+.subhead {
+  margin: 0;
+  color: var(--text-muted);
+}
+
 .status-pill {
-  padding: .45rem .75rem; border-radius: 999px; background: rgba(249,115,22,.14); color: var(--primary);
-  font-size: .7rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.18);
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
-.detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; padding: 1rem 0; border-block: 1px solid rgba(255,255,255,.06); }
-.detail-grid strong { display: block; }
-.detail-list { display: grid; gap: .75rem; color: var(--text-muted); }
-.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  border-block: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.detail-grid p,
+.detail-list span {
+  margin: 0;
+  color: #fff;
+  font-weight: 700;
+}
+
+.detail-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detail-list div {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.detail-list span {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 860px) {
-  .ticket-shell, .detail-grid { grid-template-columns: 1fr; }
-  .qr-column { border-right: 0; border-bottom: 1px dashed rgba(0,0,0,.18); }
+  .ticket-shell,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-column {
+    border-right: 0;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.18);
+  }
+
+  .qr-column::after {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .qr-page {
+    width: min(100% - 1rem, 74rem);
+    padding-top: 6.5rem;
+  }
 }
 </style>

@@ -5,6 +5,7 @@ interface RouteMeta {
   requiresAuth?: boolean
   requiresAdmin?: boolean
   requiresStaff?: boolean
+  disallowStaff?: boolean
   title?: string
   subtitle?: string
   sections?: Array<{ heading: string; body: string }>
@@ -143,7 +144,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/checkout/:orderId',
     component: () => import('@/views/app/CheckoutView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/tickets',
@@ -158,7 +159,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/transfer/initiate',
     component: () => import('@/views/app/TransferInitiateView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/transfer/:transferId',
@@ -167,7 +168,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/credits/topup',
     component: () => import('@/views/app/CreditTopupView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/profile',
@@ -218,6 +219,7 @@ router.beforeEach((to) => {
   if (meta.requiresAuth && !auth.isLoggedIn) return '/login'
   if (meta.requiresAdmin && !auth.isAdmin) return '/events'
   if (meta.requiresStaff && !auth.isStaff) return '/events'
+  if (meta.disallowStaff && auth.isStaff) return '/events'
   return true
 })
 

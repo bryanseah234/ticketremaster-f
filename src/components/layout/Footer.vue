@@ -8,97 +8,79 @@ const year = new Date().getFullYear()
   <footer class="footer">
     <div class="footer-shell">
       <div class="brand-block">
-        <span class="badge">TicketRemaster</span>
-        <h2>Premium ticketing with verified resale built in.</h2>
-        <p class="small muted">Buy smarter, sell safer, and move through live-event journeys with confidence.</p>
+        <span class="wordmark">TicketRemaster</span>
+        <p>© {{ year }} TicketRemaster. Crafted in the Obsidian Hearth.</p>
       </div>
 
-      <div class="link-grid">
-        <div class="link-column">
-          <strong>Explore</strong>
-          <RouterLink to="/events">Events</RouterLink>
-          <RouterLink to="/marketplace">Marketplace</RouterLink>
-          <RouterLink to="/help">Support</RouterLink>
-        </div>
-        <div class="link-column">
-          <strong>Account</strong>
-          <RouterLink to="/login">Login</RouterLink>
-          <RouterLink to="/register">Register</RouterLink>
-          <RouterLink to="/profile">Profile</RouterLink>
-        </div>
-        <div class="link-column">
-          <strong>Company</strong>
-          <RouterLink to="/about">About</RouterLink>
-          <RouterLink to="/privacy">Privacy</RouterLink>
-          <RouterLink to="/terms">Terms</RouterLink>
-        </div>
-      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <RouterLink to="/terms">Terms</RouterLink>
+        <RouterLink to="/privacy">Privacy</RouterLink>
+        <RouterLink to="/help">Support</RouterLink>
+        <RouterLink to="/about">Contact</RouterLink>
+      </nav>
     </div>
-    <div class="footer-meta">© {{ year }} TicketRemaster. All rights reserved.</div>
   </footer>
 </template>
 
 <style scoped>
 .footer {
-  border-top: 1px solid var(--outlineSoft);
   margin-top: 4rem;
-  padding: 2.5rem 1rem 1.5rem;
-  background: rgba(19, 13, 11, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: #0b0b0b;
 }
 
 .footer-shell {
-  width: min(1180px, 100%);
+  width: min(100% - 3rem, 78rem);
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 2rem;
+  padding: 4rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .brand-block {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.5rem;
 }
 
-.brand-block h2 {
-  font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 1.55rem;
-  line-height: 1.2;
-}
-
-.link-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.link-column {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.link-column strong {
-  color: var(--text);
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.link-column a {
-  color: var(--textMuted);
+.wordmark {
+  color: var(--primary);
   font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
 }
 
-.footer-meta {
-  width: min(1180px, 100%);
-  margin: 1.5rem auto 0;
-  color: var(--textMuted);
-  font-size: 0.82rem;
+.brand-block p {
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 0.74rem;
+  font-weight: 500;
 }
 
-@media (max-width: 860px) {
-  .footer-shell,
-  .link-grid {
-    grid-template-columns: 1fr;
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.footer-links a {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.76rem;
+  font-weight: 500;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.footer-links a:hover {
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .footer-shell {
+    width: min(100% - 2rem, 78rem);
+    padding: 2.5rem 0;
+    flex-direction: column;
+    text-align: center;
   }
 }
 </style>
