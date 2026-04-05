@@ -156,7 +156,7 @@ const secondaryLabel = computed(() => (demoOnly.value ? 'Support Center' : 'Open
 
 .verification-layout {
   display: grid;
-  grid-template-columns: 14rem minmax(0, 1fr);
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
 }

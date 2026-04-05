@@ -19,6 +19,7 @@ const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
 const minimalTopNav = computed(() => auth.isAdmin || auth.isStaff || (auth.isLoggedIn && isDemoMode()))
 const showNotifications = computed(() => auth.isLoggedIn && !auth.isStaff && !auth.isAdmin && !isDemoMode())
+const showGuestNotifications = computed(() => !auth.isLoggedIn && !minimalTopNav.value)
 const adminEventId = computed(() => {
   const paramId = typeof route.params.eventId === 'string' ? route.params.eventId : null
   if (paramId) return paramId
@@ -151,6 +152,9 @@ onMounted(() => {
           {{ balanceLabel }}
         </RouterLink>
         <span v-if="isDemoMode()" class="demo-chip">Demo</span>
+        <RouterLink v-if="showGuestNotifications" to="/login" class="icon-button" aria-label="Notifications">
+          <BellIcon class="icon" />
+        </RouterLink>
         <RouterLink v-if="showNotifications" to="/notifications" class="icon-button" aria-label="Notifications">
           <BellIcon class="icon" />
           <span v-if="notifications.length" class="icon-count">{{ notifications.length }}</span>

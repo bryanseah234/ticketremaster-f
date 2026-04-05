@@ -12,6 +12,10 @@ import { useToast } from '@/composables/useToast'
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
+const showDebugPanel =
+  import.meta.env.DEV &&
+  (new URLSearchParams(window.location.search).get('debugPanel') === 'true' ||
+    window.localStorage.getItem('ticketremaster_debug_panel') === 'true')
 
 const handleOffline = () => {
   if (auth.isLoggedIn && !auth.isDemoSession) {
@@ -44,7 +48,7 @@ onUnmounted(() => {
   <RouterView />
   <Footer />
   <ToastStack />
-  <DebugPanel />
+  <DebugPanel v-if="showDebugPanel" />
 </template>
 
 <style scoped>

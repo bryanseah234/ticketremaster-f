@@ -3,15 +3,13 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   BoltIcon,
-  CreditCardIcon,
   ShieldCheckIcon,
-  TicketIcon,
-  UserCircleIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const FALLBACK_TRANSFER_IMAGE =
   'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1400&auto=format&fit=crop'
@@ -39,12 +37,6 @@ const countdownFormatted = computed(
 )
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
 const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?.image || FALLBACK_TRANSFER_IMAGE)
-
-const sidebarLinks = [
-  { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
-  { key: 'credits', to: '/credits/topup', label: 'Credits', icon: CreditCardIcon },
-  { key: 'tickets', to: '/tickets', label: 'Tickets', icon: TicketIcon },
-]
 
 const verifyCopy = computed(() =>
   verifyMode.value === 'buyer'
@@ -298,20 +290,7 @@ onUnmounted(() => {
     </header>
 
     <div v-if="isOtpStage" class="otp-layout">
-      <aside class="glass otp-sidebar">
-        <nav class="sidebar-nav">
-          <RouterLink
-            v-for="item in sidebarLinks"
-            :key="item.key"
-            :to="item.to"
-            class="side-link"
-            :class="{ active: item.key === 'tickets' }"
-          >
-            <component :is="item.icon" class="side-icon" />
-            <span>{{ item.label }}</span>
-          </RouterLink>
-        </nav>
-      </aside>
+      <AccountSidebar active-key="tickets" />
 
       <div class="otp-main">
         <article class="glass otp-card">
@@ -486,43 +465,9 @@ onUnmounted(() => {
 
 .otp-layout {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
-}
-
-.otp-sidebar {
-  position: sticky;
-  top: 6.8rem;
-  padding: 0.85rem;
-  border-radius: 1.35rem;
-  background: rgba(34, 31, 30, 0.84);
-}
-
-.sidebar-nav {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.side-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: 1rem;
-  color: var(--textMuted);
-  font-weight: 600;
-}
-
-.side-link.active {
-  background: rgba(249, 115, 22, 0.18);
-  border: 1px solid rgba(249, 115, 22, 0.22);
-  color: var(--primarySoft);
-}
-
-.side-icon {
-  width: 1rem;
-  height: 1rem;
 }
 
 .otp-main {
@@ -792,10 +737,6 @@ onUnmounted(() => {
 @media (max-width: 980px) {
   .otp-layout {
     grid-template-columns: 1fr;
-  }
-
-  .otp-sidebar {
-    position: static;
   }
 }
 

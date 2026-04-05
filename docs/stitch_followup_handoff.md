@@ -10,6 +10,12 @@ Branch: `codex/stitch-integration`
 
 ## Current agreed rules
 
+### Dev-only overlays
+
+- Do not show developer overlays or tooling by default in the UI.
+- The floating debug panel should only appear when explicitly enabled.
+- Vue devtools UI should not be injected into the page by default during local frontend work, because it breaks Stitch fidelity checks and screenshots.
+
 ### Navbar
 
 - Staff navbar must not show `Scanner`; scanner access belongs in the profile left column.
@@ -39,6 +45,7 @@ Branch: `codex/stitch-integration`
   - remove `Device Management`
   - remove `Wallet` shortcut card
   - keep the main account details card and update action
+- Reuse the shared account rail whenever a ticket/profile-adjacent flow needs a left column, rather than cloning a one-off sidebar.
 
 ### Marketplace / empty states
 
