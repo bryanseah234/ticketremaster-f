@@ -31,7 +31,7 @@ const items = computed(() => {
       { to: '/help', label: 'Support' },
       { to: '/notifications', label: 'Notifications' },
       { to: '/admin/events/new', label: 'Create Event' },
-      { to: '/admin/events/demo/dashboard', label: 'Dashboard' },
+      { to: '/admin/events/demo-event-001/dashboard', label: 'Dashboard' },
       { to: '/profile', label: 'Profile' },
     ]
   }
@@ -61,6 +61,11 @@ const fetchBalance = async () => {
   }
   balanceLoading.value = true
   try {
+    if (isDemoMode()) {
+      const stored = sessionStorage.getItem('demo_balance')
+      balance.value = stored !== null ? parseFloat(stored) : 500
+      return
+    }
     const { data } = await api.get('/credits/balance')
     const value = data?.data?.creditBalance ?? data?.creditBalance
     balance.value = typeof value === 'number' ? value : null

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { mockServices, setDemoMode } from '@/services/mockData'
@@ -16,9 +16,9 @@ const loading = ref(false)
 const error = ref('')
 
 const demoAccounts = [
-  { email: 'demo@ticketremaster.com', role: 'user', label: 'Demo User' },
-  { email: 'admin@ticketremaster.com', role: 'admin', label: 'Demo Admin' },
-  { email: 'staff@ticketremaster.com', role: 'staff', label: 'Demo Staff' },
+  { email: 'demo@ticketremaster.com', role: 'user', label: 'Demo User', caption: 'Marketplace & ticket wallet access' },
+  { email: 'admin@ticketremaster.com', role: 'admin', label: 'Demo Admin', caption: 'Global oversight & editorial control' },
+  { email: 'staff@ticketremaster.com', role: 'staff', label: 'Demo Staff', caption: 'Operations & hospitality terminal' },
 ]
 
 const useDemoAccount = async (accountEmail: string) => {
@@ -30,15 +30,9 @@ const useDemoAccount = async (accountEmail: string) => {
 const handleDemoLogin = async () => {
   loading.value = true
   error.value = ''
-
   try {
-    // Enable demo mode
     setDemoMode(true)
-
-    // Use mock auth service
     const result = await mockServices.login(email.value, password.value)
-
-    // Map role to AuthUser
     const role = email.value.includes('admin') ? 'admin' : email.value.includes('staff') ? 'staff' : 'user'
     const authUser: AuthUser = {
       userId: result.user.userId,
@@ -47,200 +41,85 @@ const handleDemoLogin = async () => {
       isFlagged: result.user.isFlagged,
       isAdmin: result.user.isAdmin,
     }
-
-    // Set session
-    auth.setSession({
-      access_token: result.token,
-      refresh_token: 'demo-refresh-token',
-      user: authUser,
-    })
-
+    auth.setSession({ access_token: result.token, refresh_token: 'demo-refresh-token', user: authUser })
     toast.success('Demo login successful! You are now in demo mode.')
 
-    // Redirect based on role
-    if (role === 'admin') {
-      router.push('/admin/events')
-    } else if (role === 'staff') {
-      router.push('/staff/scan')
-    } else {
-      router.push('/events')
-    }
-  } catch (err) {
+    if (role === 'admin') router.push('/admin/events')
+    else if (role === 'staff') router.push('/staff/scan')
+    else router.push('/events')
+  } catch {
     error.value = 'Invalid demo credentials. Try demo@ticketremaster.com / demo1234'
     toast.error(error.value)
   } finally {
     loading.value = false
   }
 }
-
 </script>
 
 <template>
-  <section class="page" style="max-width:640px;">
-    <article class="glass" style="padding:1.5rem;display:grid;gap:1rem;">
-      <div>
-        <h1 class="section-title">Demo Login</h1>
-        <p class="section-subtitle">Test the UI without a backend connection</p>
+  <section class="demo-page">
+    <article class="demo-shell panel">
+      <div class="hero-copy">
+        <span class="eyebrow">Obsidian Hearth</span>
+        <h1>Select your persona.</h1>
+        <p>Choose an identity to explore the product with seeded data and safe, non-destructive flows.</p>
       </div>
 
-      <!-- Demo Mode Banner -->
-      <div class="warning-banner">
-        <div class="warning-icon">
-          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div>
-          <p class="small" style="margin:0;">
-            <strong>Demo Mode:</strong>
-            Real actions like purchases and transfers are disabled. Use this mode for UI development and testing.
-          </p>
-        </div>
-      </div>
-
-      <!-- Demo Account Quick Select -->
-      <div>
-        <h3 class="small" style="margin-bottom:.75rem;">Quick Select Demo Account:</h3>
-        <div class="grid-2">
-          <button
-            v-for="account in demoAccounts"
-            :key="account.email"
-            @click="useDemoAccount(account.email)"
-            :disabled="loading"
-            class="demo-account-btn"
-          >
-            <span class="demo-icon">👤</span>
-            {{ account.label }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Manual Login Form -->
-      <form class="space-y-4" @submit.prevent="handleDemoLogin">
-        <div>
-          <label>Email address</label>
-          <input
-            id="email"
-            v-model="email"
-            type="email"
-            required
-            placeholder="Email address"
-          />
-        </div>
-        <div>
-          <label>Password</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            required
-            placeholder="Password"
-          />
-        </div>
-
-        <div v-if="error" class="error-text">
-          {{ error }}
-        </div>
-
-        <button
-          type="submit"
-          :disabled="loading"
-          style="width:100%;"
-        >
-          {{ loading ? 'Logging in...' : 'Demo Login' }}
+      <div class="persona-stack">
+        <button v-for="account in demoAccounts" :key="account.email" class="persona-card" :disabled="loading" @click="useDemoAccount(account.email)">
+          <div>
+            <strong>{{ account.label }}</strong>
+            <p>{{ account.caption }}</p>
+          </div>
+          <span>›</span>
         </button>
+      </div>
+
+      <form class="manual-form" @submit.prevent="handleDemoLogin">
+        <label>
+          <span>Email</span>
+          <input v-model="email" type="email" required placeholder="demo@ticketremaster.com" />
+        </label>
+        <label>
+          <span>Password</span>
+          <input v-model="password" type="password" required placeholder="demo1234" />
+        </label>
+
+        <p v-if="error" class="error-text">{{ error }}</p>
+
+        <div class="actions">
+          <button type="submit" :disabled="loading">{{ loading ? 'Logging in...' : 'Demo Login' }}</button>
+          <RouterLink to="/login"><button class="secondary" type="button">Regular Login</button></RouterLink>
+        </div>
       </form>
-
-      <!-- Info Section -->
-      <div class="info-section">
-        <div>
-          <h4 class="small" style="margin-bottom:.5rem;"><strong>What you can do in Demo Mode:</strong></h4>
-          <ul class="small" style="margin:0;padding-left:1.2rem;">
-            <li>Browse events and venues</li>
-            <li>View seat maps and select seats</li>
-            <li>See the admin dashboard (with demo admin account)</li>
-            <li>Test UI interactions and layouts</li>
-          </ul>
-        </div>
-        <div style="margin-top:1rem;">
-          <h4 class="small" style="margin-bottom:.5rem;"><strong>What's disabled:</strong></h4>
-          <ul class="small" style="margin:0;padding-left:1.2rem;">
-            <li>Real purchases and payments</li>
-            <li>Ticket transfers</li>
-            <li>Account registration</li>
-            <li>Real-time updates</li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Back to regular login -->
-      <div class="text-center">
-        <a href="/login" class="small" style="color:var(--accent);">Try regular login →</a>
-      </div>
     </article>
   </section>
 </template>
 
 <style scoped>
-.warning-banner {
-  display: flex;
-  gap: .75rem;
-  padding: 1rem;
-  background: rgba(250, 204, 21, 0.08);
-  border: 1px solid rgba(250, 204, 21, 0.2);
-  border-radius: 0.75rem;
-  border-left: 4px solid var(--warning);
+.demo-page { display: grid; place-items: center; min-height: calc(100vh - 10rem); }
+.demo-shell {
+  width: min(100%, 34rem); display: grid; gap: 1.25rem; padding: clamp(1.5rem, 4vw, 2.25rem);
+  background: radial-gradient(circle at center, rgba(249,115,22,.1), transparent 45%), rgba(18,18,18,.88);
 }
-.warning-icon {
-  flex-shrink: 0;
-  color: var(--warning);
+.eyebrow {
+  color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
 }
-.warning-icon svg {
-  height: 1.25rem;
-  width: 1.25rem;
+.hero-copy { display: grid; gap: .8rem; text-align: center; }
+.hero-copy h1 {
+  margin: 0; font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 3.5rem); line-height: .95; letter-spacing: -.05em;
 }
-.demo-account-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  color: var(--text);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.18s ease;
+.hero-copy p { margin: 0; color: var(--text-muted); line-height: 1.7; }
+.persona-stack, .manual-form { display: grid; gap: .8rem; }
+.persona-card {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.1rem;
+  border-radius: 1rem; border: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.03); text-align: left;
 }
-.demo-account-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: rgba(249, 115, 22, 0.08);
-  transform: translateY(-1px);
-}
-.demo-account-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.demo-icon {
-  font-size: 1.1rem;
-}
-.info-section {
-  padding: 1rem;
-  background: var(--surface-2);
-  border-radius: 0.75rem;
-  border: 1px solid var(--border);
-}
-.error-text {
-  color: #ef4444;
-  font-size: 0.9rem;
-  text-align: center;
-}
-.text-center {
-  text-align: center;
-}
-.space-y-4 {
-  display: grid;
-  gap: 1rem;
-}
+.persona-card strong { display: block; margin-bottom: .25rem; font-size: 1.05rem; }
+.persona-card p { margin: 0; color: var(--text-muted); }
+.persona-card span { color: var(--primary); font-size: 1.5rem; line-height: 1; }
+.manual-form label { display: grid; gap: .35rem; }
+.manual-form span { color: var(--text-dim); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.error-text { margin: 0; color: #ff8f84; }
 </style>

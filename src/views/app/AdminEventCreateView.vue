@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import api from '@/api/client'
+import { isDemoMode, mockVenues } from '@/services/mockData'
 
 const form = reactive({
   name: '',
@@ -21,9 +22,14 @@ const venues = ref<any[]>([])
 
 onMounted(async () => {
   try {
+    if (isDemoMode()) {
+      venues.value = mockVenues
+      return
+    }
     const { data } = await api.get('/venues')
     venues.value = data?.venues || data?.data?.venues || []
   } catch (e) {
+    venues.value = mockVenues
     console.error('Failed to load venues', e)
   }
 })
@@ -41,6 +47,13 @@ const submit = async () => {
   loading.value = true
   created.value = null
   try {
+    if (isDemoMode()) {
+      created.value = {
+        eventId: 'demo-event-created',
+        seatsCreated: Number(form.totalSeats),
+      }
+      return
+    }
     const payload = {
       name: form.name,
       description: form.description,

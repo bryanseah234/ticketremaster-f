@@ -1,6 +1,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
+import { isDemoMode, mockTransfers } from '@/services/mockData'
 
 interface NotificationItem {
   transferId: string
@@ -31,6 +32,18 @@ export function useSellerNotifications() {
     state.value.error = null
 
     try {
+      if (isDemoMode()) {
+        state.value.notifications = auth.isStaff
+          ? []
+          : mockTransfers.map((t) => ({
+              transferId: t.transferId,
+              creditAmount: 180,
+              createdAt: t.createdAt,
+            }))
+        state.value.lastChecked = new Date()
+        return
+      }
+
       // Check for pending transfers
       const response = await api.get('/transfer/pending')
       const pendingTransfers = response.data?.data || []

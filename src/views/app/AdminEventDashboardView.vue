@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { isDemoMode } from '@/services/mockData'
 
 const route = useRoute()
 const toast = useToast()
@@ -29,6 +30,21 @@ const metrics = computed(() => {
 const load = async () => {
   loading.value = true
   try {
+    if (isDemoMode()) {
+      data.value = {
+        stats: {
+          seatsSold: 782,
+          totalSeats: 1250,
+          revenue: 116540,
+        },
+        attendees: [
+          { seatId: 'demo-seat-001', rowNumber: 'A', seatNumber: '1', email: 'vip@ticketremaster.com' },
+          { seatId: 'demo-seat-002', rowNumber: 'A', seatNumber: '2', email: 'fan@example.com' },
+          { seatId: 'demo-seat-003', rowNumber: 'B', seatNumber: '4', email: 'guest@example.com' },
+        ],
+      }
+      return
+    }
     const response = await api.get(`/admin/events/${route.params.eventId}/dashboard`)
     data.value = response.data?.data
   } catch {

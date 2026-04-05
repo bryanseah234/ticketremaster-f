@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { isDemoMode, mockServices } from '@/services/mockData'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,36 +39,51 @@ const totalAvailable = computed(() => {
   return count
 })
 
+const setRowsFromSeats = (rawSeats: any[]) => {
+  const rowMap = new Map<string, Seat[]>()
+  for (const s of rawSeats) {
+    const row = s.rowNumber ?? 'GA'
+    const merged: Seat = {
+      inventoryId: s.inventoryId,
+      seatId: s.seatId,
+      rowNumber: row,
+      seatNumber: s.seatNumber ?? s.inventoryId?.slice?.(-4) ?? '--',
+      status: (s.status ?? 'available').toUpperCase() as Seat['status'],
+      heldUntil: s.heldUntil,
+    }
+    if (!rowMap.has(row)) rowMap.set(row, [])
+    rowMap.get(row)!.push(merged)
+  }
+  rows.value = new Map(
+    [...rowMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(([row, seats]) => [
+        row,
+        seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
+      ]),
+  )
+}
+
 const loadSeats = async () => {
   loading.value = true
   try {
+    if (isDemoMode()) {
+      const result = await mockServices.getSeats(String(route.params.eventId))
+      setRowsFromSeats(result.seats)
+      return
+    }
     const { data } = await api.get(`/events/${route.params.eventId}/seats`)
     const rawSeats: any[] = data?.data?.seats || []
-    const rowMap = new Map<string, Seat[]>()
-    for (const s of rawSeats) {
-      const row = s.rowNumber ?? 'GA'
-      const merged: Seat = {
-        inventoryId: s.inventoryId,
-        seatId: s.seatId,
-        rowNumber: row,
-        seatNumber: s.seatNumber ?? s.inventoryId.slice(-4),
-        status: (s.status ?? 'available').toUpperCase() as Seat['status'],
-        heldUntil: s.heldUntil,
-      }
-      if (!rowMap.has(row)) rowMap.set(row, [])
-      rowMap.get(row)!.push(merged)
-    }
-    rows.value = new Map(
-      [...rowMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-        .map(([row, seats]) => [
-          row,
-          seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
-        ]),
-    )
+    setRowsFromSeats(rawSeats)
   } catch (e) {
-    console.error(e)
-    toast.push('Failed to load seat map.', 'error', 3200)
+    try {
+      const result = await mockServices.getSeats(String(route.params.eventId))
+      setRowsFromSeats(result.seats)
+      toast.push('Showing demo seat map.', 'info', 2800)
+    } catch {
+      console.error(e)
+      toast.push('Failed to load seat map.', 'error', 3200)
+    }
   } finally {
     loading.value = false
   }
@@ -77,6 +93,34 @@ const reserveSeat = async () => {
   if (!selectedSeat.value || !auth.state.user) return
   try {
     const inventoryId = selectedSeat.value.inventoryId
+    if (isDemoMode()) {
+      holdSeconds.value = 300
+      if (timer) clearInterval(timer)
+      timer = window.setInterval(() => {
+        holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+      }, 1000)
+      orderId.value = inventoryId
+      localStorage.setItem('pendingOrder', JSON.stringify({
+        orderId: orderId.value,
+        inventoryId: orderId.value,
+        holdToken: 'demo-hold-token',
+        heldUntil: new Date(Date.now() + 300000).toISOString(),
+        eventId: route.params.eventId,
+        seat: {
+          seatId: selectedSeat.value.seatId,
+          rowNumber: selectedSeat.value.rowNumber,
+          seatNumber: selectedSeat.value.seatNumber,
+          price: 149.99,
+        },
+        event: {
+          name: 'Taylor Swift - Eras Tour',
+          image: '/hero-concert.jpeg',
+          eventDate: '2025-06-15T19:30:00Z',
+        },
+      }))
+      toast.push('Seat held. You have 5 minutes to finish checkout.', 'success', 3200)
+      return
+    }
     const { data } = await api.post(`/purchase/hold/${inventoryId}`)
     const heldUntil = data?.data?.heldUntil || data?.data?.held_until
     holdSeconds.value = heldUntil

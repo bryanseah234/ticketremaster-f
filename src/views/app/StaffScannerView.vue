@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { StreamBarcodeReader } from 'vue-barcode-reader'
+import { computed, markRaw, onMounted, ref, shallowRef } from 'vue'
 import api from '@/api/client'
-
-const BarcodeReader = StreamBarcodeReader
+import { isDemoMode } from '@/services/mockData'
 
 type ScanResult = 'PASS' | 'FAILED' | 'WRONG_VENUE'
 
@@ -20,6 +18,8 @@ const feedback = ref<{ result: ScanResult; message: string } | null>(null)
 const history = ref<ScanRecord[]>([])
 const manualInput = ref('')
 const manualLoading = ref(false)
+const cameraSupported = ref(false)
+const barcodeReader = shallowRef<any>(null)
 let recordSeq = 0
 let lastQr = ''
 let lastQrTime = 0
@@ -52,6 +52,10 @@ const showFeedback = (result: ScanResult, message: string, label: string, sublab
 const processQr = async (raw: string) => {
   const qrHash = raw.includes('/ticket-qr/') ? raw.split('/ticket-qr/')[1].split('?')[0] : raw
   try {
+    if (isDemoMode()) {
+      showFeedback('PASS', 'Check-in successful', 'Afterlight: Echoes of Eternity', `Ticket ${qrHash.slice(0, 8)}...`)
+      return
+    }
     const { data } = await api.post('/verify/scan', { qrHash })
     const d = data?.data
     const label = d?.event?.name || 'Unknown Event'
@@ -87,6 +91,11 @@ const submitManual = async () => {
   if (!value) return
   manualLoading.value = true
   try {
+    if (isDemoMode()) {
+      showFeedback('PASS', 'Check-in successful', 'Manual entry', `Ticket ${value.slice(0, 8)}...`)
+      manualInput.value = ''
+      return
+    }
     const { data } = await api.post('/verify/manual', { ticketId: value })
     const d = data?.data
     const label = d?.event?.name || 'Manual entry'
@@ -103,6 +112,19 @@ const submitManual = async () => {
     manualLoading.value = false
   }
 }
+
+onMounted(() => {
+  cameraSupported.value = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+  if (cameraSupported.value) {
+    import('vue-barcode-reader')
+      .then((module) => {
+        barcodeReader.value = markRaw(module.StreamBarcodeReader)
+      })
+      .catch(() => {
+        cameraSupported.value = false
+      })
+  }
+})
 </script>
 
 <template>
@@ -118,7 +140,12 @@ const submitManual = async () => {
     <div class="scanner-grid">
       <article class="glass scanner-card">
         <div class="camera-wrap">
-          <component :is="BarcodeReader" @decode="onDecode" />
+          <component v-if="cameraSupported && barcodeReader" :is="barcodeReader" @decode="onDecode" />
+          <div v-else class="camera-fallback">
+            <span class="badge">Camera unavailable</span>
+            <h2>Use manual verification on this device.</h2>
+            <p class="small muted">Live scanning is only enabled when the browser supports camera access.</p>
+          </div>
           <div v-if="feedback" class="feedback-overlay" :class="feedbackClass">
             <p class="feedback-label">{{ feedbackLabel }}</p>
             <p class="feedback-msg">{{ feedback.message }}</p>
@@ -166,6 +193,19 @@ const submitManual = async () => {
   border-radius: var(--radius-lg);
   min-height: 420px;
   background: #0b0b0d;
+}
+.camera-fallback {
+  height: 100%;
+  min-height: 420px;
+  display: grid;
+  place-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+.camera-fallback h2,
+.camera-fallback p {
+  margin: 0;
 }
 .manual-card { padding: 1rem; }
 .manual-row { display: flex; gap: 0.65rem; flex-wrap: wrap; }
