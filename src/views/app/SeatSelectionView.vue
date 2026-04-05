@@ -5,6 +5,7 @@ import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { Event } from '@/types'
 
 const route = useRoute()
@@ -111,7 +112,17 @@ const loadEvent = async () => {
       return
     }
     const { data } = await api.get(`/events/${eventId}`)
-    eventData.value = data?.data || null
+    eventData.value = data?.data
+      ? {
+          ...data.data,
+          image: resolveEventImage({
+            image: data.data.image,
+            eventId,
+            type: data.data.type,
+            context: 'event',
+          }),
+        }
+      : null
   } catch {
     try {
       eventData.value = await mockServices.getEvent(String(route.params.eventId))
@@ -202,12 +213,13 @@ const reserveSeat = async () => {
             price: selectedPrice,
             section: selectedSeat.value.section,
           },
-          event: {
-            name: eventData.value?.name || 'Selected Event',
-            image: eventData.value?.image,
-            eventDate: eventData.value?.date,
-          },
-        }),
+        event: {
+          name: eventData.value?.name || 'Selected Event',
+          image: eventData.value?.image,
+          eventDate: eventData.value?.date,
+          venueName: eventData.value?.venue?.name,
+        },
+      }),
       )
       toast.push('Seat held. You have 5 minutes to finish checkout.', 'success', 3200)
       return
@@ -241,6 +253,7 @@ const reserveSeat = async () => {
           name: eventData.value?.name,
           image: eventData.value?.image,
           eventDate: eventData.value?.date,
+          venueName: eventData.value?.venue?.name,
         },
       }),
     )

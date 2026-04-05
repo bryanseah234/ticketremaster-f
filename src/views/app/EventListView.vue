@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { EventSummary, EventType } from '@/types'
 
 const route = useRoute()
@@ -43,7 +44,12 @@ const mapEvent = (event: any): EventSummary => ({
   venueId: event.venueId || event.venue_id || '',
   price: Number(event.price || 0),
   type: (event.type || 'other') as EventType,
-  image: event.image,
+  image: resolveEventImage({
+    image: event.image,
+    eventId: event.eventId || event.event_id,
+    type: (event.type || 'other') as EventType,
+    context: 'event',
+  }),
   seatsAvailable: event.seatsAvailable,
   venue: event.venue
     ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
@@ -175,14 +181,6 @@ onMounted(load)
             @click="activeView = activeView === 'favorites' ? 'all' : 'favorites'"
           >
             Favorites
-          </button>
-          <button
-            class="filter-chip"
-            :class="{ active: activeView === 'upcoming' }"
-            type="button"
-            @click="activeView = activeView === 'upcoming' ? 'all' : 'upcoming'"
-          >
-            Upcoming
           </button>
         </div>
       </div>

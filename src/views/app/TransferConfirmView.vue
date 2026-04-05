@@ -12,7 +12,7 @@ import { isDemoMode } from '@/services/mockData'
 import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const FALLBACK_TRANSFER_IMAGE =
-  'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=1400&auto=format&fit=crop'
+  '/stitch-media/transfer/accept-card.jpg'
 
 const route = useRoute()
 const toast = useToast()
@@ -47,6 +47,14 @@ const canCancelTransfer = computed(() => {
   if (!auth.isLoggedIn) return false
   if (status.value === 'pending_seller_acceptance') return !isSeller.value
   return status.value === 'pending_buyer_otp' || status.value === 'pending_seller_otp'
+})
+
+const transferHeading = computed(() => {
+  if (isOtpStage.value) return { lead: 'Ticket', accent: 'Transfer' }
+  if (status.value === 'pending_seller_acceptance' && isSeller.value) return { lead: 'Incoming Transfer', accent: '' }
+  if (status.value === 'pending_seller_acceptance') return { lead: 'Transfer', accent: 'Request' }
+  if (status.value === 'completed') return { lead: 'Transfer', accent: 'Complete' }
+  return { lead: 'Transfer', accent: 'Status' }
 })
 
 const loadTransfer = async () => {
@@ -285,8 +293,10 @@ onUnmounted(() => {
 <template>
   <section class="page transfer-page">
     <header class="transfer-header">
-      <h1 v-if="isOtpStage">Ticket <span>Transfer</span></h1>
-      <h1 v-else>Incoming Transfer</h1>
+      <h1>
+        <span>{{ transferHeading.lead }}</span>
+        <span v-if="transferHeading.accent" class="transfer-heading-accent">{{ transferHeading.accent }}</span>
+      </h1>
     </header>
 
     <div v-if="isOtpStage" class="otp-layout">
@@ -401,8 +411,11 @@ onUnmounted(() => {
           </template>
 
           <template v-else-if="status === 'pending_seller_acceptance'">
-            <p class="accept-note">The request has been submitted. We’ll update this page the moment the seller accepts the transfer.</p>
-            <button v-if="canCancelTransfer" class="secondary" :disabled="loading" type="button" @click="cancelTransfer">
+            <div class="completion-box pending-box">
+              <strong>Request submitted.</strong>
+              <p>The seller still needs to accept this transfer before we can send the buyer verification code.</p>
+            </div>
+            <button v-if="canCancelTransfer" class="secondary accept-secondary-button" :disabled="loading" type="button" @click="cancelTransfer">
               {{ loading ? 'Cancelling...' : 'Cancel Request' }}
             </button>
           </template>
@@ -445,7 +458,7 @@ onUnmounted(() => {
 <style scoped>
 .transfer-page {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.15rem;
 }
 
 .transfer-header {
@@ -453,13 +466,16 @@ onUnmounted(() => {
 }
 
 .transfer-header h1 {
+  display: inline-grid;
+  gap: 0.1em;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: clamp(2.8rem, 8vw, 4.8rem);
+  font-size: clamp(2.35rem, 6.5vw, 3.85rem);
   font-weight: 800;
-  letter-spacing: -0.08em;
+  letter-spacing: -0.07em;
+  line-height: 0.94;
 }
 
-.transfer-header span {
+.transfer-heading-accent {
   color: var(--primary);
 }
 
@@ -479,7 +495,7 @@ onUnmounted(() => {
 .otp-card,
 .trust-card,
 .accept-card {
-  border-radius: 1.55rem;
+  border-radius: 1.7rem;
   background: rgba(34, 31, 30, 0.84);
   border-color: rgba(255, 255, 255, 0.06);
 }
@@ -621,12 +637,12 @@ onUnmounted(() => {
 }
 
 .accept-card {
-  width: min(100%, 33rem);
+  width: min(100%, 30.5rem);
   overflow: hidden;
 }
 
 .accept-media {
-  min-height: 17rem;
+  min-height: 14.6rem;
   background-size: cover;
   background-position: center;
   display: flex;
@@ -635,7 +651,7 @@ onUnmounted(() => {
 
 .accept-overlay {
   width: 100%;
-  padding: 1.35rem 1.3rem;
+  padding: 1.1rem 1.1rem;
   background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72));
 }
 
@@ -653,17 +669,17 @@ onUnmounted(() => {
 }
 
 .accept-overlay h2 {
-  margin-top: 0.75rem;
+  margin-top: 0.65rem;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: clamp(2rem, 5vw, 2.4rem);
+  font-size: clamp(1.8rem, 4.3vw, 2.1rem);
   font-weight: 800;
   letter-spacing: -0.06em;
 }
 
 .accept-body {
   display: grid;
-  gap: 1rem;
-  padding: 1.35rem 1.3rem 1.45rem;
+  gap: 0.95rem;
+  padding: 1.2rem 1.1rem 1.3rem;
 }
 
 .info-grid,
@@ -693,9 +709,9 @@ onUnmounted(() => {
 .authenticity-box {
   display: flex;
   gap: 0.85rem;
-  padding: 1rem;
+  padding: 0.95rem;
   border-radius: 1rem;
-  background: rgba(0, 0, 0, 0.36);
+  background: rgba(0, 0, 0, 0.42);
 }
 
 .authenticity-box strong {
@@ -714,8 +730,8 @@ onUnmounted(() => {
 
 .accept-button {
   width: 100%;
-  border-radius: 0.9rem;
-  padding-block: 0.95rem;
+  border-radius: 0.7rem;
+  padding-block: 1rem;
 }
 
 .decline-button {
@@ -726,6 +742,19 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.76);
   font-size: 0.83rem;
   font-weight: 500;
+}
+
+.accept-secondary-button {
+  width: 100%;
+  border-radius: 0.7rem;
+}
+
+.pending-box {
+  gap: 0.3rem;
+}
+
+.pending-box strong {
+  display: block;
 }
 
 .decline-button:hover {

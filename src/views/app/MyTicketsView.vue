@@ -6,6 +6,7 @@ import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
 import { useAuthStore } from '@/stores/auth'
 import AccountSidebar from '@/components/account/AccountSidebar.vue'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { Ticket } from '@/types'
 
 const tickets = ref<Ticket[]>([])
@@ -34,7 +35,12 @@ const mapTicket = (ticket: any): Ticket => ({
         venueId: ticket.venue?.venueId || ticket.event.venueId || '',
         price: ticket.price || 0,
         type: ticket.event.type || 'other',
-        image: ticket.event.image || undefined,
+        image: resolveEventImage({
+          image: ticket.event.image,
+          eventId: ticket.event.eventId || ticket.eventId,
+          type: ticket.event.type || 'other',
+          context: 'ticket',
+        }),
         venue: ticket.venue ? { venueId: ticket.venue.venueId, name: ticket.venue.name } : undefined,
       }
     : undefined,
@@ -78,6 +84,8 @@ const formatDate = (value?: string) => {
     year: 'numeric',
   })
 }
+
+const archiveActionLabel = (ticket: Ticket) => (ticket.transferredAt ? 'Transferred' : 'Purchased')
 
 const startListing = (ticketId: string, price?: number) => {
   listingTicketId.value = ticketId
@@ -245,6 +253,7 @@ watch([loading, tickets], ([isLoading, items]) => {
             <div class="archive-row header">
               <span>Event</span>
               <span>Date</span>
+              <span>Action</span>
               <span>Status</span>
             </div>
 
@@ -254,6 +263,7 @@ watch([loading, tickets], ([isLoading, items]) => {
                 <p>{{ ticket.seat ? `Row ${ticket.seat.rowNumber}, Seat ${ticket.seat.seatNumber}` : 'Seat archived' }}</p>
               </div>
               <span>{{ formatDate(ticket.event?.date) }}</span>
+              <span class="archive-action" :class="{ transferred: Boolean(ticket.transferredAt) }">{{ archiveActionLabel(ticket) }}</span>
               <span class="archive-pill" :class="ticket.status">{{ ticket.status }}</span>
             </div>
           </div>
@@ -447,7 +457,7 @@ watch([loading, tickets], ([isLoading, items]) => {
 
 .archive-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) 10rem 8rem;
+  grid-template-columns: minmax(0, 1.5fr) 10rem 8rem 8rem;
   gap: 1rem;
   align-items: center;
   padding: 1rem 1.2rem;
@@ -480,6 +490,16 @@ watch([loading, tickets], ([isLoading, items]) => {
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.archive-action {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.archive-action.transferred {
+  color: var(--primary);
 }
 
 .archive-pill.used {

@@ -5,6 +5,7 @@ import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode, mockServices } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { MarketplaceListing } from '@/types'
 
 const router = useRouter()
@@ -98,7 +99,12 @@ const loadListings = async (page = currentPage.value) => {
             venueId: '',
             price: 0,
             type: 'other',
-            image: item.event?.image ?? undefined,
+            image: resolveEventImage({
+              image: item.event?.image,
+              eventId: item.event?.eventId ?? item.eventId,
+              type: 'other',
+              context: 'marketplace',
+            }),
           }
         : undefined,
     }))
@@ -168,6 +174,13 @@ const listingSummary = (listing: MarketplaceListing) => {
 }
 
 const listingSeatLabel = (listing: MarketplaceListing) => {
+  const stitchedSeats: Record<string, string> = {
+    'demo-listing-001': 'Row 12, Seat 4A',
+    'demo-listing-002': 'Section 104, VIP Row',
+    'demo-listing-003': 'General Admission',
+    'demo-listing-004': 'Balcony Row B',
+  }
+  if (stitchedSeats[listing.listingId]) return stitchedSeats[listing.listingId]
   if (listing.ticketId) return `Verified inventory • ${listing.ticketId.slice(0, 8).toUpperCase()}`
   return 'Verified inventory'
 }
@@ -218,7 +231,6 @@ onMounted(() => {
 <template>
   <section class="marketplace-page">
     <header class="marketplace-header">
-      <span class="eyebrow">Marketplace</span>
       <h1><span>Authentic</span> Access.</h1>
 
       <div class="header-controls">
@@ -276,7 +288,6 @@ onMounted(() => {
               </div>
 
               <p>{{ listingSummary(listing) }}</p>
-              <p v-if="listing.sellerName" class="muted-line">Listed by {{ listing.sellerName }}</p>
               <p class="seat-line">{{ listingSeatLabel(listing) }}</p>
 
               <button
@@ -353,17 +364,9 @@ onMounted(() => {
 
 .marketplace-header {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.15rem;
   justify-items: center;
   text-align: center;
-}
-
-.eyebrow {
-  color: var(--primary);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
 }
 
 .marketplace-header h1 {

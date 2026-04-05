@@ -124,7 +124,7 @@ def run_user_flow(page: Page) -> list[dict]:
 
     page.goto(f"{BASE_URL}/marketplace")
     wait_for_app(page)
-    expect(page.locator("body")).to_contain_text("Marketplace")
+    expect(page.locator(".marketplace-page h1")).to_contain_text("Authentic")
     page.goto(f"{BASE_URL}/transfer/initiate?listingId=demo-listing-001")
     wait_for_app(page)
     expect(page.locator("body")).to_contain_text("Transfer")
