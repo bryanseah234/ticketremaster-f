@@ -68,7 +68,6 @@ const load = async () => {
 
 const activeTickets = computed(() => tickets.value.filter((ticket) => ticket.status === 'active' || ticket.status === 'listed'))
 const archiveTickets = computed(() => tickets.value.filter((ticket) => ticket.status !== 'active' && ticket.status !== 'listed'))
-const dashboardTo = computed(() => (auth.isAdmin && isDemoMode() ? '/admin/events/demo-event-001/dashboard' : null))
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
@@ -168,7 +167,7 @@ watch([loading, tickets], ([isLoading, items]) => {
     </header>
 
     <div class="tickets-layout">
-      <AccountSidebar active-key="tickets" :dashboard-to="dashboardTo" />
+      <AccountSidebar active-key="tickets" />
 
       <div class="tickets-content">
         <section class="passes-section">

@@ -56,7 +56,7 @@ const load = async () => {
     const params: Record<string, unknown> = { page: page.value, limit: 10 }
     if (typeFilter.value !== 'all') params.type = typeFilter.value
 
-    if (isDemoMode() || import.meta.env.DEV) {
+    if (isDemoMode()) {
       const result = await mockServices.getEvents({
         page: page.value,
         limit: 10,

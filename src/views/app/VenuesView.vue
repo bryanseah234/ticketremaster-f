@@ -45,7 +45,7 @@ const load = async () => {
   loading.value = true
   toast.push('Loading venues...', 'info', 1400)
   try {
-    if (isDemoMode() || import.meta.env.DEV) {
+    if (isDemoMode()) {
       const venueData = await mockServices.getVenues()
       const eventMap = new Map<string, number>()
       mockEvents.forEach((event: any) => {

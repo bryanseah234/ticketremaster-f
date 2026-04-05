@@ -114,5 +114,5 @@ These routes are compulsory frontend-facing integrations and need real UI surfac
 ## Known unresolved point
 
 - Admin dashboard routing is event-specific (`/admin/events/{eventId}/dashboard`).
-- The user wants `Dashboard` moved into the left column.
-- Demo can use `demo-event-001` as a fallback target, but live admin still needs a clean event-aware dashboard destination decision if a sidebar link must always exist.
+- The current rule is to preserve the active `eventId` context and use that specific dashboard when exposing the admin sidebar `Dashboard` link.
+- The admin profile link should carry `eventId` context when opened from an event-scoped admin page so the sidebar can resolve the correct dashboard target.

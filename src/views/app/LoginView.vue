@@ -215,6 +215,13 @@ const submit = async () => {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
+.field-shell input:disabled {
+  color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+  cursor: not-allowed;
+}
+
 .field-shell.invalid input {
   border-color: rgba(255, 140, 122, 0.34);
 }
@@ -250,6 +257,13 @@ const submit = async () => {
   margin-top: 0.15rem;
   border-radius: 0.8rem;
   padding-block: 0.95rem;
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+  filter: saturate(0.75);
 }
 
 .auth-footer-copy {
