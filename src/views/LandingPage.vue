@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { isDemoMode, mockServices } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { EventSummary } from '@/types'
 
 const router = useRouter()
@@ -16,19 +17,37 @@ const categoryCards = [
   { label: 'Sports', blurb: 'Verified inventory for rivalry fixtures and finals.', query: 'sports' },
   { label: 'Theater', blurb: 'Premieres, matinees, and evenings worth dressing for.', query: 'theater' },
 ]
+const categoryGalleryCards = [
+  { image: '/stitch-media/home/home-gallery-violin.jpg', query: 'concert', alt: 'Violin under spotlight' },
+  { image: '/stitch-media/home/home-gallery-basketball.jpg', query: 'sports', alt: 'Basketball in motion' },
+  { image: '/stitch-media/home/home-gallery-museum.jpg', query: 'theater', alt: 'Editorial museum interior' },
+  { image: '/stitch-media/home/home-gallery-synth.jpg', query: 'concert', alt: 'Synthesizer control surface' },
+]
+const landingFallbackImages = [
+  '/stitch-media/home/home-featured-festival.jpg',
+  '/stitch-media/home/home-featured-opera.jpg',
+  '/stitch-media/home/home-featured-finals.jpg',
+  '/stitch-media/home/home-gallery-violin.jpg',
+  '/stitch-media/home/home-gallery-basketball.jpg',
+  '/stitch-media/home/home-gallery-museum.jpg',
+]
 
 const heroEvent = computed(() => featuredEvents.value[0] ?? null)
 const stackedEvents = computed(() => featuredEvents.value.slice(1, 3))
-const galleryEvents = computed(() => featuredEvents.value.slice(3, 6))
 
-const mapEvent = (event: any): EventSummary => ({
+const mapEvent = (event: any, index = 0): EventSummary => ({
   eventId: event.eventId || event.event_id,
   name: event.name,
   date: event.date || event.eventDate || event.event_date,
   venueId: event.venueId || event.venue_id || event.venue?.venueId || '',
   price: Number(event.price || 0),
   type: event.type || 'other',
-  image: event.image,
+  image:
+    resolveEventImage({
+      eventId: event.eventId || event.event_id,
+      type: event.type || 'other',
+      context: 'landing',
+    }) || landingFallbackImages[index % landingFallbackImages.length],
   seatsAvailable: event.seatsAvailable,
   venue: event.venue
     ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
@@ -40,15 +59,15 @@ const loadFeaturedEvents = async () => {
   try {
     if (isDemoMode()) {
       const result = await mockServices.getUpcomingEvents({ page: 1, limit: 6 })
-      featuredEvents.value = result.events
+      featuredEvents.value = result.events.map((event, index) => mapEvent(event, index))
       return
     }
     const { data } = await api.get('/events', { params: { page: 1, limit: 6 } })
     const raw = data?.data?.events || data?.data || []
-    featuredEvents.value = raw.map(mapEvent)
+    featuredEvents.value = raw.map((event: any, index: number) => mapEvent(event, index))
   } catch {
     const result = await mockServices.getUpcomingEvents({ page: 1, limit: 6 })
-    featuredEvents.value = result.events
+    featuredEvents.value = result.events.map((event, index) => mapEvent(event, index))
   } finally {
     loading.value = false
   }
@@ -65,6 +84,14 @@ const openFilteredEvents = (query: string) => {
 
 const openType = (type: string) => {
   router.push(`/events?type=${encodeURIComponent(type)}`)
+}
+
+const openSellFlow = () => {
+  router.push('/marketplace')
+}
+
+const openHowItWorks = () => {
+  router.push('/help')
 }
 
 const formatDate = (value?: string) => {
@@ -179,21 +206,27 @@ onMounted(loadFeaturedEvents)
       </div>
 
       <div class="category-gallery">
-        <article
-          v-for="event in galleryEvents"
-          :key="event.eventId"
-          class="gallery-card"
-          :class="{ featured: event === galleryEvents[0] }"
-        >
-          <img v-if="event.image" :src="event.image" :alt="event.name" />
+        <article v-for="(card, index) in categoryGalleryCards" :key="card.image" class="gallery-card" :class="{ featured: index === 1 }">
+          <img :src="card.image" :alt="card.alt" />
           <div class="image-overlay"></div>
-          <div class="gallery-copy">
-            <span>{{ event.type }}</span>
-            <h3>{{ event.name }}</h3>
-          </div>
-          <button class="card-link" type="button" @click="router.push(`/events/${event.eventId}`)">Open</button>
+          <button class="card-link" type="button" @click="openType(card.query)">Open</button>
         </article>
       </div>
+    </section>
+
+    <section class="cta-section">
+      <article class="cta-card">
+        <h2>Got Tickets to Sell?</h2>
+        <p>
+          Join the fans who trust TicketRemaster for secure, fast, and fair resale. List in minutes and direct buyers into
+          verified transfer flows.
+        </p>
+
+        <div class="cta-actions">
+          <button type="button" @click="openSellFlow">List Your Ticket</button>
+          <button class="secondary" type="button" @click="openHowItWorks">How it Works</button>
+        </div>
+      </article>
     </section>
   </main>
 </template>
@@ -414,8 +447,7 @@ onMounted(loadFeaturedEvents)
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.78));
 }
 
-.featured-content,
-.gallery-copy {
+.featured-content {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -447,8 +479,7 @@ onMounted(loadFeaturedEvents)
   color: #210d02;
 }
 
-.featured-content h3,
-.gallery-copy h3 {
+.featured-content h3 {
   margin: 0;
   font-family: var(--font-display);
   line-height: 0.98;
@@ -459,8 +490,7 @@ onMounted(loadFeaturedEvents)
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
-.featured-card-small h3,
-.gallery-copy h3 {
+.featured-card-small h3 {
   font-size: 1.6rem;
 }
 
@@ -479,7 +509,20 @@ onMounted(loadFeaturedEvents)
 .card-link {
   position: absolute;
   inset: 0;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
   color: transparent;
+}
+
+.card-link:hover {
+  transform: none;
+  filter: none;
+  background: transparent;
 }
 
 .category-section {
@@ -524,22 +567,71 @@ onMounted(loadFeaturedEvents)
 
 .category-gallery {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(12rem, 1fr));
   gap: 1rem;
-  min-height: 30rem;
+  min-height: 34rem;
 }
 
 .gallery-card.featured {
-  grid-row: 1 / span 2;
+  min-height: 20rem;
 }
 
-.gallery-copy span {
-  color: var(--primary);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+.cta-section {
+  padding-top: 0.5rem;
+}
+
+.cta-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 1.3rem;
+  justify-items: center;
+  padding: 3rem 1.5rem;
+  border-radius: 1.8rem;
+  background: rgba(26, 25, 25, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.cta-card::before {
+  content: '';
+  position: absolute;
+  top: -7rem;
+  left: 50%;
+  width: min(40rem, 100%);
+  height: 14rem;
+  transform: translateX(-50%);
+  background: rgba(249, 115, 22, 0.08);
+  filter: blur(80px);
+}
+
+.cta-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cta-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+.cta-card p {
+  margin: 0;
+  max-width: 40rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
 }
 
 .loading-grid .loading-card {
@@ -563,7 +655,7 @@ onMounted(loadFeaturedEvents)
   }
 
   .gallery-card.featured {
-    grid-row: auto;
+    min-height: 15rem;
   }
 }
 

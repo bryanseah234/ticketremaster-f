@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ArrowRightIcon, CreditCardIcon, LockClosedIcon, ShieldCheckIcon, WalletIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockEvents } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +48,36 @@ const orderDate = computed(() => {
 const seatLabel = computed(() =>
   order.value?.seat ? `${order.value.seat.rowNumber}-${order.value.seat.seatNumber}` : 'Seat pending',
 )
+const orderPoster = computed(() => {
+  const eventId = order.value?.eventId
+  const fallbackEvent = mockEvents.find((item) => item.eventId === eventId)
+  return (
+    resolveEventImage({
+      eventId,
+      type: fallbackEvent?.type,
+      context: 'checkout',
+    }) || order.value?.event?.image
+  )
+})
+
+const hydratePendingOrder = (rawOrder: any) => {
+  const fallbackEvent = mockEvents.find((event) => event.eventId === rawOrder?.eventId)
+  return {
+    ...rawOrder,
+    event: {
+      ...rawOrder?.event,
+      name: rawOrder?.event?.name || fallbackEvent?.name || 'Selected Event',
+      image: resolveEventImage({
+        image: rawOrder?.event?.image,
+        eventId: rawOrder?.eventId,
+        type: fallbackEvent?.type,
+        context: 'event',
+      }),
+      eventDate: rawOrder?.event?.eventDate || fallbackEvent?.date,
+      venueName: rawOrder?.event?.venueName || fallbackEvent?.venue?.name,
+    },
+  }
+}
 
 const loadOrder = () => {
   const raw = localStorage.getItem('pendingOrder')
@@ -53,7 +85,7 @@ const loadOrder = () => {
   try {
     const parsed = JSON.parse(raw)
     if (parsed?.orderId === route.params.orderId) {
-      order.value = parsed
+      order.value = hydratePendingOrder(parsed)
       const heldUntil = parsed?.heldUntil
       if (heldUntil) {
         holdSeconds.value = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
@@ -229,12 +261,23 @@ onUnmounted(() => {
             <h2>Pay with Credits</h2>
 
             <div class="wallet-panel">
-              <div class="wallet-card">
-                <span class="meta-label">Available Balance</span>
-                <strong>SGD {{ balance.toFixed(2) }}</strong>
+              <div class="wallet-topline">
+                <div class="wallet-identity">
+                  <div class="wallet-icon-shell">
+                    <WalletIcon class="wallet-icon" />
+                  </div>
+                  <div class="wallet-copy">
+                    <span class="meta-label">Available Balance</span>
+                    <strong>SGD {{ balance.toFixed(2) }}</strong>
+                  </div>
+                </div>
+
+                <button class="credit-toggle" type="button" disabled aria-label="Credits enabled">
+                  <span></span>
+                </button>
               </div>
 
-              <div class="wallet-card">
+              <div class="wallet-balance-row">
                 <span class="meta-label">Remaining Balance</span>
                 <strong :class="{ warning: !hasEnoughCredits }">SGD {{ remainingBalance.toFixed(2) }}</strong>
               </div>
@@ -248,7 +291,8 @@ onUnmounted(() => {
             </div>
 
             <button class="confirm-button" :disabled="loading || !hasEnoughCredits" @click="pay">
-              {{ loading ? 'Processing...' : 'Confirm Purchase' }}
+              <span>{{ loading ? 'Processing...' : 'Confirm Purchase' }}</span>
+              <ArrowRightIcon class="confirm-arrow" />
             </button>
 
             <button class="secondary cancel-button" @click="cancel">Cancel</button>
@@ -258,10 +302,10 @@ onUnmounted(() => {
           </article>
 
           <div class="trust-row">
-            <span>Verified</span>
-            <span>Encrypted</span>
-            <span>Protected</span>
-            <span>Instant</span>
+            <span><ShieldCheckIcon class="trust-icon" /></span>
+            <span><LockClosedIcon class="trust-icon" /></span>
+            <span><CreditCardIcon class="trust-icon" /></span>
+            <span><WalletIcon class="trust-icon" /></span>
           </div>
         </section>
 
@@ -280,10 +324,11 @@ onUnmounted(() => {
           <article class="order-card">
             <h2>Order Summary</h2>
             <div class="order-top">
-              <img v-if="order?.event?.image" :src="order.event.image" :alt="order.event.name" />
+              <img v-if="orderPoster" :src="orderPoster" :alt="order?.event?.name || 'Event summary image'" />
               <div class="order-copy">
                 <strong>{{ eventName || order?.event?.name || 'Held seat' }}</strong>
                 <p>{{ order?.seat?.section || 'Selected section' }} • Seat {{ seatLabel }}</p>
+                <span class="order-copy-price">SGD {{ seatPrice.toFixed(2) }}</span>
                 <p>{{ orderDate }}</p>
               </div>
             </div>
@@ -411,7 +456,68 @@ onUnmounted(() => {
   border: 1px solid rgba(249, 115, 22, 0.16);
 }
 
-.wallet-card strong,
+.wallet-topline,
+.wallet-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wallet-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.wallet-icon-shell {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.16);
+}
+
+.wallet-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.wallet-icon,
+.trust-icon,
+.confirm-arrow {
+  width: 1rem;
+  height: 1rem;
+}
+
+.wallet-icon {
+  color: var(--primary);
+}
+
+.credit-toggle {
+  flex-shrink: 0;
+  position: relative;
+  width: 3.15rem;
+  height: 1.8rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 1;
+}
+
+.credit-toggle span {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.wallet-copy strong,
+.wallet-balance-row strong,
 .timer-card strong {
   display: block;
   margin-top: 0.35rem;
@@ -443,6 +549,10 @@ onUnmounted(() => {
 }
 
 .confirm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   padding-block: 1.25rem;
   font-size: 1rem;
   font-weight: 900;
@@ -469,12 +579,15 @@ onUnmounted(() => {
   justify-content: center;
   gap: 1rem;
   flex-wrap: wrap;
-  opacity: 0.55;
+  opacity: 0.58;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+}
+
+.trust-row span {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
 }
 
 .status-block {
@@ -515,6 +628,12 @@ onUnmounted(() => {
 
 .order-copy strong {
   font-size: 1rem;
+  font-weight: 800;
+}
+
+.order-copy-price {
+  color: var(--primary);
+  font-size: 0.92rem;
   font-weight: 800;
 }
 

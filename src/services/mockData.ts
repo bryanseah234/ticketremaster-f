@@ -14,6 +14,7 @@ import type {
   Transfer,
   AuthUser,
 } from '@/types'
+import { resolveEventImage } from '@/utils/eventMedia'
 
 // ── Mock Users ─────────────────────────────────────────────────────
 
@@ -85,11 +86,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-001',
     name: 'Taylor Swift - Eras Tour',
-    date: '2025-06-15T19:30:00Z',
+    date: '2026-06-15T19:30:00Z',
     venueId: 'demo-venue-001',
     price: 149.99,
     type: 'concert',
-    image: 'https://picsum.photos/seed/eras-tour/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'event' }),
     venue: {
       venueId: 'demo-venue-001',
       name: 'Madison Square Garden',
@@ -100,11 +101,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-002',
     name: 'NBA Finals - Game 1',
-    date: '2025-06-20T20:00:00Z',
+    date: '2026-06-20T20:00:00Z',
     venueId: 'demo-venue-001',
     price: 299.99,
     type: 'sports',
-    image: 'https://picsum.photos/seed/nba-finals/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'event' }),
     venue: {
       venueId: 'demo-venue-001',
       name: 'Madison Square Garden',
@@ -115,11 +116,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-003',
     name: 'Hamilton - West End',
-    date: '2025-07-01T14:00:00Z',
+    date: '2026-07-01T14:00:00Z',
     venueId: 'demo-venue-002',
     price: 89.99,
     type: 'theater',
-    image: 'https://picsum.photos/seed/hamilton-westend/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'event' }),
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -130,11 +131,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-004',
     name: 'TechCrunch Disrupt',
-    date: '2025-09-15T09:00:00Z',
+    date: '2026-09-15T09:00:00Z',
     venueId: 'demo-venue-003',
     price: 499.99,
     type: 'conference',
-    image: 'https://picsum.photos/seed/techcrunch-disrupt/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-004', type: 'conference', context: 'event' }),
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',
@@ -145,11 +146,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-005',
     name: 'Summer Music Festival',
-    date: '2025-08-01T12:00:00Z',
+    date: '2026-08-01T12:00:00Z',
     venueId: 'demo-venue-002',
     price: 79.99,
     type: 'festival',
-    image: 'https://picsum.photos/seed/summer-music-fest/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-005', type: 'festival', context: 'event' }),
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -160,11 +161,11 @@ export const mockEvents: EventSummary[] = [
   {
     eventId: 'demo-event-006',
     name: 'Tokyo Jazz Night',
-    date: '2025-10-10T20:00:00Z',
+    date: '2026-10-10T20:00:00Z',
     venueId: 'demo-venue-003',
     price: 59.99,
     type: 'other',
-    image: 'https://picsum.photos/seed/tokyo-jazz-night/800/450',
+    image: resolveEventImage({ eventId: 'demo-event-006', type: 'other', context: 'event' }),
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',
@@ -234,8 +235,8 @@ export const mockTickets: Ticket[] = [
     ownerId: 'demo-user-001',
     status: 'active',
     price: 149.99,
-    purchasedAt: '2025-01-15T10:30:00Z',
-    event: mockEvents[0],
+    purchasedAt: '2026-01-15T10:30:00Z',
+    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'ticket' }) },
     seat: mockSeats[0],
     venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
   },
@@ -246,8 +247,8 @@ export const mockTickets: Ticket[] = [
     ownerId: 'demo-user-001',
     status: 'used',
     price: 299.99,
-    purchasedAt: '2025-02-20T14:45:00Z',
-    event: mockEvents[1],
+    purchasedAt: '2026-02-20T14:45:00Z',
+    event: { ...mockEvents[1], image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'ticket' }) },
     seat: mockSeats[8],
     venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
   },
@@ -258,8 +259,8 @@ export const mockTickets: Ticket[] = [
     ownerId: 'demo-user-001',
     status: 'cancelled',
     price: 89.99,
-    purchasedAt: '2025-03-01T09:00:00Z',
-    event: mockEvents[2],
+    purchasedAt: '2026-03-01T09:00:00Z',
+    event: { ...mockEvents[2], image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'ticket' }) },
     seat: mockSeats[23],
     venue: { venueId: 'demo-venue-002', name: 'Wembley Stadium', address: 'Wembley, London' },
   },
@@ -270,8 +271,8 @@ export const mockTickets: Ticket[] = [
     ownerId: 'demo-user-001',
     status: 'listed',
     price: 149.99,
-    purchasedAt: '2025-01-20T11:00:00Z',
-    event: mockEvents[0],
+    purchasedAt: '2026-01-20T11:00:00Z',
+    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'ticket' }) },
     seat: mockSeats[2],
     venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
   },
@@ -288,8 +289,8 @@ export const mockListings: MarketplaceListing[] = [
     eventId: 'demo-event-001',
     price: 199.99,
     status: 'active',
-    createdAt: '2025-03-01T09:00:00Z',
-    event: mockEvents[0],
+    createdAt: '2026-03-01T09:00:00Z',
+    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-002',
@@ -298,10 +299,10 @@ export const mockListings: MarketplaceListing[] = [
     sellerName: 'seller2',
     eventId: 'demo-event-002',
     price: 349.99,
-    status: 'sold',
-    createdAt: '2025-03-05T11:30:00Z',
-    soldAt: '2025-03-10T14:00:00Z',
-    event: mockEvents[1],
+    status: 'active',
+    createdAt: '2026-03-05T11:30:00Z',
+    soldAt: '2026-03-10T14:00:00Z',
+    event: { ...mockEvents[1], image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-003',
@@ -310,9 +311,9 @@ export const mockListings: MarketplaceListing[] = [
     sellerName: 'seller3',
     eventId: 'demo-event-003',
     price: 120.00,
-    status: 'cancelled',
-    createdAt: '2025-03-08T10:00:00Z',
-    event: mockEvents[2],
+    status: 'active',
+    createdAt: '2026-03-08T10:00:00Z',
+    event: { ...mockEvents[2], image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-004',
@@ -321,9 +322,9 @@ export const mockListings: MarketplaceListing[] = [
     sellerName: 'seller4',
     eventId: 'demo-event-005',
     price: 95.00,
-    status: 'expired',
-    createdAt: '2025-02-01T08:00:00Z',
-    event: mockEvents[4],
+    status: 'active',
+    createdAt: '2026-02-01T08:00:00Z',
+    event: { ...mockEvents[4], image: resolveEventImage({ eventId: 'demo-event-005', type: 'festival', context: 'marketplace' }) },
   },
 ]
 
@@ -336,8 +337,8 @@ export const mockTransfers: Transfer[] = [
     fromUserId: 'demo-user-001',
     toUserEmail: 'recipient@example.com',
     status: 'pending',
-    createdAt: '2025-03-10T16:00:00Z',
-    expiresAt: '2025-03-17T16:00:00Z',
+    createdAt: '2026-03-10T16:00:00Z',
+    expiresAt: '2026-03-17T16:00:00Z',
   },
 ]
 

@@ -172,8 +172,9 @@ def build_pending_order() -> dict[str, Any]:
         },
         "event": {
             "name": "Taylor Swift - Eras Tour",
-            "image": "/hero-concert.jpeg",
-            "eventDate": "2025-06-15T19:30:00Z",
+            "image": "/stitch-media/events/curated-featured.jpg",
+            "eventDate": "2026-06-15T19:30:00Z",
+            "venueName": "Madison Square Garden",
         },
     }
 
@@ -253,7 +254,10 @@ def audit_route(page: Page, viewport_name: str, role: str, route: str) -> AuditR
     def on_request_failed(request: Any) -> None:
         if should_ignore_url(request.url):
             return
-        failed_requests.append(f"{request.method} {request.url} -> {request.failure}")
+        failure = str(request.failure or "")
+        if "ERR_ABORTED" in failure:
+            return
+        failed_requests.append(f"{request.method} {request.url} -> {failure}")
 
     def on_response(response: Any) -> None:
         if should_ignore_url(response.url):

@@ -5,6 +5,7 @@ import { CalendarDaysIcon, MapPinIcon, TicketIcon } from '@heroicons/vue/24/outl
 import api from '@/api/client'
 import { isDemoMode, mockServices } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { Event } from '@/types'
 
 const route = useRoute()
@@ -24,7 +25,12 @@ const mapEvent = (raw: any): Event => ({
   date: raw.date || raw.eventDate || '',
   description: raw.description,
   type: raw.type,
-  image: raw.image,
+  image: resolveEventImage({
+    image: raw.image,
+    eventId: raw.eventId,
+    type: raw.type,
+    context: 'event',
+  }),
   price: raw.price ?? 0,
   createdAt: raw.createdAt || '',
   updatedAt: raw.updatedAt,
@@ -94,6 +100,34 @@ const venueLine = computed(() => {
   return eventData.value.venue.name
 })
 
+const heroImage = computed(() => {
+  if (!eventData.value) return undefined
+  return (
+    resolveEventImage({
+      eventId: eventData.value.eventId,
+      type: eventData.value.type,
+      context: 'detail',
+    }) || eventData.value.image
+  )
+})
+
+const heroTitle = computed(() => {
+  const name = eventData.value?.name?.trim() || ''
+  if (!name) return { lead: '', accent: '' }
+
+  if (name.includes(':')) {
+    const [lead, ...rest] = name.split(':')
+    return { lead: `${lead.trim()}:`, accent: rest.join(':').trim() }
+  }
+
+  if (name.includes(' - ')) {
+    const [lead, ...rest] = name.split(' - ')
+    return { lead: lead.trim(), accent: rest.join(' - ').trim() }
+  }
+
+  return { lead: name, accent: '' }
+})
+
 const goToSeats = () => router.push(`/events/${route.params.eventId}/seats`)
 
 onMounted(load)
@@ -116,12 +150,15 @@ onMounted(load)
 
     <template v-else-if="eventData">
       <section class="hero-shell">
-        <div class="hero-background" :style="eventData.image ? { backgroundImage: `url(${eventData.image})` } : undefined"></div>
+        <div class="hero-background" :style="heroImage ? { backgroundImage: `url(${heroImage})` } : undefined"></div>
         <div class="hero-glow"></div>
 
         <div class="hero-copy">
           <span class="detail-pill">Exclusive Event</span>
-          <h1>{{ eventData.name }}</h1>
+          <h1>
+            <span>{{ heroTitle.lead }}</span>
+            <span v-if="heroTitle.accent" class="hero-title-accent">{{ heroTitle.accent }}</span>
+          </h1>
 
           <div class="hero-meta">
             <span class="hero-meta-item">
@@ -141,30 +178,6 @@ onMounted(load)
           </button>
         </div>
       </section>
-
-      <section class="detail-panels">
-        <article class="detail-card">
-          <span class="panel-label">About</span>
-          <p>
-            {{
-              eventData.description ||
-              'Premium live experiences with verified ticketing, protected resale, and smooth entry-day flows.'
-            }}
-          </p>
-        </article>
-
-        <article class="detail-card detail-card-compact">
-          <span class="panel-label">Booking</span>
-          <div class="metric">
-            <small>Starting from</small>
-            <strong>SGD {{ eventData.price.toFixed(2) }}</strong>
-          </div>
-          <div class="metric" v-if="eventData.seatsAvailable !== undefined">
-            <small>Seats available</small>
-            <strong>{{ eventData.seatsAvailable }}</strong>
-          </div>
-        </article>
-      </section>
     </template>
   </section>
 </template>
@@ -172,8 +185,8 @@ onMounted(load)
 <style scoped>
 .event-page {
   display: grid;
-  gap: 2rem;
-  width: min(100% - 3rem, 84rem);
+  gap: 1rem;
+  width: min(100% - 3rem, 88rem);
   margin: 0 auto;
   padding: 7.5rem 0 4.5rem;
 }
@@ -182,29 +195,32 @@ onMounted(load)
 .state-card {
   position: relative;
   overflow: hidden;
-  border-radius: 2rem;
-  background: rgba(14, 14, 14, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .hero-shell {
-  min-height: 34rem;
+  min-height: 31rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .hero-background {
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 31rem;
   background-position: center;
   background-size: cover;
-  opacity: 0.22;
+  opacity: 0.16;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%);
 }
 
 .hero-glow {
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 31rem;
   background:
-    radial-gradient(circle at center, rgba(255, 145, 83, 0.16) 0%, transparent 56%),
-    linear-gradient(180deg, rgba(14, 14, 14, 0.1), rgba(14, 14, 14, 0.94));
+    radial-gradient(circle at center, rgba(255, 145, 83, 0.18) 0%, transparent 42%),
+    linear-gradient(180deg, rgba(14, 14, 14, 0), rgba(14, 14, 14, 0.95) 82%);
 }
 
 .hero-copy {
@@ -213,8 +229,8 @@ onMounted(load)
   display: grid;
   justify-items: center;
   align-content: center;
-  min-height: 34rem;
-  padding: 3rem 1.5rem;
+  min-height: 31rem;
+  padding: 3.5rem 1.5rem 1rem;
   text-align: center;
 }
 
@@ -231,30 +247,21 @@ onMounted(load)
   text-transform: uppercase;
 }
 
-.panel-label {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 0.38rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(249, 115, 22, 0.1);
-  border: 1px solid rgba(249, 115, 22, 0.14);
-  color: var(--primary);
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .hero-copy h1,
 .state-card h1 {
-  margin: 1.25rem 0 0;
-  max-width: 58rem;
+  display: grid;
+  gap: 0.15em;
+  margin: 1.2rem 0 0;
+  max-width: 46rem;
   font-family: var(--font-display);
-  font-size: clamp(3.4rem, 9vw, 6.8rem);
+  font-size: clamp(3.35rem, 8.5vw, 5.9rem);
   font-weight: 900;
-  line-height: 0.92;
+  line-height: 0.9;
   letter-spacing: -0.07em;
+}
+
+.hero-title-accent {
+  color: var(--primary);
 }
 
 .hero-meta {
@@ -263,9 +270,9 @@ onMounted(load)
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-top: 1.5rem;
+  margin-top: 1.15rem;
   color: rgba(255, 255, 255, 0.8);
-  font-size: clamp(1rem, 2.6vw, 1.2rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.08rem);
   font-weight: 500;
 }
 
@@ -290,13 +297,14 @@ onMounted(load)
 }
 
 .hero-cta {
-  margin-top: 2rem;
+  margin-top: 1.8rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  min-width: 14rem;
-  padding-inline: 2rem;
+  min-width: 12rem;
+  padding-inline: 1.8rem;
+  padding-block: 1rem;
   border-radius: 999px;
   box-shadow: 0 20px 50px rgba(255, 145, 83, 0.24);
 }
@@ -306,55 +314,19 @@ onMounted(load)
   height: 1.15rem;
 }
 
-.detail-panels {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr);
-  gap: 1.25rem;
-}
-
-.detail-card,
 .state-card {
   display: grid;
   gap: 1rem;
   padding: 1.5rem;
-}
-
-.detail-card {
   border-radius: 1.6rem;
   background: rgba(19, 19, 19, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.detail-card p,
 .state-card p {
   margin: 0;
   color: var(--text-muted);
   line-height: 1.8;
-}
-
-.detail-card-compact {
-  align-content: start;
-}
-
-.metric {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.metric small {
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.metric strong {
-  font-family: var(--font-display);
-  font-size: 2.1rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.04em;
 }
 
 .loading-shell .hero-background {
@@ -370,11 +342,7 @@ onMounted(load)
 
   .hero-shell,
   .hero-copy {
-    min-height: 28rem;
-  }
-
-  .detail-panels {
-    grid-template-columns: 1fr;
+    min-height: 27rem;
   }
 
   .hero-meta {
