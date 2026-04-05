@@ -117,6 +117,7 @@ These routes are compulsory frontend-facing integrations and need real UI surfac
   - `/transfer/{transferId}/cancel` is now surfaced in the transfer UI for buyer wait states and OTP states.
   - frontend route guards are tightened for protected transfer detail and QR routes.
   - auth entry pages now react to live backend outage separately from demo sessions so the Stitch auth layouts remain visible but disabled.
+  - current frontend API usage was re-scanned and the active `api.*` calls are aligned with the compulsory backend browser-facing route contract.
 - Extra frontend routes that are not part of the current browser-facing backend contract should not call backend services:
   - `AdminUserManagementView` is now a frontend-only preview route and no longer issues unsupported live admin user calls.
 - Remaining route-contract ambiguity is mostly product/navigation, not missing endpoint wiring:
@@ -127,3 +128,49 @@ These routes are compulsory frontend-facing integrations and need real UI surfac
 - Admin dashboard routing is event-specific (`/admin/events/{eventId}/dashboard`).
 - The current rule is to preserve the active `eventId` context and use that specific dashboard when exposing the admin sidebar `Dashboard` link.
 - The admin profile link should carry `eventId` context when opened from an event-scoped admin page so the sidebar can resolve the correct dashboard target.
+
+## Latest fidelity progress
+
+- Demo/Stitch local media now wins by context for demo event IDs, so the stitched art direction shows up correctly on:
+  - home
+  - events listing
+  - marketplace
+  - tickets
+  - event detail
+  - checkout
+- Home page no longer flashes empty/blank featured panels during route sweeps:
+  - it seeds a stitched fallback set immediately, then replaces with fetched data.
+- Events listing is materially closer to Stitch now:
+  - correct listing-context art
+  - smaller featured headline
+  - simplified featured CTA structure
+- Tickets are materially closer to Stitch now:
+  - stronger ticket-specific media
+  - listed tickets use a single primary `Unlist` action with QR moved to the subtler link row
+  - archive table retains the required action/status columns
+- Ticket QR is materially closer to Stitch now:
+  - breadcrumb icon treatment
+  - tighter card width/proportions
+  - wallet icon/action styling
+- Home, events, marketplace, tickets, QR, transfer, admin create, admin dashboard, staff scanner, login, register, verify, and profile all currently pass route QA after the latest passes.
+
+## Latest verification
+
+- `npm run typecheck`
+- `npm run build`
+- route sweep latest clean run:
+  - `C:\ticketremaster\ticketremaster-f\qa-artifacts\route-sweep\20260405-211706\report.json`
+- behavior sweep latest clean run:
+  - `C:\ticketremaster\ticketremaster-f\qa-artifacts\behavior-sweep\20260405-210947\report.json`
+
+## Remaining softer gaps
+
+- The remaining work is mostly literal visual polish rather than broken structure or missing route wiring.
+- Highest-value follow-up pages if more fidelity work is needed:
+  - `src/views/app/TransferConfirmView.vue`
+  - `src/views/app/CheckoutView.vue`
+  - `src/views/app/CreditTopupView.vue`
+  - `src/views/app/SupportCenterView.vue`
+  - `src/views/app/NotificationsView.vue`
+- One product ambiguity still worth confirming if the user flags it:
+  - whether demo-user top nav should keep the demo/balance pills, or be reduced even further to match the stricter “nothing in navbar” interpretation.

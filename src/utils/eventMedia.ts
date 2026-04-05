@@ -1,6 +1,6 @@
 import type { EventType } from '@/types'
 
-export type EventMediaContext = 'landing' | 'event' | 'marketplace' | 'ticket' | 'detail' | 'checkout'
+export type EventMediaContext = 'landing' | 'event' | 'listing' | 'marketplace' | 'ticket' | 'detail' | 'checkout'
 
 const mediaByContext: Record<EventMediaContext, Record<string, string>> = {
   landing: {
@@ -19,6 +19,14 @@ const mediaByContext: Record<EventMediaContext, Record<string, string>> = {
     'demo-event-005': '/stitch-media/marketplace/listing-neon-horizon.jpg',
     'demo-event-006': '/stitch-media/events/curated-jazz.jpg',
   },
+  listing: {
+    'demo-event-001': '/stitch-media/listing/listing-featured-rooftop.jpg',
+    'demo-event-002': '/stitch-media/listing/listing-neon-resonance.jpg',
+    'demo-event-003': '/stitch-media/listing/listing-obsidian-jazz.jpg',
+    'demo-event-004': '/stitch-media/listing/listing-kinetic-summit.jpg',
+    'demo-event-005': '/stitch-media/listing/listing-midnight-gallery.jpg',
+    'demo-event-006': '/stitch-media/listing/listing-kinetic-summit.jpg',
+  },
   marketplace: {
     'demo-event-001': '/stitch-media/marketplace/listing-neon-horizon.jpg',
     'demo-event-002': '/stitch-media/marketplace/listing-finals.jpg',
@@ -28,8 +36,8 @@ const mediaByContext: Record<EventMediaContext, Record<string, string>> = {
     'demo-event-006': '/stitch-media/marketplace/listing-midnight-jazz.jpg',
   },
   ticket: {
-    'demo-event-001': '/stitch-media/tickets/ticket-mainstage.jpg',
-    'demo-event-002': '/stitch-media/tickets/ticket-vip.jpg',
+    'demo-event-001': '/stitch-media/listing/ticket-illuminated-nights.jpg',
+    'demo-event-002': '/stitch-media/listing/ticket-synthetica-underground.jpg',
     'demo-event-003': '/stitch-media/marketplace/listing-hamlet.jpg',
     'demo-event-004': '/stitch-media/events/curated-conference.jpg',
     'demo-event-005': '/stitch-media/tickets/ticket-mainstage.jpg',
@@ -68,11 +76,19 @@ export function resolveEventImage(options: {
   type?: EventType
   context?: EventMediaContext
 }): string | undefined {
+  const context = options.context ?? 'event'
+  const eventId = options.eventId
+  const contextMedia = eventId ? mediaByContext[context][eventId] : undefined
+  const prefersLocalContextMedia = Boolean(eventId?.startsWith('demo-') && contextMedia)
+
+  if (prefersLocalContextMedia) {
+    return contextMedia
+  }
+
   if (options.image) return options.image
 
-  const context = options.context ?? 'event'
-  if (options.eventId && mediaByContext[context][options.eventId]) {
-    return mediaByContext[context][options.eventId]
+  if (contextMedia) {
+    return contextMedia
   }
 
   if (options.type) return fallbackByType[options.type]

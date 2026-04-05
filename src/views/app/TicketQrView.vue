@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { ArrowLeftIcon, CalendarDaysIcon, MapPinIcon, WalletIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import type { Event, Ticket, Venue } from '@/types'
 import { isDemoMode, mockTickets } from '@/services/mockData'
@@ -38,6 +39,7 @@ const qrCells = computed(() =>
     return ((code + index * 7) % 3) === 0
   }),
 )
+const ticketStatusLabel = computed(() => (ticket.value?.status === 'active' ? 'confirmed' : ticket.value?.status || 'confirmed'))
 
 onMounted(async () => {
   countdownInterval = window.setInterval(() => {
@@ -83,7 +85,12 @@ onUnmounted(() => {
 
 <template>
   <section class="qr-page">
-    <div class="crumb"><RouterLink to="/tickets">Back to My Tickets</RouterLink></div>
+    <div class="crumb">
+      <RouterLink to="/tickets">
+        <ArrowLeftIcon class="crumb-icon" />
+        <span>Back to My Tickets</span>
+      </RouterLink>
+    </div>
 
     <header class="qr-header">
       <h2><span>Your</span> Ticket</h2>
@@ -110,7 +117,7 @@ onUnmounted(() => {
             <h1>{{ event?.name || (loading ? 'Loading ticket...' : 'Ticket unavailable') }}</h1>
             <p class="subhead">{{ venue?.name || 'The Obsidian Hearth Series' }}</p>
           </div>
-          <span class="status-pill">{{ ticket?.status || 'confirmed' }}</span>
+          <span class="status-pill">{{ ticketStatusLabel }}</span>
         </div>
 
         <div class="detail-grid">
@@ -133,12 +140,21 @@ onUnmounted(() => {
         </div>
 
         <div class="detail-list">
-          <div><span>{{ formattedDate }} • {{ formattedTime }}</span></div>
-          <div><span>{{ venue?.address || 'Present this code to venue staff for entry verification.' }}</span></div>
+          <div>
+            <CalendarDaysIcon class="detail-icon" />
+            <span>{{ formattedDate }} • {{ formattedTime }}</span>
+          </div>
+          <div>
+            <MapPinIcon class="detail-icon" />
+            <span>{{ venue?.address || 'Present this code to venue staff for entry verification.' }}</span>
+          </div>
         </div>
 
         <div class="actions">
-          <button>Add to Wallet</button>
+          <button>
+            <WalletIcon class="wallet-icon" />
+            <span>Add to Apple Wallet</span>
+          </button>
           <RouterLink :to="`/transfer/initiate?ticketId=${ticket?.ticketId || ''}`">
             <button class="secondary">Transfer Ticket</button>
           </RouterLink>
@@ -150,7 +166,7 @@ onUnmounted(() => {
 
 <style scoped>
 .qr-page {
-  width: min(100% - 3rem, 74rem);
+  width: min(100% - 3rem, 68rem);
   margin: 0 auto;
   padding: 7.5rem 0 4.5rem;
   display: grid;
@@ -158,7 +174,20 @@ onUnmounted(() => {
 }
 
 .crumb a {
-  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.crumb a:hover {
+  color: var(--text);
+}
+
+.crumb-icon {
+  width: 0.95rem;
+  height: 0.95rem;
 }
 
 .qr-header {
@@ -168,7 +197,7 @@ onUnmounted(() => {
 .qr-header h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-size: clamp(2.6rem, 5.3vw, 4.2rem);
   font-weight: 900;
   letter-spacing: -0.06em;
 }
@@ -254,7 +283,7 @@ onUnmounted(() => {
 .details-column {
   display: grid;
   gap: 1.5rem;
-  padding: 2rem;
+  padding: 1.75rem 1.9rem;
   background: rgba(32, 31, 31, 0.32);
 }
 
@@ -328,6 +357,13 @@ onUnmounted(() => {
   gap: 0.6rem;
 }
 
+.detail-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 .detail-list span {
   color: var(--text-muted);
   font-weight: 500;
@@ -337,6 +373,18 @@ onUnmounted(() => {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.wallet-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 @media (max-width: 860px) {
