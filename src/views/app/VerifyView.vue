@@ -5,17 +5,19 @@ import { BoltIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useApiOffline } from '@/composables/useApiOffline'
 import { isDemoMode } from '@/services/mockData'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
+const apiOffline = useApiOffline()
 
 const userId = ref(localStorage.getItem('pendingUserId') || '')
 const otp = ref('')
 const loading = ref(false)
 const otpInput = ref<HTMLInputElement | null>(null)
-const demoOnly = computed(() => isDemoMode())
+const demoOnly = computed(() => isDemoMode() || apiOffline.value)
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
 
 const focusOtpInput = () => {
@@ -84,7 +86,7 @@ const submit = async () => {
 <template>
   <section class="page verify-page">
     <header class="verify-header">
-      <h1>Verify<span>Account</span></h1>
+      <h1>Verify <span>Account</span></h1>
     </header>
 
     <div class="verify-shell">

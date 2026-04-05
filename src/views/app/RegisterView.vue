@@ -9,12 +9,16 @@ import {
 } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
+import { useApiOffline } from '@/composables/useApiOffline'
 import { isDemoMode } from '@/services/mockData'
 
 const router = useRouter()
 const toast = useToast()
 const loading = ref(false)
+const apiOffline = useApiOffline()
 const demoOnly = computed(() => isDemoMode())
+const formDisabled = computed(() => demoOnly.value || apiOffline.value || loading.value)
+const demoPanelOffline = computed(() => demoOnly.value || apiOffline.value)
 
 const countryCodes = ['+65', '+1', '+44', '+61']
 
@@ -145,7 +149,7 @@ const submit = async () => {
                 type="text"
                 placeholder="Enter your name"
                 autocomplete="name"
-                :disabled="demoOnly || loading"
+                :disabled="formDisabled"
               />
             </div>
             <p v-if="errors.fullName" class="field-error">{{ errors.fullName }}</p>
@@ -161,7 +165,7 @@ const submit = async () => {
                 type="email"
                 placeholder="name@example.com"
                 autocomplete="email"
-                :disabled="demoOnly || loading"
+                :disabled="formDisabled"
               />
             </div>
             <p v-if="errors.email" class="field-error">{{ errors.email }}</p>
@@ -171,7 +175,7 @@ const submit = async () => {
             <label for="register-phone">Phone Number</label>
             <div class="phone-row">
               <div class="select-shell">
-                <select v-model="form.countryCode" aria-label="Country code" :disabled="demoOnly || loading">
+                <select v-model="form.countryCode" aria-label="Country code" :disabled="formDisabled">
                   <option v-for="code in countryCodes" :key="code" :value="code">{{ code }}</option>
                 </select>
               </div>
@@ -184,7 +188,7 @@ const submit = async () => {
                   type="tel"
                   placeholder="Phone number"
                   autocomplete="tel-national"
-                  :disabled="demoOnly || loading"
+                  :disabled="formDisabled"
                 />
               </div>
             </div>
@@ -201,14 +205,14 @@ const submit = async () => {
                 type="password"
                 placeholder="••••••••"
                 autocomplete="new-password"
-                :disabled="demoOnly || loading"
+                :disabled="formDisabled"
               />
             </div>
             <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
           </div>
 
-          <button class="submit-button" :disabled="loading" type="submit">
-            {{ demoOnly ? 'Use Demo Personas' : loading ? 'Registering...' : 'Register Account' }}
+          <button class="submit-button" :disabled="formDisabled" type="submit">
+            {{ loading ? 'Registering...' : 'Register Account' }}
           </button>
         </form>
 
@@ -217,13 +221,13 @@ const submit = async () => {
           <RouterLink to="/login">Log In</RouterLink>
         </p>
 
-        <div class="demo-panel" :class="{ offline: demoOnly }">
+        <div class="demo-panel" :class="{ offline: demoPanelOffline }">
           <div>
-            <strong>{{ demoOnly ? 'Offline Demo Mode' : 'Need a fast preview?' }}</strong>
-            <p>{{ demoOnly ? 'Live registration is paused, but the three seeded demo personas are still available.' : 'Preview the online layouts with curated demo identities.' }}</p>
+            <strong>{{ demoPanelOffline ? 'Offline Demo Mode' : 'Need a fast preview?' }}</strong>
+            <p>{{ demoPanelOffline ? 'Live registration is paused, but the three seeded demo personas are still available.' : 'Preview the online layouts with curated demo identities.' }}</p>
           </div>
           <button class="demo-button" type="button" @click="openDemoMode">
-            {{ demoOnly ? 'Open Demo Users' : 'Preview Demo' }}
+            {{ demoPanelOffline ? 'Open Demo Users' : 'Preview Demo' }}
           </button>
         </div>
       </article>

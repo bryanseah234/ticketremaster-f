@@ -293,7 +293,7 @@ onUnmounted(() => {
 <template>
   <section class="page transfer-page">
     <header class="transfer-header">
-      <h1 v-if="isOtpStage">Ticket<span>Transfer</span></h1>
+      <h1 v-if="isOtpStage">Ticket <span>Transfer</span></h1>
       <h1 v-else>Incoming Transfer</h1>
     </header>
 

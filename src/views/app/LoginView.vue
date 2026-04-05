@@ -5,16 +5,19 @@ import { AtSymbolIcon, LockClosedIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { useApiOffline } from '@/composables/useApiOffline'
 import { isDemoMode } from '@/services/mockData'
 
 const auth = useAuthStore()
 const router = useRouter()
 const toast = useToast()
+const apiOffline = useApiOffline()
 
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const demoOnly = computed(() => isDemoMode())
+const formDisabled = computed(() => demoOnly.value || apiOffline.value || loading.value)
 const errors = reactive({ email: '', password: '' })
 
 const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
@@ -101,7 +104,7 @@ const submit = async () => {
                 type="email"
                 placeholder="name@example.com"
                 autocomplete="email"
-                :disabled="demoOnly || loading"
+                :disabled="formDisabled"
               />
             </div>
             <p v-if="errors.email" class="field-error">{{ errors.email }}</p>
@@ -120,13 +123,13 @@ const submit = async () => {
                 type="password"
                 placeholder="••••••••"
                 autocomplete="current-password"
-                :disabled="demoOnly || loading"
+                :disabled="formDisabled"
               />
             </div>
             <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
           </div>
 
-          <button class="submit-button" :disabled="demoOnly || loading" type="submit">
+          <button class="submit-button" :disabled="formDisabled" type="submit">
             {{ loading ? 'Signing In...' : 'Sign In' }}
           </button>
         </form>
