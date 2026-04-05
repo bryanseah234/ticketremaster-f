@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import api from '@/api/client'
-import type { Ticket, Event, Venue } from '@/types'
+import type { Event, Ticket, Venue } from '@/types'
+import { isDemoMode, mockTickets } from '@/services/mockData'
 
 const route = useRoute()
 const qrHash = computed(() => route.params.qrHash as string)
@@ -14,41 +15,47 @@ const loading = ref(false)
 const expiresIn = ref(60)
 let countdownInterval: number | undefined
 
-const formattedExpires = computed(() => {
-  const secs = expiresIn.value
-  return secs > 0 ? `${secs}s` : 'Expired'
-})
-
+const formattedExpires = computed(() => (expiresIn.value > 0 ? `${expiresIn.value}s` : 'Expired'))
 const formattedDate = computed(() => {
-  if (!event.value?.date) return '—'
-  return new Date(event.value.date).toLocaleDateString('en-US', {
+  if (!event.value?.date) return 'Date TBA'
+  return new Date(event.value.date).toLocaleDateString('en-SG', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
   })
 })
-
 const formattedTime = computed(() => {
-  if (!event.value?.date) return '—'
-  return new Date(event.value.date).toLocaleTimeString('en-US', {
+  if (!event.value?.date) return 'Time TBA'
+  return new Date(event.value.date).toLocaleTimeString('en-SG', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
   })
 })
+const qrCells = computed(() =>
+  Array.from({ length: 81 }, (_, index) => {
+    const code = qrHash.value.charCodeAt(index % qrHash.value.length) || 0
+    return ((code + index * 7) % 3) === 0
+  }),
+)
 
 onMounted(async () => {
-  // Start countdown timer
   countdownInterval = window.setInterval(() => {
-    if (expiresIn.value > 0) {
-      expiresIn.value--
-    }
+    if (expiresIn.value > 0) expiresIn.value--
   }, 1000)
 
-  // Load ticket data
   loading.value = true
   try {
+    if (isDemoMode()) {
+      const fallback = mockTickets.find((item) => item.qrHash === qrHash.value || item.ticketId === qrHash.value) || null
+      if (fallback) {
+        ticket.value = fallback
+        event.value = fallback.event as Event
+        venue.value = fallback.venue as Venue
+      }
+      return
+    }
     const { data } = await api.get(`/tickets/${qrHash.value}/qr`)
     const ticketData = data?.data
     if (ticketData) {
@@ -56,594 +63,132 @@ onMounted(async () => {
       event.value = ticketData.event || null
       venue.value = ticketData.venue || null
     }
-  } catch (err) {
-    console.error('Failed to load ticket:', err)
+  } catch (error) {
+    const fallback = mockTickets.find((item) => item.qrHash === qrHash.value || item.ticketId === qrHash.value) || null
+    if (fallback) {
+      ticket.value = fallback
+      event.value = fallback.event as Event
+      venue.value = fallback.venue as Venue
+    } else {
+      console.error('Failed to load ticket:', error)
+    }
   } finally {
     loading.value = false
   }
 })
 
-// Cleanup on unmount
-import { onUnmounted } from 'vue'
 onUnmounted(() => {
-  if (countdownInterval) {
-    clearInterval(countdownInterval)
-  }
+  if (countdownInterval) clearInterval(countdownInterval)
 })
 </script>
 
 <template>
   <section class="qr-page">
-    <!-- Physical Ticket Stub Container -->
-    <div class="ticket-stub">
-      <!-- Main Ticket Body -->
-      <div class="ticket-body">
-        <!-- Left Perforation Notch -->
-        <div class="perforation perforation-left">
-          <div class="notch"></div>
-        </div>
+    <div class="crumb"><RouterLink to="/tickets">Back to My Tickets</RouterLink></div>
 
-        <!-- Ticket Content -->
-        <div class="ticket-content">
-          <!-- Header with Logo -->
-          <div class="ticket-header">
-            <div class="logo-row">
-              <svg viewBox="0 0 24 24" class="logo-icon">
-                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-              </svg>
-              <span class="logo-text">TicketRemaster</span>
-            </div>
-            <div class="verified-badge">
-              <svg viewBox="0 0 24 24" class="badge-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Verified
-            </div>
-          </div>
-
-          <!-- Event Info -->
-          <div class="event-section">
-            <h1 class="event-name">{{ event?.name || 'Loading...' }}</h1>
-            <div class="event-meta">
-              <span class="meta-item">
-                <svg viewBox="0 0 24 24" class="meta-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                {{ formattedDate }}
-              </span>
-              <span class="meta-item">
-                <svg viewBox="0 0 24 24" class="meta-icon"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                {{ formattedTime }}
-              </span>
-            </div>
-            <p class="venue-name" v-if="venue">{{ venue.name }}</p>
-            <p class="venue-address small muted" v-if="venue?.address">{{ venue.address }}</p>
-          </div>
-
-          <!-- Divider with perforation effect -->
-          <div class="ticket-divider">
-            <div class="divider-line"></div>
-            <div class="divider-teeth">
-              <span></span><span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-          </div>
-
-          <!-- QR Code Section -->
-          <div class="qr-section">
-            <div class="qr-container">
-              <!-- Paper texture overlay -->
-              <div class="paper-texture"></div>
-              <!-- QR Code (placeholder - would be generated dynamically) -->
-              <div class="qr-code">
-                <svg viewBox="0 0 200 200" class="qr-svg">
-                  <!-- Simplified QR pattern placeholder -->
-                  <rect x="0" y="0" width="200" height="200" fill="#fff"/>
-                  <g fill="#111">
-                    <!-- Position patterns -->
-                    <rect x="10" y="10" width="50" height="50"/>
-                    <rect x="140" y="10" width="50" height="50"/>
-                    <rect x="10" y="140" width="50" height="50"/>
-                    <rect x="20" y="20" width="30" height="30" fill="#fff"/>
-                    <rect x="150" y="20" width="30" height="30" fill="#fff"/>
-                    <rect x="20" y="150" width="30" height="30" fill="#fff"/>
-                    <rect x="28" y="28" width="14" height="14"/>
-                    <rect x="158" y="28" width="14" height="14"/>
-                    <rect x="28" y="158" width="14" height="14"/>
-                    <!-- Data pattern (simplified) -->
-                    <rect x="70" y="10" width="10" height="10"/>
-                    <rect x="90" y="10" width="10" height="10"/>
-                    <rect x="110" y="10" width="10" height="10"/>
-                    <rect x="70" y="30" width="10" height="10"/>
-                    <rect x="100" y="30" width="10" height="10"/>
-                    <rect x="120" y="30" width="10" height="10"/>
-                    <rect x="80" y="50" width="10" height="10"/>
-                    <rect x="100" y="50" width="10" height="10"/>
-                    <rect x="10" y="70" width="10" height="10"/>
-                    <rect x="30" y="70" width="10" height="10"/>
-                    <rect x="50" y="70" width="10" height="10"/>
-                    <rect x="70" y="70" width="10" height="10"/>
-                    <rect x="90" y="70" width="10" height="10"/>
-                    <rect x="110" y="70" width="10" height="10"/>
-                    <rect x="130" y="70" width="10" height="10"/>
-                    <rect x="150" y="70" width="10" height="10"/>
-                    <rect x="170" y="70" width="10" height="10"/>
-                    <rect x="190" y="70" width="10" height="10"/>
-                    <rect x="10" y="90" width="10" height="10"/>
-                    <rect x="50" y="90" width="10" height="10"/>
-                    <rect x="70" y="90" width="10" height="10"/>
-                    <rect x="100" y="90" width="10" height="10"/>
-                    <rect x="130" y="90" width="10" height="10"/>
-                    <rect x="170" y="90" width="10" height="10"/>
-                    <rect x="10" y="110" width="10" height="10"/>
-                    <rect x="30" y="110" width="10" height="10"/>
-                    <rect x="70" y="110" width="10" height="10"/>
-                    <rect x="90" y="110" width="10" height="10"/>
-                    <rect x="110" y="110" width="10" height="10"/>
-                    <rect x="150" y="110" width="10" height="10"/>
-                    <rect x="190" y="110" width="10" height="10"/>
-                    <!-- More data patterns -->
-                    <rect x="70" y="130" width="10" height="10"/>
-                    <rect x="90" y="130" width="10" height="10"/>
-                    <rect x="110" y="130" width="10" height="10"/>
-                    <rect x="130" y="130" width="10" height="10"/>
-                    <rect x="150" y="130" width="10" height="10"/>
-                    <rect x="170" y="130" width="10" height="10"/>
-                    <rect x="190" y="130" width="10" height="10"/>
-                    <rect x="70" y="150" width="10" height="10"/>
-                    <rect x="100" y="150" width="10" height="10"/>
-                    <rect x="130" y="150" width="10" height="10"/>
-                    <rect x="170" y="150" width="10" height="10"/>
-                    <rect x="70" y="170" width="10" height="10"/>
-                    <rect x="90" y="170" width="10" height="10"/>
-                    <rect x="110" y="170" width="10" height="10"/>
-                    <rect x="130" y="170" width="10" height="10"/>
-                    <rect x="150" y="170" width="10" height="10"/>
-                    <rect x="170" y="170" width="10" height="10"/>
-                    <rect x="190" y="170" width="10" height="10"/>
-                    <rect x="70" y="190" width="10" height="10"/>
-                    <rect x="100" y="190" width="10" height="10"/>
-                    <rect x="130" y="190" width="10" height="10"/>
-                    <rect x="150" y="190" width="10" height="10"/>
-                    <rect x="190" y="190" width="10" height="10"/>
-                  </g>
-                </svg>
-              </div>
-            </div>
-            
-            <!-- Expiry Timer -->
-            <p class="qr-timer">
-              QR expires in <span :class="{ 'expiring': expiresIn < 10 }">{{ formattedExpires }}</span>
-            </p>
-            
-            <!-- Ticket Reference -->
-            <p class="ticket-ref">
-              REF: {{ qrHash.slice(0, 12).toUpperCase() }}
-            </p>
-          </div>
-
-          <!-- Instructions -->
-          <p class="instruction">Present this ticket to venue staff at the gate for entry verification.</p>
-
-          <!-- Bottom Logo -->
-          <div class="bottom-logo">
-            <svg viewBox="0 0 24 24" class="bottom-logo-icon">
-              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-            </svg>
-            <span>TicketRemaster</span>
+    <article class="ticket-shell panel">
+      <div class="qr-column">
+        <div class="qr-paper">
+          <div class="qr-grid">
+            <span v-for="(filled, index) in qrCells" :key="index" :class="{ filled }"></span>
           </div>
         </div>
-
-        <!-- Right Perforation Notch -->
-        <div class="perforation perforation-right">
-          <div class="notch"></div>
-        </div>
+        <p class="qr-timer">Refreshes in <span :class="{ expiring: expiresIn < 10 }">{{ formattedExpires }}</span></p>
+        <p class="qr-reference">REF: {{ qrHash.slice(0, 14).toUpperCase() }}</p>
       </div>
 
-      <!-- Rough cut edge effects (top and bottom) -->
-      <div class="rough-edge rough-edge-top"></div>
-      <div class="rough-edge rough-edge-bottom"></div>
-    </div>
+      <div class="details-column">
+        <div class="details-head">
+          <div>
+            <p class="eyebrow">Electronic Ticket</p>
+            <h1>{{ event?.name || (loading ? 'Loading ticket...' : 'Ticket unavailable') }}</h1>
+            <p class="muted">{{ venue?.name || 'Venue TBA' }}</p>
+          </div>
+          <span class="status-pill">{{ ticket?.status || 'active' }}</span>
+        </div>
+
+        <div class="detail-grid">
+          <div>
+            <span class="meta-label">Section</span>
+            <strong>{{ ticket?.seat?.section || 'GA' }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Row</span>
+            <strong>{{ ticket?.seat?.rowNumber || '--' }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Seat</span>
+            <strong>{{ ticket?.seat?.seatNumber || '--' }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Ticket ID</span>
+            <strong>{{ ticket?.ticketId || qrHash }}</strong>
+          </div>
+        </div>
+
+        <div class="detail-list">
+          <div><span>{{ formattedDate }}</span></div>
+          <div><span>{{ formattedTime }}</span></div>
+          <div><span>{{ venue?.address || 'Present this code to venue staff for entry verification.' }}</span></div>
+        </div>
+
+        <div class="actions">
+          <button>Add to Wallet</button>
+          <RouterLink :to="`/transfer/initiate?ticketId=${ticket?.ticketId || ''}`">
+            <button class="secondary">Transfer Ticket</button>
+          </RouterLink>
+        </div>
+      </div>
+    </article>
   </section>
 </template>
 
 <style scoped>
-.qr-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 2rem 1rem;
-  background: var(--bg);
+.qr-page { display: grid; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.crumb a { color: var(--text-muted); }
+.ticket-shell {
+  display: grid; grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); overflow: hidden; padding: 0;
+  box-shadow: 0 1.5rem 5rem rgba(249,115,22,.08);
 }
-
-/* Ticket Stub Container */
-.ticket-stub {
-  position: relative;
-  width: 100%;
-  max-width: 420px;
-  background: #faf8f5;
-  border-radius: 16px;
-  overflow: visible;
-  box-shadow: 
-    0 4px 6px rgba(0,0,0,0.1),
-    0 10px 20px rgba(0,0,0,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.8);
+.qr-column {
+  display: grid; place-items: center; align-content: center; gap: 1rem; padding: 2rem;
+  background: #f6f3ee; color: #111; border-right: 1px dashed rgba(0,0,0,.18);
 }
-
-/* Paper texture overlay */
-.ticket-stub::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.01) 2px,
-      rgba(0,0,0,0.01) 4px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.008) 2px,
-      rgba(0,0,0,0.008) 4px
-    );
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 16px;
+.qr-paper {
+  padding: 1rem; border-radius: 1rem; background: white; border: 2px dashed rgba(0,0,0,.12); box-shadow: inset 0 .2rem .7rem rgba(0,0,0,.05);
 }
-
-.ticket-body {
-  display: flex;
-  position: relative;
-  z-index: 2;
+.qr-grid {
+  display: grid; grid-template-columns: repeat(9, 1fr); gap: .35rem; width: 14rem; height: 14rem;
 }
-
-/* Perforation Notches */
-.perforation {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 30px;
-  height: 80px;
-  z-index: 3;
+.qr-grid span { border-radius: .18rem; background: rgba(0,0,0,.06); }
+.qr-grid span.filled { background: #111; }
+.qr-timer, .qr-reference {
+  margin: 0; font-family: 'Courier New', Courier, monospace; font-weight: 700; letter-spacing: .08em;
 }
-
-.perforation-left {
-  left: -15px;
+.qr-timer span { color: #f97316; }
+.qr-timer span.expiring { color: #dc2626; }
+.qr-reference { color: rgba(0,0,0,.5); font-size: .75rem; }
+.details-column { display: grid; gap: 1.25rem; padding: 2rem; }
+.details-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.eyebrow, .meta-label {
+  display: block; font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
 }
-
-.perforation-right {
-  right: -15px;
+.eyebrow { color: var(--primary); margin: 0 0 .5rem; }
+.meta-label { color: var(--text-dim); margin-bottom: .3rem; }
+.details-head h1 {
+  margin: 0 0 .25rem; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.2rem); line-height: .95; letter-spacing: -.04em;
 }
-
-.notch {
-  width: 100%;
-  height: 100%;
-  background: var(--bg);
-  border-radius: 50%;
-  box-shadow: 
-    inset 2px 0 4px rgba(0,0,0,0.1),
-    0 0 0 2px rgba(0,0,0,0.05);
+.muted { margin: 0; color: var(--text-muted); }
+.status-pill {
+  padding: .45rem .75rem; border-radius: 999px; background: rgba(249,115,22,.14); color: var(--primary);
+  font-size: .7rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
 }
-
-/* Ticket Content */
-.ticket-content {
-  flex: 1;
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* Header */
-.ticket-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.logo-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.logo-icon {
-  width: 1.2rem;
-  height: 1.2rem;
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-}
-
-.logo-text {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #333;
-}
-
-.verified-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #4ade80;
-  background: rgba(34,197,94,.15);
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-}
-
-.badge-icon {
-  width: 0.7rem;
-  height: 0.7rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.5;
-}
-
-/* Event Section */
-.event-section {
-  text-align: center;
-  padding: 0.5rem 0;
-}
-
-.event-name {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #111;
-  margin: 0 0 0.4rem 0;
-  line-height: 1.3;
-}
-
-.event-meta {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 0.3rem;
-}
-
-.meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.meta-icon {
-  width: 0.8rem;
-  height: 0.8rem;
-  fill: none;
-  stroke: #999;
-  stroke-width: 1.5;
-}
-
-.venue-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #444;
-  margin: 0.2rem 0;
-}
-
-.venue-address {
-  font-size: 0.75rem;
-  color: #999;
-  margin: 0;
-}
-
-/* Divider */
-.ticket-divider {
-  position: relative;
-  margin: 0.3rem 0;
-}
-
-.divider-line {
-  border-top: 2px dashed #ddd;
-}
-
-.divider-teeth {
-  display: flex;
-  justify-content: space-between;
-  position: absolute;
-  top: -4px;
-  left: 0;
-  right: 0;
-}
-
-.divider-teeth span {
-  width: 8px;
-  height: 8px;
-  background: var(--bg);
-  border-radius: 50%;
-}
-
-/* QR Section */
-.qr-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 1rem;
-  background: rgba(255,255,255,0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.05);
-}
-
-.qr-container {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 
-    inset 0 2px 4px rgba(0,0,0,0.08),
-    0 2px 4px rgba(0,0,0,0.06);
-}
-
-/* Paper texture on QR */
-.paper-texture {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 1px,
-      rgba(0,0,0,0.02) 1px,
-      rgba(0,0,0,0.02) 2px
-    );
-  pointer-events: none;
-  z-index: 1;
-}
-
-.qr-code {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 10px;
-  box-sizing: border-box;
-}
-
-.qr-svg {
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-}
-
-/* QR Timer - Orange monospace */
-.qr-timer {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #FF8000;
-  margin: 0;
-  letter-spacing: 0.05em;
-}
-
-.qr-timer span {
-  font-weight: 700;
-}
-
-.qr-timer span.expiring {
-  color: #ef4444;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-/* Ticket Reference */
-.ticket-ref {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 0.65rem;
-  color: #999;
-  margin: 0;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-/* Instruction */
-.instruction {
-  font-size: 0.75rem;
-  color: #999;
-  text-align: center;
-  line-height: 1.5;
-  margin: 0;
-}
-
-/* Bottom Logo */
-.bottom-logo {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.3rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #ccc;
-  padding-top: 0.3rem;
-  border-top: 1px solid rgba(0,0,0,0.05);
-}
-
-.bottom-logo-icon {
-  width: 0.8rem;
-  height: 0.8rem;
-  fill: none;
-  stroke: #ddd;
-  stroke-width: 2;
-}
-
-/* Rough Edge Effects */
-.rough-edge {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 8px;
-  z-index: 4;
-  background: var(--bg);
-}
-
-.rough-edge-top {
-  top: -4px;
-  border-radius: 16px 16px 0 0;
-  clip-path: polygon(
-    0% 0%, 100% 0%, 100% 100%,
-    97% 60%, 94% 100%, 91% 40%, 88% 100%, 85% 50%, 82% 100%,
-    79% 40%, 76% 100%, 73% 50%, 70% 100%, 67% 40%, 64% 100%,
-    61% 50%, 58% 100%, 55% 40%, 52% 100%, 49% 50%, 46% 100%,
-    43% 40%, 40% 100%, 37% 50%, 34% 100%, 31% 40%, 28% 100%,
-    25% 50%, 22% 100%, 19% 40%, 16% 100%, 13% 50%, 10% 100%,
-    7% 40%, 4% 100%, 0% 60%
-  );
-}
-
-.rough-edge-bottom {
-  bottom: -4px;
-  border-radius: 0 0 16px 16px;
-  clip-path: polygon(
-    0% 0%, 100% 0%, 100% 100%, 0% 100%,
-    3% 40%, 6% 100%, 9% 50%, 12% 100%, 15% 40%, 18% 100%,
-    21% 50%, 24% 100%, 27% 40%, 30% 100%, 33% 50%, 36% 100%,
-    39% 40%, 42% 100%, 45% 50%, 48% 100%, 51% 40%, 54% 100%,
-    57% 50%, 60% 100%, 63% 40%, 66% 100%, 69% 50%, 72% 100%,
-    75% 40%, 78% 100%, 81% 50%, 84% 100%, 87% 40%, 90% 100%,
-    93% 50%, 96% 100%
-  );
-}
-
-.muted { color: #999; }
-.small { font-size: 0.75rem; }
-
-/* Responsive */
-@media (max-width: 480px) {
-  .ticket-content {
-    padding: 1.2rem 1rem;
-  }
-  
-  .event-name {
-    font-size: 1rem;
-  }
-  
-  .qr-container {
-    width: 140px;
-    height: 140px;
-  }
-  
-  .perforation {
-    width: 20px;
-    height: 60px;
-  }
-  
-  .perforation-left { left: -10px; }
-  .perforation-right { right: -10px; }
+.detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; padding: 1rem 0; border-block: 1px solid rgba(255,255,255,.06); }
+.detail-grid strong { display: block; }
+.detail-list { display: grid; gap: .75rem; color: var(--text-muted); }
+.actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+@media (max-width: 860px) {
+  .ticket-shell, .detail-grid { grid-template-columns: 1fr; }
+  .qr-column { border-right: 0; border-bottom: 1px dashed rgba(0,0,0,.18); }
 }
 </style>

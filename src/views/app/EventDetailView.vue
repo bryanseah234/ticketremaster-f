@@ -55,7 +55,7 @@ const load = async () => {
   notFound.value = false
   try {
     const eventId = route.params.eventId as string
-    if (isDemoMode()) {
+    if (isDemoMode() || eventId.startsWith('demo-')) {
       eventData.value = await mockServices.getEvent(eventId)
     } else {
       const { data } = await api.get(`/events/${eventId}`)
@@ -68,18 +68,18 @@ const load = async () => {
       localStorage.setItem(cacheKey(), JSON.stringify(eventData.value))
     }
   } catch (e: any) {
-    if (e?.response?.status === 404) {
-      notFound.value = true
+    const cached = localStorage.getItem(cacheKey())
+    if (cached) {
+      eventData.value = JSON.parse(cached)
+      toast.push('Showing cached event details.', 'info', 3200)
     } else {
-      const cached = localStorage.getItem(cacheKey())
-      if (cached) {
-        eventData.value = JSON.parse(cached)
-        toast.push('Showing cached event details.', 'info', 3200)
-      } else {
-        try {
-          eventData.value = await mockServices.getEvent(route.params.eventId as string)
-          toast.push('Backend unavailable. Showing demo event.', 'info', 3200)
-        } catch {
+      try {
+        eventData.value = await mockServices.getEvent(route.params.eventId as string)
+        toast.push('Showing fallback event details.', 'info', 3200)
+      } catch {
+        if (e?.response?.status === 404) {
+          notFound.value = true
+        } else {
           notFound.value = true
         }
       }

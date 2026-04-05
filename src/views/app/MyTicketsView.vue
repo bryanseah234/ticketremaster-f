@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
-import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isDemoMode, mockServices } from '@/services/mockData'
 import type { Ticket } from '@/types'
 
@@ -13,6 +12,64 @@ const toast = useToast()
 const listingTicketId = ref<string | null>(null)
 const listingPrice = ref<number>(0)
 const listingLoading = ref(false)
+const unlistingTicketId = ref<string | null>(null)
+const unlistingLoading = ref(false)
+
+const mapTicket = (ticket: any): Ticket => ({
+  ticketId: ticket.ticketId,
+  eventId: ticket.event?.eventId || ticket.eventId || '',
+  seatId: ticket.seatId || '',
+  ownerId: ticket.ownerId || '',
+  status: ticket.status as Ticket['status'],
+  price: ticket.price,
+  purchasedAt: ticket.createdAt || ticket.purchasedAt || '',
+  event: ticket.event
+    ? {
+        eventId: ticket.event.eventId || '',
+        name: ticket.event.name || '',
+        date: ticket.event.date || ticket.event.eventDate || '',
+        venueId: ticket.venue?.venueId || ticket.event.venueId || '',
+        price: ticket.price || 0,
+        type: ticket.event.type || 'other',
+        image: ticket.event.image || undefined,
+        venue: ticket.venue ? { venueId: ticket.venue.venueId, name: ticket.venue.name } : undefined,
+      }
+    : undefined,
+  seat: ticket.seat,
+  venue: ticket.venue ? { venueId: ticket.venue.venueId, name: ticket.venue.name } : undefined,
+})
+
+const load = async () => {
+  loading.value = true
+  try {
+    if (isDemoMode()) {
+      const result = await mockServices.getMyTickets()
+      tickets.value = result.tickets
+    } else {
+      const { data } = await api.get('/tickets')
+      const raw = data?.data?.tickets || data?.data || []
+      tickets.value = raw.map(mapTicket)
+    }
+  } catch {
+    try {
+      const result = await mockServices.getMyTickets()
+      tickets.value = result.tickets
+      toast.push('Backend unavailable. Showing demo data.', 'info', 3200)
+    } catch {
+      tickets.value = []
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const activeTickets = computed(() => tickets.value.filter((ticket) => ticket.status === 'active' || ticket.status === 'listed'))
+const archiveTickets = computed(() => tickets.value.filter((ticket) => ticket.status !== 'active' && ticket.status !== 'listed'))
+
+const formatDate = (value?: string) => {
+  if (!value) return 'Date TBA'
+  return new Date(value).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 const startListing = (ticketId: string, price?: number) => {
   listingTicketId.value = ticketId
@@ -22,36 +79,6 @@ const startListing = (ticketId: string, price?: number) => {
 const cancelListing = () => {
   listingTicketId.value = null
   listingPrice.value = 0
-}
-
-const unlistingTicketId = ref<string | null>(null)
-const unlistingLoading = ref(false)
-
-const startUnlisting = (ticketId: string) => {
-  unlistingTicketId.value = ticketId
-}
-
-const cancelUnlisting = () => {
-  unlistingTicketId.value = null
-}
-
-const confirmUnlist = async (ticketId: string) => {
-  unlistingLoading.value = true
-  try {
-    const ticket = tickets.value.find(t => t.ticketId === ticketId) as any
-    if (!ticket?.listingId) {
-      toast.push('Could not find listing information.', 'error', 3000)
-      return
-    }
-    await api.delete(`/marketplace/${ticket.listingId}`)
-    toast.push('Ticket removed from marketplace.', 'success', 3000)
-    unlistingTicketId.value = null
-    await load()
-  } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'Could not unlist ticket.', 'error', 3000)
-  } finally {
-    unlistingLoading.value = false
-  }
 }
 
 const submitListing = async (ticketId: string) => {
@@ -65,82 +92,38 @@ const submitListing = async (ticketId: string) => {
     toast.push('Ticket listed on marketplace.', 'success', 3000)
     listingTicketId.value = null
     await load()
-  } catch (e: any) {
-    toast.push(e?.response?.data?.error?.message || 'Could not list ticket.', 'error', 3000)
+  } catch (error: any) {
+    toast.push(error?.response?.data?.error?.message || 'Could not list ticket.', 'error', 3000)
   } finally {
     listingLoading.value = false
   }
 }
 
-// Map raw backend ticket to Ticket type
-// Backend shape: { ticketId, status, price, createdAt, event: { eventId, name, date }, venue: { venueId, name } }
-const mapTicket = (t: any): Ticket => ({
-  ticketId: t.ticketId,
-  eventId: t.event?.eventId || t.eventId || '',
-  seatId: t.seatId || '',
-  ownerId: t.ownerId || '',
-  status: t.status as Ticket['status'],
-  price: t.price,
-  purchasedAt: t.createdAt || t.purchasedAt || '',
-  event: t.event ? {
-    eventId: t.event.eventId || '',
-    name: t.event.name || '',
-    date: t.event.date || t.event.eventDate || '',
-    venueId: t.venue?.venueId || t.event.venueId || '',
-    price: t.price || 0,
-    type: t.event.type || 'other',
-    image: t.event.image || undefined,
-    venue: t.venue ? { venueId: t.venue.venueId, name: t.venue.name } : undefined,
-  } : undefined,
-  seat: t.seat,
-  venue: t.venue ? { venueId: t.venue.venueId, name: t.venue.name } : undefined,
-})
+const startUnlisting = (ticketId: string) => {
+  unlistingTicketId.value = ticketId
+}
 
-const load = async () => {
-  loading.value = true
+const cancelUnlisting = () => {
+  unlistingTicketId.value = null
+}
+
+const confirmUnlist = async (ticketId: string) => {
+  unlistingLoading.value = true
   try {
-    if (isDemoMode()) {
-      const result = await mockServices.getMyTickets()
-      tickets.value = result.tickets
-    } else {
-      const { data } = await api.get('/tickets')
-      const raw: any[] = data?.data?.tickets || data?.data || []
-      tickets.value = raw.map(mapTicket)
+    const ticket = tickets.value.find((item: any) => item.ticketId === ticketId) as any
+    if (!ticket?.listingId) {
+      toast.push('Could not find listing information.', 'error', 3000)
+      return
     }
-  } catch {
-    // Fallback to mock data on error
-    try {
-      const result = await mockServices.getMyTickets()
-      tickets.value = result.tickets
-      toast.push('Backend unavailable. Showing demo data.', 'info', 3200)
-    } catch {
-      tickets.value = []
-    }
+    await api.delete(`/marketplace/${ticket.listingId}`)
+    toast.push('Ticket removed from marketplace.', 'success', 3000)
+    unlistingTicketId.value = null
+    await load()
+  } catch (error: any) {
+    toast.push(error?.response?.data?.error?.message || 'Could not unlist ticket.', 'error', 3000)
   } finally {
-    loading.value = false
+    unlistingLoading.value = false
   }
-}
-
-const formatDate = (d?: string) => {
-  if (!d) return null
-  return new Date(d).toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-const formatTime = (d?: string) => {
-  if (!d) return null
-  return new Date(d).toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
-}
-
-const canShowQR = (t: Ticket) => t.status !== 'used' && t.status !== 'cancelled'
-const canList = (t: Ticket) => t.status === 'active'
-
-const accentColor = (s: string) => {
-  const status = (s || '').toLowerCase()
-  if (status === 'active') return '34,197,94'
-  if (status === 'used') return '107,114,128'
-  if (status === 'listed') return '245,158,11'
-  if (status === 'cancelled') return '248,113,113'
-  return '249,115,22'
 }
 
 onMounted(load)
@@ -150,320 +133,154 @@ watch([loading, tickets], ([isLoading, items]) => {
 </script>
 
 <template>
-  <section class="page">
-    <div class="page-header">
-      <div>
-        <h1 class="section-title">My Tickets</h1>
-        <p class="section-subtitle">Your upcoming events and entry passes.</p>
+  <section class="tickets-page">
+    <header class="tickets-header">
+      <span class="eyebrow">Ticket Wallet</span>
+      <h1>My Tickets</h1>
+    </header>
+
+    <div class="tickets-layout">
+      <aside class="sidebar panel">
+        <RouterLink to="/profile" class="side-link">Profile</RouterLink>
+        <RouterLink to="/credits/topup" class="side-link">Credits</RouterLink>
+        <span class="side-link active">Tickets</span>
+      </aside>
+
+      <div class="tickets-content">
+        <section class="passes-section">
+          <div class="section-row">
+            <h2>My Passes</h2>
+            <span class="section-kicker">{{ activeTickets.length }} active tickets</span>
+          </div>
+
+          <div v-if="loading" class="ticket-stack">
+            <article v-for="n in 2" :key="n" class="ticket-card panel skeleton"></article>
+          </div>
+
+          <div v-else-if="activeTickets.length === 0" class="empty-state panel">
+            <h3>No active tickets.</h3>
+            <p>When you complete a purchase, your passes will appear here.</p>
+            <RouterLink to="/events"><button>Browse Events</button></RouterLink>
+          </div>
+
+          <div v-else class="ticket-stack">
+            <article v-for="ticket in activeTickets" :key="ticket.ticketId" class="ticket-card panel">
+              <div class="ticket-media">
+                <img v-if="ticket.event?.image" :src="ticket.event.image" :alt="ticket.event.name" />
+              </div>
+
+              <div class="ticket-copy">
+                <div class="ticket-topline">
+                  <span>{{ ticket.status === 'listed' ? 'Marketplace Listing' : 'Mainstage Access' }}</span>
+                  <small>#{{ ticket.ticketId }}</small>
+                </div>
+                <h3>{{ ticket.event?.name || 'Ticketed Event' }}</h3>
+                <p>{{ ticket.venue?.name || ticket.event?.venue?.name || 'Venue TBA' }} • {{ formatDate(ticket.event?.date) }}</p>
+
+                <div class="ticket-bottom">
+                  <div class="ticket-status">
+                    <span class="dot" :class="ticket.status"></span>
+                    <strong>{{ ticket.status === 'listed' ? 'Listed on marketplace' : 'Ready for scan' }}</strong>
+                  </div>
+
+                  <div class="ticket-actions">
+                    <RouterLink :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`"><button>View QR</button></RouterLink>
+
+                    <template v-if="ticket.status === 'active'">
+                      <div v-if="listingTicketId === ticket.ticketId" class="action-inline">
+                        <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price" />
+                        <button :disabled="listingLoading" @click="submitListing(ticket.ticketId)">{{ listingLoading ? 'Listing...' : 'Confirm' }}</button>
+                        <button class="secondary" @click="cancelListing">Cancel</button>
+                      </div>
+                      <button v-else class="secondary" @click="startListing(ticket.ticketId, ticket.price)">List Ticket</button>
+                    </template>
+
+                    <template v-else-if="ticket.status === 'listed'">
+                      <div v-if="unlistingTicketId === ticket.ticketId" class="action-inline">
+                        <button :disabled="unlistingLoading" @click="confirmUnlist(ticket.ticketId)">{{ unlistingLoading ? 'Removing...' : 'Confirm Unlist' }}</button>
+                        <button class="secondary" @click="cancelUnlisting">Cancel</button>
+                      </div>
+                      <button v-else class="secondary" @click="startUnlisting(ticket.ticketId)">Unlist</button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="archive-section">
+          <h2>Past &amp; Transferred</h2>
+          <div class="archive-table panel">
+            <div class="archive-row header">
+              <span>Event</span>
+              <span>Date</span>
+              <span>Status</span>
+            </div>
+            <div v-for="ticket in archiveTickets" :key="ticket.ticketId" class="archive-row">
+              <div>
+                <strong>{{ ticket.event?.name || 'Archived Ticket' }}</strong>
+                <p>{{ ticket.seat ? `Row ${ticket.seat.rowNumber}, Seat ${ticket.seat.seatNumber}` : 'Seat archived' }}</p>
+              </div>
+              <span>{{ formatDate(ticket.event?.date) }}</span>
+              <span class="archive-pill" :class="ticket.status">{{ ticket.status }}</span>
+            </div>
+          </div>
+        </section>
       </div>
-      <span v-if="tickets.length" class="ticket-count">{{ tickets.length }} ticket{{ tickets.length !== 1 ? 's' : '' }}</span>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="loading-row">
-      <div class="spinner" />
-      <span class="small muted">Loading tickets…</span>
-    </div>
-
-    <!-- Empty -->
-    <div v-else-if="tickets.length === 0" class="empty-state glass">
-      <svg viewBox="0 0 24 24" class="empty-icon"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg>
-      <p class="muted">No tickets yet.</p>
-      <RouterLink to="/events"><button>Browse Events</button></RouterLink>
-    </div>
-
-    <!-- Ticket grid -->
-    <div v-else class="ticket-grid">
-      <article v-for="t in tickets" :key="t.ticketId" class="ticket-card">
-
-        <!-- Header with image/gradient -->
-        <div
-          class="ticket-header"
-          :style="{
-            backgroundImage: t.event?.image
-              ? `linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.75) 100%), url(${t.event.image})`
-              : `linear-gradient(135deg, rgba(${accentColor(t.status)},0.25) 0%, rgba(0,0,0,0.6) 100%)`
-          }"
-        >
-          <StatusBadge :label="t.status" class="status-badge-overlay" />
-          <h3 class="ticket-name">{{ t.event?.name || 'Event' }}</h3>
-          <div v-if="t.event?.date" class="header-date">
-            <svg viewBox="0 0 24 24" class="hd-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <span>{{ formatDate(t.event.date) }} · {{ formatTime(t.event.date) }}</span>
-          </div>
-        </div>
-
-        <!-- Tear line -->
-        <div class="tear-line">
-          <div class="notch notch-l" />
-          <div class="dashes" />
-          <div class="notch notch-r" />
-        </div>
-
-        <!-- Body -->
-        <div class="ticket-body">
-          <div class="info-row">
-            <!-- Seat -->
-            <div class="info-block">
-              <span class="info-label">Seat</span>
-              <span v-if="t.seat" class="info-value">Row {{ t.seat.rowNumber }} · {{ t.seat.seatNumber }}</span>
-              <span v-else class="info-value">—</span>
-            </div>
-            <!-- Venue -->
-            <div v-if="t.venue?.name" class="info-block text-right">
-              <span class="info-label">Venue</span>
-              <span class="info-value venue-name">{{ t.venue.name }}</span>
-            </div>
-            <!-- Price -->
-            <div v-else class="info-block text-right">
-              <span class="info-label">Paid</span>
-              <span class="info-value price">${{ t.price ?? '—' }}</span>
-            </div>
-          </div>
-
-          <!-- Price row when venue is shown -->
-          <div v-if="t.venue?.name" class="info-row">
-            <div class="info-block">
-              <span class="info-label">Ticket ID</span>
-              <span class="info-value ticket-id">{{ t.ticketId }}</span>
-            </div>
-            <div class="info-block text-right">
-              <span class="info-label">Paid</span>
-              <span class="info-value price">${{ t.price ?? '—' }}</span>
-            </div>
-          </div>
-          <div v-else class="info-block">
-            <span class="info-label">Ticket ID</span>
-            <span class="info-value ticket-id">{{ t.ticketId }}</span>
-          </div>
-
-          <!-- Actions -->
-          <div class="actions">
-            <RouterLink :to="{ path: `/tickets/${t.ticketId}`, query: { status: t.status } }" class="action-link">
-              <button :disabled="!canShowQR(t)" class="btn-primary full-btn">
-                <svg viewBox="0 0 24 24" class="btn-icon"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3"/></svg>
-                Show QR Code
-              </button>
-            </RouterLink>
-            <template v-if="canList(t)">
-              <div v-if="listingTicketId === t.ticketId" class="list-inline">
-                <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price ($)" class="price-input" />
-                <div class="list-inline-btns">
-                  <button :disabled="listingLoading" class="btn-primary full-btn" @click="submitListing(t.ticketId)">
-                    {{ listingLoading ? 'Listing...' : 'Confirm' }}
-                  </button>
-                  <button class="btn-secondary full-btn" @click="cancelListing">Cancel</button>
-                </div>
-              </div>
-              <button v-else class="btn-secondary full-btn" @click="startListing(t.ticketId, t.price)">
-                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                List on Marketplace
-              </button>
-            </template>
-            <template v-else-if="t.status === 'listed'">
-              <div v-if="unlistingTicketId === t.ticketId" class="list-inline">
-                <p class="small muted">Remove this ticket from the marketplace?</p>
-                <div class="list-inline-btns">
-                  <button :disabled="unlistingLoading" class="btn-danger full-btn" @click="confirmUnlist(t.ticketId)">
-                    {{ unlistingLoading ? 'Unlisting...' : 'Confirm Unlist' }}
-                  </button>
-                  <button class="btn-secondary full-btn" @click="cancelUnlisting">Cancel</button>
-                </div>
-              </div>
-              <button v-else class="btn-secondary full-btn" @click="startUnlisting(t.ticketId)">
-                <svg viewBox="0 0 24 24" class="btn-icon"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                Unlist from Marketplace
-              </button>
-            </template>
-          </div>
-        </div>
-
-      </article>
     </div>
   </section>
 </template>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 1.75rem;
-  flex-wrap: wrap;
-  gap: .5rem;
+.tickets-page, .tickets-header, .tickets-content, .passes-section, .archive-section { display: grid; gap: 1rem; }
+.tickets-header h1 { margin: 0; font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 4.8rem); line-height: .95; letter-spacing: -.05em; }
+.eyebrow { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
+.tickets-layout { display: grid; grid-template-columns: 16rem minmax(0,1fr); gap: 1.25rem; align-items: start; }
+.sidebar { display: grid; gap: .5rem; position: sticky; top: 7rem; padding: .8rem; }
+.side-link { padding: .9rem 1rem; border-radius: 1rem; color: var(--text-muted); }
+.side-link.active { background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.16); color: var(--primary); font-weight: 700; }
+.section-row { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+.section-row h2, .archive-section h2 { margin: 0; font-size: 1.5rem; }
+.section-kicker { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.ticket-stack { display: grid; gap: 1rem; }
+.ticket-card { display: grid; grid-template-columns: 14rem minmax(0,1fr); overflow: hidden; padding: 0; }
+.ticket-media { min-height: 14rem; background: var(--surface-2); }
+.ticket-media img { width: 100%; height: 100%; object-fit: cover; }
+.ticket-copy { display: grid; gap: .75rem; padding: 1.4rem; }
+.ticket-topline {
+  display: flex; justify-content: space-between; gap: 1rem; color: var(--primary);
+  font-size: .72rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
 }
-.ticket-count {
-  font-size: .82rem;
-  color: var(--muted);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  padding: .25rem .75rem;
-  border-radius: 999px;
+.ticket-topline small { color: var(--text-dim); letter-spacing: .08em; }
+.ticket-copy h3 { margin: 0; font-size: 1.6rem; }
+.ticket-copy p { margin: 0; color: var(--text-muted); }
+.ticket-bottom { display: flex; justify-content: space-between; gap: 1rem; align-items: end; flex-wrap: wrap; margin-top: auto; }
+.ticket-status { display: flex; align-items: center; gap: .55rem; }
+.dot { width: .65rem; height: .65rem; border-radius: 999px; background: var(--text-dim); }
+.dot.active { background: #32d27a; }
+.dot.listed { background: #f6a94d; }
+.ticket-actions, .action-inline { display: flex; gap: .6rem; flex-wrap: wrap; }
+.action-inline input { min-width: 8rem; }
+.archive-table { overflow: hidden; padding: 0; }
+.archive-row {
+  display: grid; grid-template-columns: minmax(0,1.6fr) 10rem 8rem; gap: 1rem; padding: 1rem 1.2rem;
+  align-items: center; border-top: 1px solid rgba(255,255,255,.05);
 }
-
-/* Loading */
-.loading-row { display: flex; align-items: center; gap: .75rem; padding: 3rem 0; }
-.spinner { width: 1.5rem; height: 1.5rem; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Empty */
-.empty-state {
-  display: grid;
-  place-items: center;
-  gap: 1rem;
-  padding: 3rem;
-  text-align: center;
-  max-width: 340px;
-  margin: 2rem auto;
+.archive-row.header { border-top: 0; color: var(--text-dim); font-size: .72rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.archive-row strong { display: block; margin-bottom: .2rem; }
+.archive-row p { margin: 0; color: var(--text-muted); }
+.archive-pill {
+  width: fit-content; padding: .45rem .75rem; border-radius: 999px; background: rgba(255,255,255,.05);
+  color: var(--text-muted); font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
 }
-.empty-icon { width: 2.5rem; height: 2.5rem; fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; opacity: .5; }
-
-/* Grid */
-.ticket-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
-/* Card */
-.ticket-card {
-  border-radius: 1.2rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  transition: transform .2s ease, box-shadow .2s ease;
-  display: flex;
-  flex-direction: column;
-}
-.ticket-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
-
-/* Header */
-.ticket-header {
-  position: relative;
-  height: 140px;
-  background-size: cover;
-  background-position: center;
-  padding: 1rem 1.2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: .35rem;
-}
-
-.ticket-name {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #fff;
-  margin: 0;
-  line-height: 1.25;
-  text-shadow: 0 1px 4px rgba(0,0,0,.5);
-}
-
-.header-date {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .78rem;
-  color: rgba(255,255,255,.85);
-}
-.hd-icon { width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
-
-/* StatusBadge overlay — positioned top-right in header */
-.status-badge-overlay {
-  position: absolute;
-  top: .85rem;
-  right: .85rem;
-  backdrop-filter: blur(8px);
-}
-
-/* Tear line */
-.tear-line {
-  display: flex;
-  align-items: center;
-  background: var(--surface);
-  position: relative;
-}
-.notch {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--bg);
-  flex-shrink: 0;
-  margin: 0 -7px;
-  border: 1px solid var(--border);
-}
-.dashes {
-  flex: 1;
-  border-top: 2px dashed var(--border);
-  margin: 0 4px;
-}
-
-/* Body */
-.ticket-body {
-  padding: 1rem 1.2rem 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  flex: 1;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-.info-block { display: flex; flex-direction: column; gap: .15rem; }
-.text-right { align-items: flex-end; }
-.info-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.info-value { font-size: .95rem; font-weight: 600; color: var(--text); }
-.info-value.ticket-id { font-size: .72rem; font-family: monospace; font-weight: 400; color: var(--muted); word-break: break-all; }
-.info-value.price { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
-.info-value.venue-name { font-size: .82rem; font-weight: 500; color: var(--muted); max-width: 140px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* Actions */
-.actions { display: flex; flex-direction: column; gap: .55rem; }
-.action-link { display: block; }
-.list-inline { display: flex; flex-direction: column; gap: .45rem; }
-.list-inline-btns { display: flex; gap: .45rem; }
-.list-inline-btns .full-btn { flex: 1; }
-.price-input { width: 100%; padding: .5rem .75rem; border-radius: .65rem; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: .88rem; }
-
-.full-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .5rem;
-  padding: .6rem 1rem;
-  font-size: .88rem;
-  font-weight: 600;
-  border-radius: .65rem;
-  cursor: pointer;
-  transition: opacity .15s, transform .1s;
-}
-.full-btn:active { transform: scale(.98); }
-.full-btn:disabled { opacity: .35; cursor: default; }
-
-.btn-primary { background: var(--accent); color: #fff; border: none; }
-.btn-primary:hover:not(:disabled) { opacity: .88; }
-
-.btn-secondary {
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--border);
-}
-.btn-secondary:hover { background: var(--surface-2); color: var(--text); }
-
-.btn-danger {
-  background: #ef4444;
-  color: #fff;
-  border: none;
-}
-.btn-danger:hover:not(:disabled) { opacity: .88; }
-
-.btn-icon { width: .95rem; height: .95rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
-
-@media (max-width: 640px) {
-  .ticket-grid { grid-template-columns: 1fr; }
+.archive-pill.used { color: #a5afbe; }
+.archive-pill.cancelled { color: #ff8f84; }
+.empty-state, .skeleton { min-height: 16rem; place-items: center; align-content: center; text-align: center; }
+.empty-state h3, .empty-state p { margin: 0; }
+.empty-state p { color: var(--text-muted); }
+@media (max-width: 980px) {
+  .tickets-layout, .ticket-card, .archive-row { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
 }
 </style>

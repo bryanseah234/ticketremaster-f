@@ -1,62 +1,83 @@
 <script setup lang="ts">
 import theme from '@/config/theme'
+
+const tokenGroups = [
+  { title: 'Core Surfaces', keys: ['background', 'surface', 'surfaceSoft', 'surfaceStrong', 'border'] },
+  { title: 'Brand Signals', keys: ['primary', 'primarySoft', 'secondary', 'secondarySoft'] },
+  { title: 'Text Hierarchy', keys: ['text', 'textMuted', 'textDim'] },
+  { title: 'Feedback', keys: ['success', 'warning', 'danger'] },
+]
 </script>
 
 <template>
-  <section class="page">
-    <h1 class="section-title">Design System Preview</h1>
-    <p class="section-subtitle">Reference from STYLE.md with live theme tokens and components.</p>
+  <section class="design-page">
+    <header class="hero panel">
+      <span class="eyebrow">Frontend System</span>
+      <h1>Design System Preview</h1>
+      <p>Live semantic tokens, core surfaces, and the reusable component language behind the current frontend refresh.</p>
+    </header>
 
-    <article class="glass block">
-      <h2>Theme tokens</h2>
-      <div class="grid-4">
-        <div v-for="(value, key) in theme.colors" :key="key" class="panel token">
-          <div class="swatch" :style="{background:value}"></div>
-          <p class="small">{{ key }}</p>
-          <code>{{ value }}</code>
+    <section class="group-grid">
+      <article v-for="group in tokenGroups" :key="group.title" class="token-group panel">
+        <h2>{{ group.title }}</h2>
+        <div class="token-list">
+          <div v-for="key in group.keys" :key="key" class="token-card">
+            <div class="swatch" :style="{ background: (theme.colors as Record<string, string>)[key] }"></div>
+            <strong>{{ key }}</strong>
+            <code>{{ (theme.colors as Record<string, string>)[key] }}</code>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </section>
 
-    <div class="grid-2">
-      <article class="glass block">
+    <section class="example-grid">
+      <article class="panel sample-card">
         <h3>Buttons</h3>
         <div class="row"><button>Primary</button><button class="secondary">Secondary</button><button class="ghost">Ghost</button></div>
-
-        <h3>Form controls</h3>
-        <label>Text input</label><input placeholder="Example input" />
-        <label>Select</label><select><option>Option A</option><option>Option B</option></select>
-        <label>Textarea</label><textarea rows="3" placeholder="Notes"></textarea>
-
-        <h3>Binary controls</h3>
-        <div class="row">
-          <label class="row"><input type="checkbox" /> Checkbox</label>
-          <label class="row"><input type="radio" name="r" /> Radio A</label>
-          <label class="row"><input type="radio" name="r" /> Radio B</label>
-        </div>
+        <h3>Inputs</h3>
+        <input placeholder="Search artists or venues" />
+        <select><option>Editorial Select</option><option>Secondary Option</option></select>
+        <textarea rows="3" placeholder="Shared textarea surface"></textarea>
       </article>
 
-      <article class="glass block">
-        <h3>Typography + content</h3>
-        <h1 style="font-size:2rem;">Heading 1</h1>
-        <h2 style="font-size:1.45rem;">Heading 2</h2>
-        <p>Base text for body copy in the app with high contrast over glass surfaces.</p>
-        <p class="small">Muted helper text for secondary information and metadata.</p>
-        <div class="row"><span class="badge">Badge</span><span class="badge">Accent Chip</span></div>
-
-        <h3>Cards</h3>
-        <article class="panel" style="padding:.75rem;">
-          <p class="small">Panel card sample</p>
-          <p>Use <code>.panel</code> for compact neutral surfaces.</p>
-        </article>
+      <article class="panel sample-card">
+        <h3>Typography</h3>
+        <h1 class="display">Display Heading</h1>
+        <p>Base body copy used across content-heavy panels and route-level guidance surfaces.</p>
+        <p class="muted">Muted copy for metadata, timestamps, and supporting descriptions.</p>
+        <div class="row"><span class="badge">Badge</span><span class="badge">Accent</span></div>
       </article>
-    </div>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.block{padding:1rem;display:grid;gap:.7rem;margin-bottom:1rem}
-.token{padding:.6rem;display:grid;gap:.25rem}
-.swatch{height:42px;border-radius:8px;border:1px solid var(--border)}
-code{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;color:#fed7aa;font-size:.82rem}
+.design-page, .hero { display: grid; gap: 1rem; }
+.eyebrow {
+  color: var(--primary); font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+}
+.hero h1 {
+  margin: 0; font-family: var(--font-display); font-size: clamp(2.6rem, 5vw, 4.6rem); line-height: .95; letter-spacing: -.05em;
+}
+.hero p, .sample-card p { margin: 0; color: var(--text-muted); line-height: 1.7; }
+.group-grid, .example-grid { display: grid; gap: 1rem; }
+.token-group { display: grid; gap: 1rem; }
+.token-group h2, .sample-card h3 { margin: 0; }
+.token-list { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: .75rem; }
+.token-card {
+  display: grid; gap: .5rem; padding: .8rem; border-radius: 1rem; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05);
+}
+.swatch { height: 3rem; border-radius: .8rem; border: 1px solid rgba(255,255,255,.08); }
+.token-card strong { font-size: .85rem; }
+.token-card code { color: var(--text-muted); font-size: .78rem; word-break: break-all; }
+.example-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.sample-card { display: grid; gap: .9rem; }
+.display {
+  margin: 0; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem); line-height: .95; letter-spacing: -.04em;
+}
+.muted { color: var(--text-muted); }
+@media (max-width: 1100px) {
+  .token-list { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .example-grid { grid-template-columns: 1fr; }
+}
 </style>

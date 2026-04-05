@@ -58,6 +58,11 @@ const loadProfile = async () => {
 
 const loadBalance = async () => {
   if (auth.isStaff || auth.isAdmin) return
+  if (isDemoMode()) {
+    const stored = sessionStorage.getItem('demo_balance')
+    balance.value = stored !== null ? parseFloat(stored) : 500
+    return
+  }
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.creditBalance ?? data?.creditBalance ?? 0
@@ -69,6 +74,13 @@ const loadBalance = async () => {
 const loadTransactions = async () => {
   loadingTxns.value = true
   try {
+    if (isDemoMode()) {
+      transactions.value = [
+        { id: 'demo-topup-001', reason: 'topup', delta: 100, createdAt: '2026-04-03T10:00:00Z' },
+        { id: 'demo-purchase-001', reason: 'ticket_purchase', delta: -149.99, createdAt: '2026-04-01T18:30:00Z' },
+      ]
+      return
+    }
     const { data } = await api.get('/credits/transactions')
     transactions.value = data?.data?.transactions || data?.data || []
   } catch {

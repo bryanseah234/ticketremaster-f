@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
-import EventCard from '@/components/ui/EventCard.vue'
 import type { EventSummary, EventType } from '@/types'
 
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
+
 const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
-  { value: 'all', label: 'All Types' },
-  { value: 'concert', label: 'Concert' },
+  { value: 'all', label: 'All Categories' },
+  { value: 'concert', label: 'Music' },
   { value: 'sports', label: 'Sports' },
   { value: 'theater', label: 'Theater' },
   { value: 'conference', label: 'Conference' },
@@ -17,46 +20,29 @@ const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
   { value: 'other', label: 'Other' },
 ]
 
-const route = useRoute()
-const toast = useToast()
-
 const loading = ref(false)
 const events = ref<EventSummary[]>([])
 const page = ref(1)
 const totalPages = ref(1)
-
 const search = ref((route.query.search as string) || '')
-const dateFrom = ref('')
-const dateTo = ref('')
-const typeFilter = ref<EventType | 'all'>('all')
+const typeFilter = ref<EventType | 'all'>((route.query.type as EventType | 'all') || 'all')
 const activeTab = ref<'all' | 'upcoming' | 'favorites'>('all')
-const viewMode = ref<'grid' | 'list'>('grid')
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
 
 watch(favoriteIds, () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)), { deep: true })
 
-const toggleFavorite = (eventId: string, e: MouseEvent) => {
-  e.preventDefault()
-  e.stopPropagation()
-  if (favoriteIds.value.includes(eventId)) {
-    favoriteIds.value = favoriteIds.value.filter((id) => id !== eventId)
-  } else {
-    favoriteIds.value = [...favoriteIds.value, eventId]
-  }
-}
-
 const buildCacheKey = () => `events_list:${page.value}:${typeFilter.value}`
 
-const mapEvent = (e: any): EventSummary => ({
-  eventId: e.eventId || e.event_id,
-  name: e.name,
-  date: e.date || e.eventDate || e.event_date,
-  venueId: e.venueId || e.venue_id || '',
-  price: e.price ?? 0,
-  type: e.type as EventType,
-  image: e.image,
-  venue: e.venue ? { venueId: e.venue.venueId || '', name: e.venue.name, address: e.venue.address } : undefined,
-  seatsAvailable: e.seatsAvailable,
+const mapEvent = (event: any): EventSummary => ({
+  eventId: event.eventId || event.event_id,
+  name: event.name,
+  date: event.date || event.eventDate || event.event_date,
+  venueId: event.venueId || event.venue_id || '',
+  price: Number(event.price || 0),
+  type: (event.type || 'other') as EventType,
+  image: event.image,
+  seatsAvailable: event.seatsAvailable,
+  venue: event.venue ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address } : undefined,
 })
 
 const load = async () => {
@@ -65,21 +51,21 @@ const load = async () => {
     const params: Record<string, unknown> = { page: page.value, limit: 10 }
     if (typeFilter.value !== 'all') params.type = typeFilter.value
 
-    if (isDemoMode()) {
+    if (isDemoMode() || import.meta.env.DEV) {
       const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
       events.value = result.events
-      const total = result.pagination.total
-      totalPages.value = Math.max(1, Math.ceil(total / 10))
-    } else {
-      const { data } = await api.get('/events', { params })
-      const raw: any[] = data?.data?.events || data?.data || []
-      events.value = raw.map(mapEvent)
-      const pagination = data?.data?.pagination || data?.pagination || {}
-      const total = pagination.total || 0
-      const limit = pagination.limit || 10
-      totalPages.value = pagination.totalPages || pagination.total_pages || Math.max(1, Math.ceil(total / limit))
-      localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
+      totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
+      return
     }
+
+    const { data } = await api.get('/events', { params })
+    const raw = data?.data?.events || data?.data || []
+    events.value = raw.map(mapEvent)
+    const pagination = data?.data?.pagination || data?.pagination || {}
+    const total = pagination.total || events.value.length
+    const limit = pagination.limit || 10
+    totalPages.value = pagination.totalPages || pagination.total_pages || Math.max(1, Math.ceil(total / limit))
+    localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
   } catch {
     const cached = localStorage.getItem(buildCacheKey())
     if (cached) {
@@ -107,309 +93,178 @@ const load = async () => {
 const filteredEvents = computed(() => {
   const needle = search.value.trim().toLowerCase()
   const today = new Date().toISOString().slice(0, 10)
-  return events.value.filter((e) => {
-    const text = `${e.name} ${e.venue?.name || ''}`.toLowerCase()
+  return events.value.filter((event) => {
+    const text = `${event.name} ${event.venue?.name || ''}`.toLowerCase()
     if (needle && !text.includes(needle)) return false
-    const d = e.date?.slice(0, 10) || ''
-    if (dateFrom.value && d < dateFrom.value) return false
-    if (dateTo.value && d > dateTo.value) return false
-    if (activeTab.value === 'upcoming' && d < today) return false
-    if (activeTab.value === 'favorites' && !favoriteIds.value.includes(e.eventId)) return false
+    if (activeTab.value === 'upcoming' && (event.date?.slice(0, 10) || '') < today) return false
+    if (activeTab.value === 'favorites' && !favoriteIds.value.includes(event.eventId)) return false
     return true
   })
 })
 
-const dateRangeLabel = computed(() => {
-  if (!dateFrom.value && !dateTo.value) return null
-  const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })
-  if (dateFrom.value && dateTo.value) return `${fmt(dateFrom.value)} ~ ${fmt(dateTo.value)}`
-  if (dateFrom.value) return `From ${fmt(dateFrom.value)}`
-  return `Until ${fmt(dateTo.value)}`
-})
+const heroEvent = computed(() => filteredEvents.value[0] || null)
+const gridEvents = computed(() => filteredEvents.value.slice(heroEvent.value ? 1 : 0))
 
-const onTypeChange = () => {
+const toggleFavorite = (eventId: string) => {
+  favoriteIds.value = favoriteIds.value.includes(eventId)
+    ? favoriteIds.value.filter((id) => id !== eventId)
+    : [...favoriteIds.value, eventId]
+}
+
+const setType = (value: EventType | 'all') => {
+  typeFilter.value = value
+  router.replace({ query: { ...route.query, type: value === 'all' ? undefined : value } })
   page.value = 1
   load()
+}
+
+const formatDate = (value?: string) => {
+  if (!value) return 'Date TBA'
+  return new Date(value).toLocaleDateString('en-SG', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <section class="page events-page">
+  <section class="events-page">
+    <header class="events-header">
+      <span class="eyebrow">Curated Experiences</span>
+      <h1>Browse the next unforgettable room.</h1>
+      <p>Search live events, filter by category, and pin favorites before seats move.</p>
 
-    <!-- Top toolbar -->
-    <div class="toolbar">
-      <div class="tabs">
-        <button :class="['tab', activeTab === 'all' && 'tab-active']" @click="activeTab = 'all'">All</button>
-        <button :class="['tab', activeTab === 'upcoming' && 'tab-active']" @click="activeTab = 'upcoming'">Upcoming</button>
-        <button :class="['tab', activeTab === 'favorites' && 'tab-active']" @click="activeTab = 'favorites'">Favourites</button>
-      </div>
+      <div class="toolbar panel">
+        <label class="search-wrap">
+          <span>Search</span>
+          <input v-model="search" placeholder="Search events, artists, or venues" />
+        </label>
 
-      <div class="toolbar-right">
-        <!-- Type filter -->
-        <select v-model="typeFilter" class="type-select" @change="onTypeChange" aria-label="Filter by event type">
-          <option v-for="t in EVENT_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-        </select>
-
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input v-model="search" placeholder="Search events…" class="search-input" />
-        </div>
-
-        <div class="date-range-wrap">
-          <svg viewBox="0 0 24 24" class="cal-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          <input v-model="dateFrom" type="date" class="date-input" title="From" />
-          <span class="date-sep">–</span>
-          <input v-model="dateTo" type="date" class="date-input" title="To" />
-        </div>
-
-        <div class="view-toggle">
-          <button :class="['view-btn', viewMode === 'grid' && 'view-btn-active']" @click="viewMode = 'grid'" aria-label="Grid view">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          </button>
-          <button :class="['view-btn', viewMode === 'list' && 'view-btn-active']" @click="viewMode = 'list'" aria-label="List view">
-            <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-          </button>
+        <div class="tab-row">
+          <button :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">All</button>
+          <button :class="{ active: activeTab === 'upcoming' }" @click="activeTab = 'upcoming'">Upcoming</button>
+          <button :class="{ active: activeTab === 'favorites' }" @click="activeTab = 'favorites'">Favorites</button>
         </div>
       </div>
-    </div>
 
-    <!-- Active date range label -->
-    <div v-if="dateRangeLabel" class="date-range-bar">
-      <svg viewBox="0 0 24 24" class="cal-icon-sm"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      {{ dateRangeLabel }}
-      <button class="clear-date" @click="dateFrom=''; dateTo=''">✕</button>
-    </div>
-
-    <!-- Loading skeletons -->
-    <div v-if="loading" class="events-grid">
-      <EventCard v-for="n in 6" :key="n" />
-    </div>
-
-    <!-- Empty -->
-    <p v-else-if="filteredEvents.length === 0" class="muted small" style="padding:2rem 0;">No events found.</p>
-
-    <!-- Grid view -->
-    <div v-else-if="viewMode === 'grid'" class="events-grid">
-      <div v-for="event in filteredEvents" :key="event.eventId" class="event-card-wrap">
-        <EventCard :event="event" />
-        <button
-          class="fav-btn"
-          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
-          @click="toggleFavorite(event.eventId, $event)"
-          aria-label="Toggle favourite"
-        >
-          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
+      <div class="filter-row">
+        <button v-for="type in EVENT_TYPES" :key="type.value" class="chip" :class="{ active: typeFilter === type.value }" type="button" @click="setType(type.value)">
+          {{ type.label }}
         </button>
       </div>
+    </header>
+
+    <div v-if="loading" class="loading-grid">
+      <article v-for="n in 5" :key="n" class="skeleton-card panel"></article>
     </div>
 
-    <!-- List view -->
-    <div v-else class="events-list">
-      <div
-        v-for="event in filteredEvents"
-        :key="event.eventId"
-        class="list-row"
-        role="button"
-        tabindex="0"
-        @click="$router.push(`/events/${event.eventId}`)"
-        @keydown.enter="$router.push(`/events/${event.eventId}`)"
-      >
-        <EventCard :event="event" compact class="list-card" />
-        <button
-          class="fav-btn fav-btn-list"
-          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
-          @click.stop="toggleFavorite(event.eventId, $event)"
-          aria-label="Toggle favourite"
-        >
-          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
-        </button>
+    <template v-else>
+      <div v-if="heroEvent" class="hero-card">
+        <img v-if="heroEvent.image" :src="heroEvent.image" :alt="heroEvent.name" />
+        <div class="overlay"></div>
+        <div class="hero-card-content">
+          <div class="hero-meta">
+            <span class="hero-badge">Featured</span>
+            <span>{{ formatDate(heroEvent.date) }}</span>
+          </div>
+          <h2>{{ heroEvent.name }}</h2>
+          <p>{{ heroEvent.venue?.name || 'Featured venue' }}</p>
+          <div class="hero-actions">
+            <button @click="router.push(`/events/${heroEvent.eventId}`)">Get Tickets</button>
+            <button class="secondary" @click="toggleFavorite(heroEvent.eventId)">
+              {{ favoriteIds.includes(heroEvent.eventId) ? 'Favorited' : 'Save Event' }}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div v-if="totalPages > 1" class="pagination">
-      <button class="secondary" :disabled="page <= 1" @click="page--; load()">Previous</button>
-      <span class="small muted">Page {{ page }} of {{ totalPages }}</span>
-      <button class="secondary" :disabled="page >= totalPages" @click="page++; load()">Next</button>
-    </div>
+      <div v-if="filteredEvents.length === 0" class="empty-state panel">
+        <h2>No events found.</h2>
+        <p>Try another search or switch to a different category.</p>
+      </div>
 
+      <div v-else class="cards-grid">
+        <article v-for="event in gridEvents" :key="event.eventId" class="event-card panel">
+          <div class="event-media" @click="router.push(`/events/${event.eventId}`)">
+            <img v-if="event.image" :src="event.image" :alt="event.name" />
+            <div class="overlay"></div>
+            <button class="favorite-toggle" type="button" @click.stop="toggleFavorite(event.eventId)">
+              {{ favoriteIds.includes(event.eventId) ? '♥' : '♡' }}
+            </button>
+            <span class="event-badge">{{ event.type }}</span>
+          </div>
+
+          <div class="event-copy">
+            <h3>{{ event.name }}</h3>
+            <p>{{ event.venue?.name || 'Venue TBA' }}</p>
+            <div class="event-footer">
+              <span>SGD {{ event.price.toFixed(2) }}</span>
+              <button class="secondary" @click="router.push(`/events/${event.eventId}`)">View</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="secondary" :disabled="page <= 1" @click="page--; load()">Previous</button>
+        <span>Page {{ page }} of {{ totalPages }}</span>
+        <button class="secondary" :disabled="page >= totalPages" @click="page++; load()">Next</button>
+      </div>
+    </template>
   </section>
 </template>
 
 <style scoped>
-.events-page { max-width: 1100px; }
-
-/* ── Toolbar ── */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: .85rem;
-  flex-wrap: wrap;
+.events-page, .events-header { display: grid; gap: 1rem; }
+.eyebrow { color: var(--primary); font-size: .72rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
+.events-header h1 {
+  margin: 0; font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 4.8rem);
+  line-height: .95; letter-spacing: -.05em;
 }
-
-.tabs { display: flex; gap: .35rem; }
-.tab {
-  padding: .38rem 1.1rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: .85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background .15s, border-color .15s, color .15s;
+.events-header p { margin: 0; max-width: 42rem; color: var(--text-muted); line-height: 1.7; }
+.toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 1rem; align-items: end; padding: 1rem; }
+.search-wrap { display: grid; gap: .4rem; }
+.search-wrap span { color: var(--text-dim); font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.tab-row, .filter-row, .hero-actions, .pagination { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+.tab-row button, .chip {
+  padding: .8rem 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.03); color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
 }
-.tab:hover { background: rgba(255,255,255,.06); color: var(--text); }
-.tab-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink, #fff);
+.tab-row button.active, .chip.active { border-color: rgba(249,115,22,.5); background: rgba(249,115,22,.16); color: var(--primary); }
+.hero-card { position: relative; overflow: hidden; min-height: 26rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,.06); }
+.hero-card > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.84)); }
+.hero-card-content { position: absolute; inset-inline: 1.5rem; bottom: 1.5rem; z-index: 1; display: grid; gap: .6rem; }
+.hero-meta { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; color: rgba(255,255,255,.76); font-size: .78rem; font-weight: 700; }
+.hero-badge, .event-badge {
+  width: fit-content; padding: .45rem .7rem; border-radius: 999px; background: rgba(249,115,22,.92);
+  color: #1e0f08; font-size: .65rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase;
 }
-
-.toolbar-right { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-
-/* Type select */
-.type-select {
-  width: auto;
-  padding: .38rem 2.4rem .38rem .75rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: .85rem;
-  cursor: pointer;
+.hero-card h2 { margin: 0; font-family: var(--font-display); font-size: clamp(2.2rem, 5vw, 4rem); line-height: .96; letter-spacing: -.05em; }
+.hero-card p { margin: 0; color: rgba(255,255,255,.72); }
+.cards-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+.event-card { overflow: hidden; padding: 0; }
+.event-media { position: relative; aspect-ratio: 1 / 1; cursor: pointer; }
+.event-media img { width: 100%; height: 100%; object-fit: cover; }
+.favorite-toggle {
+  position: absolute; top: .85rem; right: .85rem; z-index: 1; width: 2.4rem; height: 2.4rem; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16); background: rgba(12,12,12,.5); color: white;
 }
-
-.search-wrap { position: relative; display: flex; align-items: center; }
-.search-icon {
-  width: 1rem; height: 1rem;
-  position: absolute; left: .65rem;
-  stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round;
-  pointer-events: none;
+.event-badge { position: absolute; left: .85rem; bottom: .85rem; z-index: 1; }
+.event-copy { display: grid; gap: .55rem; padding: 1rem; }
+.event-copy h3 { margin: 0; font-size: 1.2rem; line-height: 1.2; }
+.event-copy p { margin: 0; color: var(--text-muted); }
+.event-footer { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding-top: .2rem; }
+.event-footer span { color: var(--primary); font-size: 1rem; font-weight: 800; }
+.loading-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+.skeleton-card { min-height: 18rem; }
+.empty-state { display: grid; gap: .5rem; padding: 2rem; text-align: center; }
+.empty-state h2, .empty-state p { margin: 0; }
+.empty-state p { color: var(--text-muted); }
+.pagination { justify-content: flex-end; color: var(--text-muted); }
+@media (max-width: 980px) {
+  .cards-grid, .loading-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
-.search-input {
-  padding: .42rem .9rem .42rem 2.1rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: .85rem;
-  width: 200px;
-  transition: border-color .15s;
-}
-.search-input:focus { outline: none; border-color: var(--accent); }
-.search-input::placeholder { color: var(--muted); }
-
-.date-range-wrap {
-  display: flex; align-items: center; gap: .3rem;
-  padding: .38rem .75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-}
-.cal-icon { width: 1rem; height: 1rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
-.date-input {
-  background: transparent; border: none;
-  color: var(--text); font-size: .8rem; width: 110px;
-  color-scheme: dark; cursor: pointer; padding: 0;
-}
-.date-input::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
-.date-sep { color: var(--muted); font-size: .85rem; }
-
-.view-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface);
-}
-.view-btn {
-  padding: .42rem .6rem;
-  border: none; background: transparent;
-  color: var(--muted); cursor: pointer;
-  display: grid; place-items: center;
-  transition: background .15s, color .15s;
-}
-.view-btn svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.view-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
-.view-btn-active { background: rgba(249,115,22,.18); color: var(--accent); }
-
-/* ── Date range bar ── */
-.date-range-bar {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .45rem .85rem;
-  border: 1px solid var(--border);
-  border-radius: .75rem;
-  background: var(--surface);
-  font-size: .82rem; color: var(--muted);
-  margin-bottom: .75rem;
-}
-.cal-icon-sm { width: .9rem; height: .9rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
-.clear-date { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: .85rem; padding: 0 .2rem; }
-.clear-date:hover { color: var(--text); }
-
-/* ── Grid ── */
-.events-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.event-card-wrap {
-  position: relative;
-}
-
-/* Favourite button */
-.fav-btn {
-  position: absolute;
-  top: .8rem;
-  right: .8rem;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background .15s, transform .15s;
-  z-index: 2;
-  padding: 0;
-}
-.fav-btn:hover { background: rgba(0,0,0,.7); transform: scale(1.1); }
-.fav-btn svg { width: 1.2rem; height: 1.2rem; fill: rgba(255,255,255,.5); transition: fill .15s; }
-.fav-btn.fav-active svg { fill: var(--accent, #f97316); }
-
-/* ── List view ── */
-.events-list { display: grid; gap: .75rem; margin-bottom: 1.5rem; }
-.list-row {
-  position: relative;
-  cursor: pointer;
-}
-.list-card {
-  pointer-events: none;
-}
-.fav-btn-list {
-  top: .6rem;
-  right: .6rem;
-}
-
-/* ── Misc ── */
-.pagination { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-top: .5rem; }
-
-@media (max-width: 900px) {
-  .events-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .search-input { width: 140px; }
-}
-@media (max-width: 580px) {
-  .events-grid { grid-template-columns: 1fr; }
-  .toolbar { flex-direction: column; align-items: flex-start; }
+@media (max-width: 720px) {
+  .toolbar, .cards-grid, .loading-grid { grid-template-columns: 1fr; }
 }
 </style>
