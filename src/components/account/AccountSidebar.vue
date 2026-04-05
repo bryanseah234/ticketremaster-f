@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import {
   CreditCardIcon,
   LifebuoyIcon,
+  PlusIcon,
   QrCodeIcon,
   Squares2X2Icon,
   TicketIcon,
@@ -15,10 +17,22 @@ import { useLogout } from '@/composables/useLogout'
 const props = defineProps<{
   activeKey: string
   dashboardTo?: string | null
+  createTo?: string | null
 }>()
 
 const auth = useAuthStore()
 const { logout } = useLogout()
+const route = useRoute()
+
+const routeEventId = computed(() => {
+  const paramId = typeof route.params.eventId === 'string' ? route.params.eventId : null
+  if (paramId) return paramId
+
+  const queryId = typeof route.query.eventId === 'string' ? route.query.eventId : null
+  return queryId || null
+})
+
+const resolvedDashboardTo = computed(() => props.dashboardTo || (routeEventId.value ? `/admin/events/${routeEventId.value}/dashboard` : null))
 
 const links = computed(() => {
   if (auth.isStaff) {
@@ -32,8 +46,11 @@ const links = computed(() => {
   if (auth.isAdmin) {
     return [
       { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
-      ...(props.dashboardTo
-        ? [{ key: 'dashboard', to: props.dashboardTo, label: 'Dashboard', icon: Squares2X2Icon }]
+      ...(props.createTo
+        ? [{ key: 'create', to: props.createTo, label: 'Create', icon: PlusIcon }]
+        : []),
+      ...(resolvedDashboardTo.value
+        ? [{ key: 'dashboard', to: resolvedDashboardTo.value, label: 'Dashboard', icon: Squares2X2Icon }]
         : []),
     ]
   }

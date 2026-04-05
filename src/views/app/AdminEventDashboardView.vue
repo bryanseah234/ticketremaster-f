@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode } from '@/services/mockData'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -26,6 +27,7 @@ const metrics = computed(() => {
     { label: 'Occupancy', value: `${occupancyRate.value}%` },
   ]
 })
+const dashboardTo = computed(() => `/admin/events/${route.params.eventId}/dashboard`)
 
 const load = async () => {
   loading.value = true
@@ -59,45 +61,86 @@ onMounted(load)
 
 <template>
   <section class="page dashboard-page">
-    <div class="dashboard-head">
-      <div>
-        <span class="badge">Admin Dashboard</span>
-        <h1 class="section-title">Live inventory overview for {{ route.params.eventId }}</h1>
-        <p class="section-subtitle">Track seat sales, occupancy, and attendee details from the current dashboard feed.</p>
-      </div>
-      <button class="secondary" @click="load">{{ loading ? 'Refreshing...' : 'Refresh' }}</button>
-    </div>
+    <header class="dashboard-title">
+      <h1>Event <span>Dashboard</span></h1>
+    </header>
 
-    <div class="grid-4">
-      <article v-for="metric in metrics" :key="metric.label" class="glass metric-card">
-        <span class="badge">{{ metric.label }}</span>
-        <strong>{{ metric.value }}</strong>
-      </article>
-    </div>
+    <div class="dashboard-layout">
+      <AccountSidebar active-key="dashboard" create-to="/admin/events/new" :dashboard-to="dashboardTo" />
 
-    <article class="glass attendee-card">
-      <div class="attendee-head">
-        <span class="badge">Attendees</span>
-        <p class="small muted">{{ (data?.attendees || []).length }} sold seat{{ (data?.attendees || []).length === 1 ? '' : 's' }}</p>
-      </div>
-
-      <div class="attendee-list" v-if="(data?.attendees || []).length">
-        <div v-for="attendee in (data?.attendees || [])" :key="attendee.seatId || attendee.seat_id" class="attendee-row">
+      <div class="dashboard-content">
+        <div class="dashboard-head">
           <div>
-            <strong>{{ attendee.rowNumber || attendee.row_number }}-{{ attendee.seatNumber || attendee.seat_number }}</strong>
-            <p class="small muted">{{ attendee.email }}</p>
+            <span class="badge">Admin Dashboard</span>
+            <h2 class="section-title">Live inventory overview for {{ route.params.eventId }}</h2>
+            <p class="section-subtitle">Track seat sales, occupancy, and attendee details from the current dashboard feed.</p>
           </div>
-          <span class="badge">Sold</span>
+          <button class="secondary" @click="load">{{ loading ? 'Refreshing...' : 'Refresh' }}</button>
         </div>
-      </div>
 
-      <p v-else class="small muted">No attendee data yet.</p>
-    </article>
+        <div class="grid-4">
+          <article v-for="metric in metrics" :key="metric.label" class="glass metric-card">
+            <span class="badge">{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </article>
+        </div>
+
+        <article class="glass attendee-card">
+          <div class="attendee-head">
+            <span class="badge">Attendees</span>
+            <p class="small muted">{{ (data?.attendees || []).length }} sold seat{{ (data?.attendees || []).length === 1 ? '' : 's' }}</p>
+          </div>
+
+          <div class="attendee-list" v-if="(data?.attendees || []).length">
+            <div v-for="attendee in (data?.attendees || [])" :key="attendee.seatId || attendee.seat_id" class="attendee-row">
+              <div>
+                <strong>{{ attendee.rowNumber || attendee.row_number }}-{{ attendee.seatNumber || attendee.seat_number }}</strong>
+                <p class="small muted">{{ attendee.email }}</p>
+              </div>
+              <span class="badge">Sold</span>
+            </div>
+          </div>
+
+          <p v-else class="small muted">No attendee data yet.</p>
+        </article>
+      </div>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.dashboard-page { display: grid; gap: 1rem; }
+.dashboard-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.dashboard-title {
+  text-align: center;
+}
+
+.dashboard-title h1 {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.7rem, 7vw, 4.35rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+}
+
+.dashboard-title span {
+  color: var(--primary);
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.dashboard-content {
+  display: grid;
+  gap: 1rem;
+}
+
 .dashboard-head, .attendee-head, .attendee-row {
   display: flex;
   justify-content: space-between;
@@ -105,7 +148,11 @@ onMounted(load)
   align-items: center;
   flex-wrap: wrap;
 }
-.metric-card, .attendee-card { padding: 1.25rem; display: grid; gap: 0.8rem; }
+.metric-card, .attendee-card {
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.8rem;
+}
 .metric-card strong {
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
   font-size: 1.8rem;
@@ -114,4 +161,10 @@ onMounted(load)
 .attendee-list { display: grid; gap: 0.65rem; }
 .attendee-row { padding: 0.9rem 0; border-bottom: 1px solid var(--outlineSoft); }
 .attendee-row:last-child { border-bottom: 0; }
+
+@media (max-width: 920px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

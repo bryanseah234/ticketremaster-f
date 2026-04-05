@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { CalendarDaysIcon, MapPinIcon, TicketIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { isDemoMode, mockServices } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
@@ -123,12 +124,21 @@ onMounted(load)
           <h1>{{ eventData.name }}</h1>
 
           <div class="hero-meta">
-            <span>{{ venueLine }}</span>
+            <span class="hero-meta-item">
+              <MapPinIcon class="hero-meta-icon" />
+              <span>{{ venueLine }}</span>
+            </span>
             <span class="meta-separator"></span>
-            <span>{{ formattedDate }}</span>
+            <span class="hero-meta-item">
+              <CalendarDaysIcon class="hero-meta-icon" />
+              <span>{{ formattedDate }}</span>
+            </span>
           </div>
 
-          <button class="hero-cta" type="button" @click="goToSeats">Select Seats</button>
+          <button class="hero-cta" type="button" @click="goToSeats">
+            <span>Select Seats</span>
+            <TicketIcon class="hero-cta-icon" />
+          </button>
         </div>
       </section>
 
@@ -259,6 +269,19 @@ onMounted(load)
   font-weight: 500;
 }
 
+.hero-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hero-meta-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 .meta-separator {
   width: 0.35rem;
   height: 0.35rem;
@@ -268,10 +291,19 @@ onMounted(load)
 
 .hero-cta {
   margin-top: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   min-width: 14rem;
   padding-inline: 2rem;
   border-radius: 999px;
   box-shadow: 0 20px 50px rgba(255, 145, 83, 0.24);
+}
+
+.hero-cta-icon {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .detail-panels {

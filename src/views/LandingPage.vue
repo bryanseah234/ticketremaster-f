@@ -38,7 +38,7 @@ const mapEvent = (event: any): EventSummary => ({
 const loadFeaturedEvents = async () => {
   loading.value = true
   try {
-    if (isDemoMode() || import.meta.env.DEV) {
+    if (isDemoMode()) {
       const result = await mockServices.getUpcomingEvents({ page: 1, limit: 6 })
       featuredEvents.value = result.events
       return

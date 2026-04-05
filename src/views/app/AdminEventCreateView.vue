@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/api/client'
 import { isDemoMode, mockVenues } from '@/services/mockData'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const form = reactive({
   name: '',
@@ -19,6 +20,7 @@ const form = reactive({
 const loading = ref(false)
 const created = ref<{ eventId: string; seatsCreated: number } | null>(null)
 const venues = ref<any[]>([])
+const dashboardTo = computed(() => (created.value?.eventId ? `/admin/events/${created.value.eventId}/dashboard` : null))
 
 onMounted(async () => {
   try {
@@ -78,18 +80,19 @@ const submit = async () => {
 
 <template>
   <section class="page admin-page">
+    <header class="admin-header">
+      <h1><span>Create</span> New Event</h1>
+    </header>
+
     <div class="admin-layout">
-      <aside class="glass admin-sidebar">
-        <span class="badge">Admin</span>
-        <h1>Create an event and provision inventory.</h1>
-        <p class="small muted">Set event details, venue metadata, dates, and initial pricing in one flow.</p>
-      </aside>
+      <AccountSidebar active-key="create" create-to="/admin/events/new" :dashboard-to="dashboardTo" />
 
       <article class="glass admin-form">
         <div class="admin-head">
           <div>
-            <span class="badge">Unified Sidebar</span>
+            <span class="badge">Admin Studio</span>
             <h2 class="section-title">Admin Event Create</h2>
+            <p class="small muted">Set event details, venue metadata, dates, and initial pricing in one flow.</p>
           </div>
           <span v-if="created" class="badge">Created</span>
         </div>
@@ -167,13 +170,42 @@ const submit = async () => {
 </template>
 
 <style scoped>
-.admin-layout { display: grid; grid-template-columns: 0.8fr 1.5fr; gap: 1rem; }
-.admin-sidebar, .admin-form { padding: 1.4rem; display: grid; gap: 1rem; }
-.admin-sidebar h1 {
-  font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: 1.75rem;
-  line-height: 1.15;
+.admin-page {
+  display: grid;
+  gap: 1.5rem;
 }
+
+.admin-header {
+  text-align: center;
+}
+
+.admin-header h1 {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.7rem, 7vw, 4.35rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+}
+
+.admin-header span {
+  color: var(--primary);
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-form {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  border-radius: 1.5rem;
+  background: rgba(34, 31, 30, 0.84);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
 .admin-head {
   display: flex;
   justify-content: space-between;

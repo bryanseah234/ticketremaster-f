@@ -21,7 +21,6 @@ const cardMount = ref<HTMLDivElement | null>(null)
 const stripeReady = ref(false)
 const demoMode = computed(() => isDemoMode())
 const auth = useAuthStore()
-const dashboardTo = computed(() => (auth.isAdmin && demoMode.value ? '/admin/events/demo-event-001/dashboard' : null))
 
 const cardholderName = ref('ALEX VANCE')
 const expiry = ref('')
@@ -233,7 +232,7 @@ onUnmounted(() => {
     </header>
 
     <div class="credits-layout">
-      <AccountSidebar active-key="credits" :dashboard-to="dashboardTo" />
+      <AccountSidebar active-key="credits" />
 
       <div class="credits-content">
         <article class="glass balance-card">

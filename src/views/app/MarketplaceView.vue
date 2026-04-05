@@ -26,6 +26,7 @@ const listLoading = ref(false)
 const showListForm = ref(false)
 const myTickets = ref<{ ticketId: string; label: string }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
+const isAuthenticated = computed(() => Boolean(auth.state.accessToken))
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalListings.value / pageSize)))
 const averagePrice = computed(() =>
@@ -120,6 +121,18 @@ const loadListings = async (page = currentPage.value) => {
 
 const loadMyTickets = async () => {
   try {
+    if (isDemoMode()) {
+      const result = await mockServices.getMyTickets()
+      myTickets.value = result.tickets
+        .filter((ticket) => ticket.status === 'active')
+        .map((ticket) => ({
+          ticketId: ticket.ticketId,
+          label: `${ticket.event?.name || 'Ticket'} — ${ticket.ticketId.slice(0, 8)}`,
+        }))
+      if (myTickets.value.length) listTicketId.value = myTickets.value[0].ticketId
+      return
+    }
+
     const { data } = await api.get('/tickets')
     myTickets.value = (data?.data?.tickets || data?.data || [])
       .filter((ticket: any) => ticket.status === 'active')
@@ -131,6 +144,32 @@ const loadMyTickets = async () => {
   } catch {
     myTickets.value = []
   }
+}
+
+const openListingFlow = async () => {
+  if (!isAuthenticated.value) {
+    router.push('/login')
+    return
+  }
+
+  showListForm.value = !showListForm.value
+  if (showListForm.value) {
+    await loadMyTickets()
+  }
+}
+
+const listingSummary = (listing: MarketplaceListing) => {
+  const venueName = listing.event?.venue?.name
+  const dateLabel = listing.event?.date
+    ? new Date(listing.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' })
+    : 'Date TBA'
+
+  return venueName ? `${venueName} • ${dateLabel}` : dateLabel
+}
+
+const listingSeatLabel = (listing: MarketplaceListing) => {
+  if (listing.ticketId) return `Verified inventory • ${listing.ticketId.slice(0, 8).toUpperCase()}`
+  return 'Verified inventory'
 }
 
 const listTicket = async () => {
@@ -219,14 +258,7 @@ onMounted(() => {
           <p>Verified resale inventory will appear here once sellers publish active marketplace offers.</p>
           <div class="empty-actions">
             <RouterLink to="/events"><button type="button">Browse Events</button></RouterLink>
-            <button
-              v-if="auth.state.accessToken"
-              class="secondary"
-              type="button"
-              @click="showListForm = true; loadMyTickets()"
-            >
-              Start Listing
-            </button>
+            <button class="secondary" type="button" @click="openListingFlow">Start Listing</button>
           </div>
         </article>
 
@@ -243,9 +275,9 @@ onMounted(() => {
                 <span class="listing-price">SGD {{ Number(listing.price).toFixed(0) }}</span>
               </div>
 
-              <p>{{ listing.event?.date ? new Date(listing.event.date).toLocaleDateString('en-SG', { day: 'numeric', month: 'short' }) : 'Date TBA' }}</p>
+              <p>{{ listingSummary(listing) }}</p>
               <p v-if="listing.sellerName" class="muted-line">Listed by {{ listing.sellerName }}</p>
-              <p class="seat-line">{{ listing.ticketId.slice(0, 8).toUpperCase() }}</p>
+              <p class="seat-line">{{ listingSeatLabel(listing) }}</p>
 
               <button
                 :disabled="listing.status !== 'active' || buyLoadingIds[listing.listingId]"
@@ -275,11 +307,7 @@ onMounted(() => {
             <li>Instant Payouts</li>
           </ul>
 
-          <button
-            v-if="auth.state.accessToken"
-            class="secondary"
-            @click="showListForm = !showListForm; if (showListForm) loadMyTickets()"
-          >
+          <button class="seller-cta" type="button" @click="openListingFlow">
             {{ showListForm ? 'Close Listing Form' : 'Start Listing' }}
           </button>
         </article>
@@ -528,10 +556,11 @@ onMounted(() => {
 }
 
 .seller-list li::before {
-  content: '•';
+  content: '✓';
   position: absolute;
   left: 0;
   color: var(--primary);
+  font-weight: 800;
 }
 
 .list-form label {
@@ -587,6 +616,14 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.seller-cta {
+  width: 100%;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
 }
 
 .skeleton-card {

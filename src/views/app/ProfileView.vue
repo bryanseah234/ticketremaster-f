@@ -14,7 +14,6 @@ const toast = useToast()
 const profile = ref<Record<string, unknown> | null>(null)
 
 const displayUser = computed(() => (profile.value || auth.state.user || null) as Record<string, unknown> | null)
-const dashboardTo = computed(() => (auth.isAdmin && isDemoMode() ? '/admin/events/demo-event-001/dashboard' : null))
 
 const fullName = computed(() => {
   const explicitName = (displayUser.value?.fullName as string) || (displayUser.value?.name as string)
@@ -71,7 +70,7 @@ onMounted(() => {
     </header>
 
     <div class="profile-layout">
-      <AccountSidebar active-key="profile" :dashboard-to="dashboardTo" />
+      <AccountSidebar active-key="profile" />
 
       <div class="profile-content">
         <article class="glass account-card">

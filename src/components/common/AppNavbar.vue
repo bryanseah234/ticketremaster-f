@@ -19,6 +19,18 @@ const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
 const minimalTopNav = computed(() => auth.isAdmin || auth.isStaff || (auth.isLoggedIn && isDemoMode()))
 const showNotifications = computed(() => auth.isLoggedIn && !auth.isStaff && !auth.isAdmin && !isDemoMode())
+const adminEventId = computed(() => {
+  const paramId = typeof route.params.eventId === 'string' ? route.params.eventId : null
+  if (paramId) return paramId
+
+  const queryId = typeof route.query.eventId === 'string' ? route.query.eventId : null
+  return queryId || null
+})
+const profileRoute = computed(() => {
+  if (!auth.isLoggedIn) return '/login'
+  if (auth.isAdmin && adminEventId.value) return `/profile?eventId=${encodeURIComponent(adminEventId.value)}`
+  return '/profile'
+})
 
 const primaryNav = computed(() => {
   if (minimalTopNav.value) return []
@@ -31,13 +43,13 @@ const primaryNav = computed(() => {
 const mobileNav = computed(() => {
   if (auth.isStaff) {
     return [
-      { to: '/profile', label: 'Profile' },
+      { to: profileRoute.value, label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
   }
   if (auth.isAdmin) {
     return [
-      { to: '/profile', label: 'Profile' },
+      { to: profileRoute.value, label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
   }
@@ -48,7 +60,7 @@ const mobileNav = computed(() => {
       { to: '/tickets', label: 'My Tickets' },
       { to: '/credits/topup', label: 'Credits' },
       ...(showNotifications.value ? [{ to: '/notifications', label: 'Notifications' }] : []),
-      { to: '/profile', label: 'Profile' },
+      { to: profileRoute.value, label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
   }
@@ -94,8 +106,6 @@ const balanceLabel = computed(() => {
   if (balance.value === null) return 'Credits --'
   return `Credits $${balance.value.toFixed(0)}`
 })
-
-const profileRoute = computed(() => (auth.isLoggedIn ? '/profile' : '/login'))
 
 const isActive = (target: string) => route.path === target || route.path.startsWith(`${target}/`)
 
