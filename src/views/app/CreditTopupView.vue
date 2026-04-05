@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { loadStripe, type Stripe, type StripeCardElement, type StripeElements } from '@stripe/stripe-js'
-import { RouterLink } from 'vue-router'
-import { CreditCardIcon, TicketIcon, UserCircleIcon } from '@heroicons/vue/24/outline'
+import { CreditCardIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { isDemoMode } from '@/services/mockData'
+import { useAuthStore } from '@/stores/auth'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const balance = ref(0)
 const amount = ref(100)
@@ -19,6 +20,8 @@ const card = ref<StripeCardElement | null>(null)
 const cardMount = ref<HTMLDivElement | null>(null)
 const stripeReady = ref(false)
 const demoMode = computed(() => isDemoMode())
+const auth = useAuthStore()
+const dashboardTo = computed(() => (auth.isAdmin && demoMode.value ? '/admin/events/demo-event-001/dashboard' : null))
 
 const cardholderName = ref('ALEX VANCE')
 const expiry = ref('')
@@ -230,20 +233,7 @@ onUnmounted(() => {
     </header>
 
     <div class="credits-layout">
-      <aside class="glass credits-sidebar">
-        <RouterLink to="/profile" class="side-link">
-          <UserCircleIcon class="side-icon" />
-          <span>Profile</span>
-        </RouterLink>
-        <span class="side-link active">
-          <CreditCardIcon class="side-icon" />
-          <span>Credits</span>
-        </span>
-        <RouterLink to="/tickets" class="side-link">
-          <TicketIcon class="side-icon" />
-          <span>Tickets</span>
-        </RouterLink>
-      </aside>
+      <AccountSidebar active-key="credits" :dashboard-to="dashboardTo" />
 
       <div class="credits-content">
         <article class="glass balance-card">
@@ -380,40 +370,9 @@ onUnmounted(() => {
 
 .credits-layout {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
-}
-
-.credits-sidebar {
-  position: sticky;
-  top: 6.8rem;
-  display: grid;
-  gap: 0.35rem;
-  padding: 0.85rem;
-  border-radius: 1.35rem;
-  background: rgba(34, 31, 30, 0.84);
-}
-
-.side-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: 1rem;
-  color: var(--textMuted);
-  font-weight: 600;
-}
-
-.side-link.active {
-  background: rgba(249, 115, 22, 0.16);
-  color: var(--primarySoft);
-  border: 1px solid rgba(249, 115, 22, 0.22);
-}
-
-.side-icon {
-  width: 1rem;
-  height: 1rem;
 }
 
 .credits-content {
@@ -733,10 +692,6 @@ onUnmounted(() => {
 @media (max-width: 980px) {
   .credits-layout {
     grid-template-columns: 1fr;
-  }
-
-  .credits-sidebar {
-    position: static;
   }
 
   .quick-grid,

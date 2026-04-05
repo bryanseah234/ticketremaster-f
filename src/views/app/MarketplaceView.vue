@@ -210,13 +210,25 @@ onMounted(() => {
 
     <div class="marketplace-layout">
       <div class="listings-column">
-        <h2>Verified Listings</h2>
-
         <div v-if="loading" class="listings-grid">
           <article v-for="n in 4" :key="n" class="listing-card skeleton-card"></article>
         </div>
 
-        <div v-else-if="filteredListings.length === 0" class="empty-card">No listings found.</div>
+        <article v-else-if="filteredListings.length === 0" class="empty-card">
+          <strong>No listings available right now.</strong>
+          <p>Verified resale inventory will appear here once sellers publish active marketplace offers.</p>
+          <div class="empty-actions">
+            <RouterLink to="/events"><button type="button">Browse Events</button></RouterLink>
+            <button
+              v-if="auth.state.accessToken"
+              class="secondary"
+              type="button"
+              @click="showListForm = true; loadMyTickets()"
+            >
+              Start Listing
+            </button>
+          </div>
+        </article>
 
         <div v-else class="listings-grid">
           <article v-for="listing in filteredListings" :key="listing.listingId" class="listing-card">
@@ -402,15 +414,6 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.listings-column h2 {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 .listings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -561,8 +564,29 @@ onMounted(() => {
 }
 
 .empty-card {
-  padding: 2rem;
-  text-align: center;
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+  align-content: start;
+  min-height: 19rem;
+  padding: 1.8rem;
+}
+
+.empty-card strong {
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+}
+
+.empty-card p {
+  margin: 0;
+  color: var(--textMuted);
+  line-height: 1.6;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .skeleton-card {

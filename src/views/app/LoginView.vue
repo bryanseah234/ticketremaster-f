@@ -55,12 +55,6 @@ const openDemoMode = () => {
 }
 
 const submit = async () => {
-  if (demoOnly.value) {
-    toast.info('Live sign in is unavailable while offline. Use one of the seeded demo personas instead.', 3600)
-    openDemoMode()
-    return
-  }
-
   if (!validate()) return
   loading.value = true
   try {
@@ -132,8 +126,8 @@ const submit = async () => {
             <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
           </div>
 
-          <button class="submit-button" :disabled="loading" type="submit">
-            {{ demoOnly ? 'Use Demo Personas' : loading ? 'Signing In...' : 'Sign In' }}
+          <button class="submit-button" :disabled="demoOnly || loading" type="submit">
+            {{ loading ? 'Signing In...' : 'Sign In' }}
           </button>
         </form>
 
@@ -142,13 +136,13 @@ const submit = async () => {
           <RouterLink to="/register">Create an Account</RouterLink>
         </p>
 
-        <div class="demo-launch" :class="{ offline: demoOnly }">
+        <div class="demo-launch">
           <div>
-            <strong>{{ demoOnly ? 'Offline Demo Mode' : 'Experience Demo Mode' }}</strong>
-            <p>{{ demoOnly ? 'Backend is unavailable. Continue with one of the three seeded demo personas.' : 'Instant access to marketplace' }}</p>
+            <strong>Experience Demo Mode</strong>
+            <p>Instant access to marketplace</p>
           </div>
           <button class="launch-button" type="button" @click="openDemoMode">
-            {{ demoOnly ? 'Open Demo Users' : 'Launch' }}
+            Launch
           </button>
         </div>
       </article>
@@ -278,11 +272,6 @@ const submit = async () => {
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(18, 18, 18, 0.45);
   border-radius: 0.95rem;
-}
-
-.demo-launch.offline {
-  border-color: rgba(249, 115, 22, 0.16);
-  background: rgba(249, 115, 22, 0.08);
 }
 
 .demo-launch strong {

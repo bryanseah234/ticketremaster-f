@@ -4,11 +4,14 @@ import { RouterLink } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
+import { useAuthStore } from '@/stores/auth'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 import type { Ticket } from '@/types'
 
 const tickets = ref<Ticket[]>([])
 const loading = ref(false)
 const toast = useToast()
+const auth = useAuthStore()
 const listingTicketId = ref<string | null>(null)
 const listingPrice = ref<number>(0)
 const listingLoading = ref(false)
@@ -65,6 +68,7 @@ const load = async () => {
 
 const activeTickets = computed(() => tickets.value.filter((ticket) => ticket.status === 'active' || ticket.status === 'listed'))
 const archiveTickets = computed(() => tickets.value.filter((ticket) => ticket.status !== 'active' && ticket.status !== 'listed'))
+const dashboardTo = computed(() => (auth.isAdmin && isDemoMode() ? '/admin/events/demo-event-001/dashboard' : null))
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
@@ -164,13 +168,7 @@ watch([loading, tickets], ([isLoading, items]) => {
     </header>
 
     <div class="tickets-layout">
-      <aside class="tickets-sidebar">
-        <nav class="sidebar-shell">
-          <RouterLink to="/profile" class="side-link">Profile</RouterLink>
-          <RouterLink to="/credits/topup" class="side-link">Credits</RouterLink>
-          <span class="side-link active">Tickets</span>
-        </nav>
-      </aside>
+      <AccountSidebar active-key="tickets" :dashboard-to="dashboardTo" />
 
       <div class="tickets-content">
         <section class="passes-section">
@@ -294,38 +292,9 @@ watch([loading, tickets], ([isLoading, items]) => {
 
 .tickets-layout {
   display: grid;
-  grid-template-columns: 17rem minmax(0, 1fr);
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
-}
-
-.tickets-sidebar {
-  position: sticky;
-  top: 7.5rem;
-}
-
-.sidebar-shell {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.8rem;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(38, 38, 38, 0.4);
-  backdrop-filter: blur(16px);
-}
-
-.side-link {
-  padding: 0.95rem 1rem;
-  border-radius: 1rem;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.side-link.active {
-  border: 1px solid rgba(249, 115, 22, 0.2);
-  background: rgba(249, 115, 22, 0.15);
-  color: var(--primary);
-  font-weight: 800;
 }
 
 .tickets-content,
@@ -542,10 +511,6 @@ watch([loading, tickets], ([isLoading, items]) => {
   .ticket-card,
   .archive-row {
     grid-template-columns: 1fr;
-  }
-
-  .tickets-sidebar {
-    position: static;
   }
 }
 

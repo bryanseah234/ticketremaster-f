@@ -89,7 +89,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-001',
     price: 149.99,
     type: 'concert',
-    image: '/hero-concert.jpeg',
+    image: 'https://picsum.photos/seed/eras-tour/800/450',
     venue: {
       venueId: 'demo-venue-001',
       name: 'Madison Square Garden',
@@ -104,7 +104,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-001',
     price: 299.99,
     type: 'sports',
-    image: '/hero-sports.jpg',
+    image: 'https://picsum.photos/seed/nba-finals/800/450',
     venue: {
       venueId: 'demo-venue-001',
       name: 'Madison Square Garden',
@@ -119,7 +119,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-002',
     price: 89.99,
     type: 'theater',
-    image: '/hero-theater.jpeg',
+    image: 'https://picsum.photos/seed/hamilton-westend/800/450',
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -134,7 +134,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-003',
     price: 499.99,
     type: 'conference',
-    image: '/hero-conference.jpeg',
+    image: 'https://picsum.photos/seed/techcrunch-disrupt/800/450',
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',
@@ -149,7 +149,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-002',
     price: 79.99,
     type: 'festival',
-    image: '/hero-festival.jpeg',
+    image: 'https://picsum.photos/seed/summer-music-fest/800/450',
     venue: {
       venueId: 'demo-venue-002',
       name: 'Wembley Stadium',
@@ -164,7 +164,7 @@ export const mockEvents: EventSummary[] = [
     venueId: 'demo-venue-003',
     price: 59.99,
     type: 'other',
-    image: '/hero-jazz.jpg',
+    image: 'https://picsum.photos/seed/tokyo-jazz-night/800/450',
     venue: {
       venueId: 'demo-venue-003',
       name: 'Tokyo Dome',

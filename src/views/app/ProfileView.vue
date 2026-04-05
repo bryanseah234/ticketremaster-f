@@ -1,41 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
 import {
-  CreditCardIcon,
-  DevicePhoneMobileIcon,
   IdentificationIcon,
-  LifebuoyIcon,
-  LockClosedIcon,
-  QrCodeIcon,
-  TicketIcon,
-  UserCircleIcon,
 } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const auth = useAuthStore()
-const router = useRouter()
 const toast = useToast()
 const profile = ref<Record<string, unknown> | null>(null)
 
 const displayUser = computed(() => (profile.value || auth.state.user || null) as Record<string, unknown> | null)
-
-const sidebarLinks = computed(() =>
-  auth.isStaff
-    ? [
-        { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
-        { key: 'scanner', to: '/staff/scan', label: 'Scanner', icon: QrCodeIcon },
-        { key: 'support', to: '/help', label: 'Support', icon: LifebuoyIcon },
-      ]
-    : [
-        { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
-        { key: 'credits', to: '/credits/topup', label: 'Credits', icon: CreditCardIcon },
-        { key: 'tickets', to: '/tickets', label: 'Tickets', icon: TicketIcon },
-      ],
-)
+const dashboardTo = computed(() => (auth.isAdmin && isDemoMode() ? '/admin/events/demo-event-001/dashboard' : null))
 
 const fullName = computed(() => {
   const explicitName = (displayUser.value?.fullName as string) || (displayUser.value?.name as string)
@@ -61,12 +40,6 @@ const roleTone = computed(() => {
   return 'Customer account'
 })
 
-const secondaryNote = computed(() =>
-  isDemoMode()
-    ? 'Enabled via seeded demo protections'
-    : 'Enabled via your registered device',
-)
-
 const loadProfile = async () => {
   if (isDemoMode()) {
     profile.value = null
@@ -86,11 +59,6 @@ const notifyReadonly = (feature: string) => {
   toast.info(`${feature} is still read-only in this build.`, 3200)
 }
 
-const logout = () => {
-  auth.clearSession()
-  router.push('/login')
-}
-
 onMounted(() => {
   loadProfile()
 })
@@ -103,22 +71,7 @@ onMounted(() => {
     </header>
 
     <div class="profile-layout">
-      <aside class="glass account-sidebar">
-        <nav class="sidebar-nav">
-          <RouterLink
-            v-for="item in sidebarLinks"
-            :key="item.key"
-            :to="item.to"
-            class="side-link"
-            :class="{ active: item.key === 'profile' }"
-          >
-            <component :is="item.icon" class="side-icon" />
-            <span>{{ item.label }}</span>
-          </RouterLink>
-        </nav>
-
-        <button class="sidebar-logout" type="button" @click="logout">Log Out</button>
-      </aside>
+      <AccountSidebar active-key="profile" :dashboard-to="dashboardTo" />
 
       <div class="profile-content">
         <article class="glass account-card">
@@ -151,50 +104,6 @@ onMounted(() => {
 
           <button class="primary-action" type="button" @click="notifyReadonly('Profile editing')">Update Information</button>
         </article>
-
-        <article class="glass security-card">
-          <div class="security-copy">
-            <div class="icon-shell muted">
-              <LockClosedIcon class="card-icon" />
-            </div>
-            <div>
-              <h2>Security &amp; Password</h2>
-              <p>Update your password to keep your assets secure.</p>
-            </div>
-          </div>
-
-          <button class="secondary" type="button" @click="notifyReadonly('Password changes')">Change Password</button>
-        </article>
-
-        <div class="preference-grid">
-          <article class="panel preference-card">
-            <DevicePhoneMobileIcon class="preference-icon" />
-            <div>
-              <strong>Two-Factor Auth</strong>
-              <span>{{ secondaryNote }}</span>
-            </div>
-          </article>
-
-          <article class="panel preference-card">
-            <TicketIcon class="preference-icon" />
-            <div>
-              <strong>Device Management</strong>
-              <span>{{ isDemoMode() ? '3 seeded sessions in Demo Mode' : 'Sessions monitored across your active devices' }}</span>
-            </div>
-          </article>
-        </div>
-
-        <article v-if="!auth.isStaff" class="glass wallet-shortcut">
-          <div>
-            <span class="eyebrow">Wallet</span>
-            <h3>Jump straight to credits or your ticket vault without leaving the profile surface.</h3>
-          </div>
-
-          <div class="wallet-actions">
-            <RouterLink to="/credits/topup"><button type="button">Open Credits</button></RouterLink>
-            <RouterLink to="/tickets"><button class="secondary" type="button">View Tickets</button></RouterLink>
-          </div>
-        </article>
       </div>
     </div>
   </section>
@@ -223,51 +132,9 @@ onMounted(() => {
 
 .profile-layout {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
-}
-
-.account-sidebar {
-  position: sticky;
-  top: 6.8rem;
-  display: grid;
-  gap: 1rem;
-  padding: 0.85rem;
-  border-radius: 1.35rem;
-  background: rgba(34, 31, 30, 0.84);
-}
-
-.sidebar-nav {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.side-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: 1rem;
-  color: var(--textMuted);
-  font-weight: 600;
-}
-
-.side-link.active {
-  background: rgba(249, 115, 22, 0.16);
-  color: var(--primarySoft);
-  border: 1px solid rgba(249, 115, 22, 0.22);
-}
-
-.side-icon {
-  width: 1rem;
-  height: 1rem;
-}
-
-.sidebar-logout {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.08);
-  color: var(--text);
 }
 
 .profile-content {
@@ -275,17 +142,14 @@ onMounted(() => {
   gap: 1.2rem;
 }
 
-.account-card,
-.security-card,
-.wallet-shortcut {
+.account-card {
   padding: 1.5rem;
   border-radius: 1.5rem;
   background: rgba(34, 31, 30, 0.84);
   border-color: rgba(255, 255, 255, 0.06);
 }
 
-.card-heading,
-.security-copy {
+.card-heading {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -295,14 +159,12 @@ onMounted(() => {
   margin-bottom: 1.2rem;
 }
 
-.card-heading h2,
-.security-copy h2 {
+.card-heading h2 {
   font-size: 1.45rem;
   letter-spacing: -0.03em;
 }
 
-.card-heading p,
-.security-copy p {
+.card-heading p {
   margin-top: 0.2rem;
   color: var(--textMuted);
   font-size: 0.88rem;
@@ -316,10 +178,6 @@ onMounted(() => {
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.08));
   color: var(--primary);
-}
-
-.icon-shell.muted {
-  background: rgba(255, 255, 255, 0.06);
 }
 
 .card-icon {
@@ -351,89 +209,15 @@ onMounted(() => {
   margin-top: 1.35rem;
 }
 
-.security-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.preference-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.preference-card {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 1rem 1.05rem;
-  border-radius: 1.3rem;
-}
-
-.preference-icon {
-  width: 1.05rem;
-  height: 1.05rem;
-  color: var(--primary);
-}
-
-.preference-card strong {
-  display: block;
-  margin-bottom: 0.2rem;
-  font-size: 0.95rem;
-}
-
-.preference-card span {
-  color: var(--textMuted);
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
-
-.wallet-shortcut {
-  display: grid;
-  gap: 1rem;
-}
-
-.eyebrow {
-  color: var(--primary);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.wallet-shortcut h3 {
-  margin-top: 0.35rem;
-  font-size: 1.15rem;
-  line-height: 1.45;
-}
-
-.wallet-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
 @media (max-width: 980px) {
   .profile-layout {
     grid-template-columns: 1fr;
   }
-
-  .account-sidebar {
-    position: static;
-  }
 }
 
 @media (max-width: 720px) {
-  .field-grid,
-  .preference-grid {
+  .field-grid {
     grid-template-columns: 1fr;
-  }
-
-  .security-card {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 </style>
