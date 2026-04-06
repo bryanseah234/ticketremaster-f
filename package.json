@@ -42,7 +42,7 @@
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^25.5.2",
     "@types/three": "^0.183.1",
-    "@vitejs/plugin-basic-ssl": "^2.2.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-vue": "^6.0.5",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^4.1.13",
