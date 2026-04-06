@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { ArrowRightIcon, CreditCardIcon, LockClosedIcon, ShieldCheckIcon, WalletIcon } from '@heroicons/vue/24/outline'
+import { ArrowRightIcon, ClockIcon, CreditCardIcon, LockClosedIcon, ShieldCheckIcon, WalletIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockEvents } from '@/services/mockData'
@@ -17,6 +17,7 @@ const loading = ref(false)
 const holdSeconds = ref(0)
 const ticket = ref<any>(null)
 const eventName = ref('')
+const trustRowRef = ref<HTMLElement | null>(null)
 let holdTimer: number | undefined
 
 const seatPrice = computed(() => Number(order.value?.seat?.price || 0))
@@ -213,6 +214,11 @@ onBeforeRouteLeave(async (_to, _from, next) => {
 onMounted(async () => {
   loadOrder()
   await Promise.all([loadBalance(), loadEventName()])
+  await nextTick()
+  // Apply grayscale filter directly to bypass Vue's auto-prefixing
+  if (trustRowRef.value) {
+    trustRowRef.value.style.setProperty('filter', 'grayscale(1)')
+  }
 })
 
 onUnmounted(() => {
@@ -272,9 +278,12 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <button class="credit-toggle" type="button" disabled aria-label="Credits enabled">
-                  <span></span>
-                </button>
+                <label class="credit-toggle-label" aria-label="Credits enabled">
+                  <input type="checkbox" class="credit-toggle-peer" checked disabled />
+                  <span class="credit-toggle-track">
+                    <span class="credit-toggle-knob"></span>
+                  </span>
+                </label>
               </div>
 
               <div class="wallet-balance-row">
@@ -290,7 +299,12 @@ onUnmounted(() => {
               <div><span>Processing</span><strong>SGD {{ processingFee.toFixed(2) }}</strong></div>
             </div>
 
-            <button class="confirm-button" :disabled="loading || !hasEnoughCredits" @click="pay">
+            <button
+              class="confirm-button"
+              style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%)"
+              :disabled="loading || !hasEnoughCredits"
+              @click="pay"
+            >
               <span>{{ loading ? 'Processing...' : 'Confirm Purchase' }}</span>
               <ArrowRightIcon class="confirm-arrow" />
             </button>
@@ -301,7 +315,7 @@ onUnmounted(() => {
             <p v-if="!hasEnoughCredits" class="warning-copy">Insufficient credits. Top up before this hold expires.</p>
           </article>
 
-          <div class="trust-row">
+          <div ref="trustRowRef" class="trust-row">
             <span><ShieldCheckIcon class="trust-icon" /></span>
             <span><LockClosedIcon class="trust-icon" /></span>
             <span><CreditCardIcon class="trust-icon" /></span>
@@ -311,9 +325,12 @@ onUnmounted(() => {
 
         <aside class="summary-column">
           <article class="timer-card" :class="{ warning: holdWarning }">
-            <div>
-              <span class="meta-label">Time Remaining</span>
-              <strong>{{ holdSeconds > 0 ? holdDisplay : 'Expired' }}</strong>
+            <div class="timer-time-display">
+              <ClockIcon class="timer-icon" aria-hidden="true" />
+              <div>
+                <span class="meta-label">Time Remaining</span>
+                <strong>{{ holdSeconds > 0 ? holdDisplay : 'Expired' }}</strong>
+              </div>
             </div>
             <div class="status-block">
               <span class="meta-label">Status</span>
@@ -382,7 +399,7 @@ onUnmounted(() => {
 }
 
 .eyebrow {
-  color: var(--primary);
+  color: var(--primary, #f97316);
 }
 
 .meta-label {
@@ -486,34 +503,61 @@ onUnmounted(() => {
 
 .wallet-icon,
 .trust-icon,
-.confirm-arrow {
+.confirm-arrow,
+.timer-icon {
   width: 1rem;
   height: 1rem;
+}
+
+.timer-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+  color: var(--primary, #f97316);
+}
+
+.timer-time-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .wallet-icon {
   color: var(--primary);
 }
 
-.credit-toggle {
+.credit-toggle-label {
   flex-shrink: 0;
   position: relative;
+  cursor: default;
+}
+
+.credit-toggle-peer {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.credit-toggle-track {
+  display: flex;
+  align-items: center;
   width: 3.15rem;
   height: 1.8rem;
   padding: 0.2rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  opacity: 1;
+  background: var(--primary, #f97316);
+  transition: background 0.2s;
 }
 
-.credit-toggle span {
+.credit-toggle-knob {
   display: block;
   width: 1.15rem;
   height: 1.15rem;
-  margin-left: auto;
   border-radius: 999px;
   background: #fff;
+  transform: translateX(1.6rem);
+  transition: transform 0.2s;
 }
 
 .wallet-copy strong,
@@ -557,6 +601,12 @@ onUnmounted(() => {
   font-size: 1rem;
   font-weight: 900;
   letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+  border-radius: 999px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+  border: 0;
+  color: #fff;
 }
 
 .cancel-button {
@@ -581,6 +631,13 @@ onUnmounted(() => {
   flex-wrap: wrap;
   opacity: 0.58;
   color: rgba(255, 255, 255, 0.72);
+  filter: grayscale(1);
+  transition: filter 0.5s, opacity 0.5s;
+}
+
+.trust-row:hover {
+  filter: grayscale(0);
+  opacity: 1;
 }
 
 .trust-row span {
