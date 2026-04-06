@@ -43,7 +43,7 @@
     "@types/node": "^25.4.0",
     "@types/three": "^0.183.1",
     "@vitejs/plugin-basic-ssl": "^2.2.0",
-    "@vitejs/plugin-vue": "^6.0.4",
+    "@vitejs/plugin-vue": "^6.0.5",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^6.0.2",
