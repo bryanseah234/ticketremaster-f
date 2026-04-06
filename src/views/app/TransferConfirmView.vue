@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
+  ArrowRightIcon,
   BoltIcon,
   ShieldCheckIcon,
 } from '@heroicons/vue/24/outline'
@@ -304,6 +305,7 @@ onUnmounted(() => {
 
       <div class="otp-main">
         <article class="glass otp-card">
+          <div class="otp-glow" aria-hidden="true"></div>
           <p class="otp-copy">{{ verifyCopy }}</p>
 
           <div v-if="rateLimited" class="warning-box">
@@ -345,7 +347,9 @@ onUnmounted(() => {
         <div class="trust-grid">
           <article class="glass trust-card">
             <div class="trust-icon">
-              <ShieldCheckIcon class="mini-icon" />
+              <div class="icon-avatar-shell">
+                <ShieldCheckIcon class="mini-icon" />
+              </div>
             </div>
             <div>
               <span>Encrypted</span>
@@ -355,7 +359,9 @@ onUnmounted(() => {
 
           <article class="glass trust-card">
             <div class="trust-icon">
-              <BoltIcon class="mini-icon" />
+              <div class="icon-avatar-shell">
+                <BoltIcon class="mini-icon" />
+              </div>
             </div>
             <div>
               <span>Instant</span>
@@ -404,8 +410,9 @@ onUnmounted(() => {
           </div>
 
           <template v-if="status === 'pending_seller_acceptance' && isSeller">
-            <button class="accept-button" :disabled="loading" @click="acceptTransfer">
-              {{ loading ? 'Processing...' : 'Accept Transfer' }}
+            <button class="accept-button" style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%)" :disabled="loading" @click="acceptTransfer">
+              <span>{{ loading ? 'Processing...' : 'Accept Transfer' }}</span>
+              <ArrowRightIcon class="btn-arrow-icon" />
             </button>
             <button class="decline-button" :disabled="loading" type="button" @click="rejectTransfer">Decline Transfer</button>
           </template>
@@ -469,7 +476,7 @@ onUnmounted(() => {
   display: inline-grid;
   gap: 0.1em;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
-  font-size: clamp(2.35rem, 6.5vw, 3.85rem);
+  font-size: clamp(3rem, 7vw, 4.8rem);
   font-weight: 800;
   letter-spacing: -0.07em;
   line-height: 0.94;
@@ -506,6 +513,20 @@ onUnmounted(() => {
   gap: 1rem;
   padding: 1.8rem 1.6rem;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.otp-glow {
+  position: absolute;
+  top: -6rem;
+  right: -6rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.10);
+  filter: blur(100px);
+  pointer-events: none;
 }
 
 .otp-copy {
@@ -611,6 +632,17 @@ onUnmounted(() => {
 .trust-icon,
 .authenticity-box .mini-icon {
   color: var(--primary);
+}
+
+.icon-avatar-shell {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .trust-card span {
@@ -730,18 +762,33 @@ onUnmounted(() => {
 
 .accept-button {
   width: 100%;
-  border-radius: 0.7rem;
+  border-radius: 999px;
   padding-block: 1rem;
+  background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+  border: 0;
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-arrow-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
 }
 
 .decline-button {
-  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
   color: rgba(255, 255, 255, 0.76);
   font-size: 0.83rem;
   font-weight: 500;
+  text-align: center;
 }
 
 .accept-secondary-button {

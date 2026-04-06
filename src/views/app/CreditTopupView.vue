@@ -238,7 +238,10 @@ onUnmounted(() => {
         <article class="glass balance-card">
           <div>
             <span class="card-label">Current Balance</span>
-            <div class="balance-value">{{ formattedBalance }}</div>
+            <div
+              class="balance-value"
+              style="background: linear-gradient(135deg, #f97316, #ff7a23); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text"
+            >{{ formattedBalance }}</div>
           </div>
 
           <div class="balance-meta">
@@ -259,12 +262,13 @@ onUnmounted(() => {
               :key="quickAmount"
               class="amount-card"
               :class="{ active: amount === quickAmount }"
+              style="border-radius: 0.75rem"
               @click="amount = quickAmount"
             >
               <span>${{ quickAmount }}</span>
             </button>
 
-            <label class="amount-card custom-card">
+            <label class="amount-card custom-card" style="border-radius: 0.75rem">
               <span class="custom-label">Custom</span>
               <div class="custom-input">
                 <strong>$</strong>
@@ -288,7 +292,10 @@ onUnmounted(() => {
 
             <div class="field-stack">
               <label>Secure Card Entry</label>
-              <div v-if="demoMode" class="card-placeholder">Demo payments never charge a real card.</div>
+              <div v-if="demoMode" class="card-field-demo">
+                <input value="•••• •••• •••• 4242" disabled class="card-field-input" />
+                <span class="visa-badge">VISA</span>
+              </div>
               <div v-else ref="cardMount" class="card-mount"></div>
             </div>
 
@@ -309,6 +316,7 @@ onUnmounted(() => {
 
           <button
             class="complete-button"
+            style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%); border-radius: 999px; width: min(100%, 20rem); justify-self: center; padding-block: 0.95rem; box-shadow: 0 10px 30px rgba(249,115,22,0.3); border: 0; color: #fff; font-weight: 800"
             :disabled="loading || amount <= 0 || (!demoMode && !stripeReady)"
             @click="demoMode ? simulateTopUp() : createTopUp()"
           >
@@ -328,7 +336,7 @@ onUnmounted(() => {
 
           <div v-if="transactions.length === 0" class="ledger-empty">No ledger activity yet.</div>
 
-          <article v-for="item in transactions" v-else :key="item.id" class="ledger-row">
+          <article v-for="item in transactions" v-else :key="item.id" class="ledger-row" style="transition: background-color 0.2s; cursor: default">
             <div class="ledger-icon" :class="{ positive: item.positive, negative: !item.positive }">
               <span>{{ item.positive ? '+' : '−' }}</span>
             </div>
@@ -412,7 +420,10 @@ onUnmounted(() => {
   font-size: clamp(2.6rem, 6vw, 4.3rem);
   font-weight: 800;
   letter-spacing: -0.08em;
-  color: var(--primary);
+  background: linear-gradient(135deg, #f97316, #ff7a23);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .balance-meta {
@@ -469,7 +480,7 @@ onUnmounted(() => {
 
 .amount-card {
   min-height: 5.5rem;
-  border-radius: 999px;
+  border-radius: 0.75rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--text);
@@ -564,6 +575,30 @@ onUnmounted(() => {
   color: var(--textMuted);
 }
 
+.card-field-demo {
+  position: relative;
+}
+
+.card-field-input {
+  width: 100%;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.9rem 1rem;
+  color: var(--textMuted);
+}
+
+.visa-badge {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .secure-note {
   color: var(--textMuted);
   font-size: 0.8rem;
@@ -573,8 +608,13 @@ onUnmounted(() => {
 .complete-button {
   width: min(100%, 20rem);
   justify-self: center;
-  border-radius: 0.9rem;
+  border-radius: 999px;
   padding-block: 0.95rem;
+  background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+  border: 0;
+  color: #fff;
+  font-weight: 800;
 }
 
 .compliance-note {
@@ -640,6 +680,15 @@ onUnmounted(() => {
   border-radius: 1.15rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ledger-row {
+  transition: background-color 0.2s;
+  cursor: default;
+}
+
+.ledger-row:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .ledger-empty {
