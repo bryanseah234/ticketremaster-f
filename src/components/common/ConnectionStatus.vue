@@ -1,49 +1,103 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { isDemoMode } from '@/services/mockData'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-const isOnline = ref(true)
-const isDemo = ref(false)
+const DISMISS_KEY = 'offline_banner_dismissed'
+const offline = ref(Boolean((window as unknown as Record<string, unknown>).__apiOffline))
+const message = ref('Backend unavailable. Showing demo data while live services recover.')
+const dismissed = ref(sessionStorage.getItem(DISMISS_KEY) === 'true')
 
-const handleOnline = () => {
-  isOnline.value = true
-  isDemo.value = isDemoMode()
+const showBanner = computed(() => offline.value && !dismissed.value)
+
+const dismiss = () => {
+  dismissed.value = true
+  sessionStorage.setItem(DISMISS_KEY, 'true')
 }
 
-const handleOffline = () => {
-  isOnline.value = false
-  isDemo.value = isDemoMode()
+const handleOnline = () => {
+  offline.value = false
+  dismissed.value = false
+  sessionStorage.removeItem(DISMISS_KEY)
+}
+
+const handleOffline = (event: Event) => {
+  offline.value = true
+  const detail = (event as CustomEvent<{ message?: string }>).detail
+  message.value = detail?.message || 'Backend unavailable. Showing demo data while live services recover.'
 }
 
 onMounted(() => {
   window.addEventListener('api:online', handleOnline)
-  window.addEventListener('api:offline', handleOffline)
-  isDemo.value = isDemoMode()
+  window.addEventListener('api:offline', handleOffline as EventListener)
 })
 
 onUnmounted(() => {
   window.removeEventListener('api:online', handleOnline)
-  window.removeEventListener('api:offline', handleOffline)
+  window.removeEventListener('api:offline', handleOffline as EventListener)
 })
 </script>
 
 <template>
-  <!-- Online/Offline Indicator -->
-  <div
-    v-if="!isOnline || isDemo"
-    :class="[
-      'fixed top-0 left-0 right-0 z-50 px-4 py-2 text-xs font-medium text-center transition-all duration-300',
-      !isOnline ? 'bg-red-600 text-white' : 'bg-yellow-500 text-white'
-    ]"
-  >
-    <span v-if="!isOnline">
-      ⚠ Backend unavailable — Some features may be limited
-    </span>
-    <span v-else>
-      🔧 Demo Mode — Showing mock data for UI development
-    </span>
+  <div v-if="showBanner" class="offline-banner" role="status" aria-live="polite">
+    <div class="offline-copy">
+      <strong>Offline Demo Mode</strong>
+      <p>{{ message }}</p>
+    </div>
+    <button class="dismiss-button" type="button" @click="dismiss">Dismiss</button>
   </div>
-
-  <!-- Spacer to prevent content from being hidden -->
-  <div v-if="!isOnline || isDemo" class="h-10"></div>
 </template>
+
+<style scoped>
+.offline-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 145, 83, 0.28);
+  background: linear-gradient(180deg, rgba(31, 18, 10, 0.9), rgba(17, 11, 7, 0.96));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.3);
+}
+
+.offline-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.offline-copy strong {
+  color: var(--primarySoft);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.offline-copy p {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.dismiss-button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .offline-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+
+  .dismiss-button {
+    width: 100%;
+  }
+}
+</style>

@@ -1,62 +1,65 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
-import EventCard from '@/components/ui/EventCard.vue'
+import { resolveEventImage } from '@/utils/eventMedia'
 import type { EventSummary, EventType } from '@/types'
 
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
+
 const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
-  { value: 'all', label: 'All Types' },
-  { value: 'concert', label: 'Concert' },
+  { value: 'all', label: 'All Categories' },
+  { value: 'concert', label: 'Music' },
   { value: 'sports', label: 'Sports' },
   { value: 'theater', label: 'Theater' },
-  { value: 'conference', label: 'Conference' },
-  { value: 'festival', label: 'Festival' },
-  { value: 'other', label: 'Other' },
 ]
-
-const route = useRoute()
-const toast = useToast()
+const listingFallbackImages = [
+  '/stitch-media/listing/listing-featured-rooftop.jpg',
+  '/stitch-media/listing/listing-neon-resonance.jpg',
+  '/stitch-media/listing/listing-obsidian-jazz.jpg',
+  '/stitch-media/listing/listing-midnight-gallery.jpg',
+  '/stitch-media/listing/listing-kinetic-summit.jpg',
+]
 
 const loading = ref(false)
 const events = ref<EventSummary[]>([])
 const page = ref(1)
 const totalPages = ref(1)
-
 const search = ref((route.query.search as string) || '')
-const dateFrom = ref('')
-const dateTo = ref('')
-const typeFilter = ref<EventType | 'all'>('all')
-const activeTab = ref<'all' | 'upcoming' | 'favorites'>('all')
-const viewMode = ref<'grid' | 'list'>('grid')
+const typeFilter = ref<EventType | 'all'>((route.query.type as EventType | 'all') || 'all')
+const activeView = ref<'all' | 'upcoming' | 'favorites'>('all')
 const favoriteIds = ref<string[]>(JSON.parse(localStorage.getItem('favoriteEvents') || '[]'))
 
-watch(favoriteIds, () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)), { deep: true })
-
-const toggleFavorite = (eventId: string, e: MouseEvent) => {
-  e.preventDefault()
-  e.stopPropagation()
-  if (favoriteIds.value.includes(eventId)) {
-    favoriteIds.value = favoriteIds.value.filter((id) => id !== eventId)
-  } else {
-    favoriteIds.value = [...favoriteIds.value, eventId]
-  }
-}
+watch(
+  favoriteIds,
+  () => localStorage.setItem('favoriteEvents', JSON.stringify(favoriteIds.value)),
+  { deep: true },
+)
 
 const buildCacheKey = () => `events_list:${page.value}:${typeFilter.value}`
 
-const mapEvent = (e: any): EventSummary => ({
-  eventId: e.eventId || e.event_id,
-  name: e.name,
-  date: e.date || e.eventDate || e.event_date,
-  venueId: e.venueId || e.venue_id || '',
-  price: e.price ?? 0,
-  type: e.type as EventType,
-  image: e.image,
-  venue: e.venue ? { venueId: e.venue.venueId || '', name: e.venue.name, address: e.venue.address } : undefined,
-  seatsAvailable: e.seatsAvailable,
+const mapEvent = (event: any, index = 0): EventSummary => ({
+  eventId: event.eventId || event.event_id,
+  name: event.name,
+  date: event.date || event.eventDate || event.event_date,
+  venueId: event.venueId || event.venue_id || '',
+  price: Number(event.price || 0),
+  type: (event.type || 'other') as EventType,
+  image:
+    resolveEventImage({
+      eventId: event.eventId || event.event_id,
+      context: 'listing',
+    }) ||
+    event.image ||
+    listingFallbackImages[index % listingFallbackImages.length],
+  seatsAvailable: event.seatsAvailable,
+  venue: event.venue
+    ? { venueId: event.venue.venueId || '', name: event.venue.name, address: event.venue.address }
+    : undefined,
 })
 
 const load = async () => {
@@ -66,20 +69,24 @@ const load = async () => {
     if (typeFilter.value !== 'all') params.type = typeFilter.value
 
     if (isDemoMode()) {
-      const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
-      events.value = result.events
-      const total = result.pagination.total
-      totalPages.value = Math.max(1, Math.ceil(total / 10))
-    } else {
-      const { data } = await api.get('/events', { params })
-      const raw: any[] = data?.data?.events || data?.data || []
-      events.value = raw.map(mapEvent)
-      const pagination = data?.data?.pagination || data?.pagination || {}
-      const total = pagination.total || 0
-      const limit = pagination.limit || 10
-      totalPages.value = pagination.totalPages || pagination.total_pages || Math.max(1, Math.ceil(total / limit))
-      localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
+      const result = await mockServices.getEvents({
+        page: page.value,
+        limit: 10,
+        type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
+      })
+      events.value = result.events.map((event, index) => mapEvent(event, index))
+      totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
+      return
     }
+
+    const { data } = await api.get('/events', { params })
+    const raw = data?.data?.events || data?.data || []
+    events.value = raw.map((event: any, index: number) => mapEvent(event, index))
+    const pagination = data?.data?.pagination || data?.pagination || {}
+    const total = pagination.total || events.value.length
+    const limit = pagination.limit || 10
+    totalPages.value = pagination.totalPages || pagination.total_pages || Math.max(1, Math.ceil(total / limit))
+    localStorage.setItem(buildCacheKey(), JSON.stringify({ items: events.value, totalPages: totalPages.value }))
   } catch {
     const cached = localStorage.getItem(buildCacheKey())
     if (cached) {
@@ -89,8 +96,12 @@ const load = async () => {
       toast.push('Showing cached events.', 'info', 3200)
     } else {
       try {
-        const result = await mockServices.getEvents({ page: page.value, limit: 10, type: typeFilter.value !== 'all' ? typeFilter.value : undefined })
-        events.value = result.events
+        const result = await mockServices.getEvents({
+          page: page.value,
+          limit: 10,
+          type: typeFilter.value !== 'all' ? typeFilter.value : undefined,
+        })
+        events.value = result.events.map((event, index) => mapEvent(event, index))
         totalPages.value = Math.max(1, Math.ceil(result.pagination.total / 10))
         toast.push('Backend unavailable. Showing demo events.', 'info', 3200)
       } catch {
@@ -104,312 +115,409 @@ const load = async () => {
   }
 }
 
-const filteredEvents = computed(() => {
+const visibleEvents = computed(() => {
   const needle = search.value.trim().toLowerCase()
   const today = new Date().toISOString().slice(0, 10)
-  return events.value.filter((e) => {
-    const text = `${e.name} ${e.venue?.name || ''}`.toLowerCase()
+
+  return events.value.filter((event) => {
+    const text = `${event.name} ${event.venue?.name || ''}`.toLowerCase()
     if (needle && !text.includes(needle)) return false
-    const d = e.date?.slice(0, 10) || ''
-    if (dateFrom.value && d < dateFrom.value) return false
-    if (dateTo.value && d > dateTo.value) return false
-    if (activeTab.value === 'upcoming' && d < today) return false
-    if (activeTab.value === 'favorites' && !favoriteIds.value.includes(e.eventId)) return false
+    if (activeView.value === 'upcoming' && (event.date?.slice(0, 10) || '') < today) return false
+    if (activeView.value === 'favorites' && !favoriteIds.value.includes(event.eventId)) return false
     return true
   })
 })
 
-const dateRangeLabel = computed(() => {
-  if (!dateFrom.value && !dateTo.value) return null
-  const fmt = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })
-  if (dateFrom.value && dateTo.value) return `${fmt(dateFrom.value)} ~ ${fmt(dateTo.value)}`
-  if (dateFrom.value) return `From ${fmt(dateFrom.value)}`
-  return `Until ${fmt(dateTo.value)}`
-})
+const featuredEvent = computed(() => visibleEvents.value[0] || null)
+const secondaryEvents = computed(() => visibleEvents.value.slice(featuredEvent.value ? 1 : 0, 5))
 
-const onTypeChange = () => {
+const toggleFavorite = (eventId: string) => {
+  favoriteIds.value = favoriteIds.value.includes(eventId)
+    ? favoriteIds.value.filter((id) => id !== eventId)
+    : [...favoriteIds.value, eventId]
+}
+
+const setType = (value: EventType | 'all') => {
+  typeFilter.value = value
+  router.replace({ query: { ...route.query, type: value === 'all' ? undefined : value } })
   page.value = 1
   load()
+}
+
+const formatDate = (value?: string) => {
+  if (!value) return 'Date TBA'
+  return new Date(value).toLocaleDateString('en-SG', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <section class="page events-page">
+  <section class="events-page">
+    <header class="listing-header">
+      <h1>
+        Curated <span>Experiences</span>
+      </h1>
 
-    <!-- Top toolbar -->
-    <div class="toolbar">
-      <div class="tabs">
-        <button :class="['tab', activeTab === 'all' && 'tab-active']" @click="activeTab = 'all'">All</button>
-        <button :class="['tab', activeTab === 'upcoming' && 'tab-active']" @click="activeTab = 'upcoming'">Upcoming</button>
-        <button :class="['tab', activeTab === 'favorites' && 'tab-active']" @click="activeTab = 'favorites'">Favourites</button>
-      </div>
+      <div class="listing-controls">
+        <label class="search-shell">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input v-model="search" placeholder="Search events, artists, or venues..." />
+        </label>
 
-      <div class="toolbar-right">
-        <!-- Type filter -->
-        <select v-model="typeFilter" class="type-select" @change="onTypeChange" aria-label="Filter by event type">
-          <option v-for="t in EVENT_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-        </select>
-
-        <div class="search-wrap">
-          <svg viewBox="0 0 24 24" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input v-model="search" placeholder="Search events…" class="search-input" />
-        </div>
-
-        <div class="date-range-wrap">
-          <svg viewBox="0 0 24 24" class="cal-icon"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          <input v-model="dateFrom" type="date" class="date-input" title="From" />
-          <span class="date-sep">–</span>
-          <input v-model="dateTo" type="date" class="date-input" title="To" />
-        </div>
-
-        <div class="view-toggle">
-          <button :class="['view-btn', viewMode === 'grid' && 'view-btn-active']" @click="viewMode = 'grid'" aria-label="Grid view">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <div class="chip-row">
+          <button
+            v-for="type in EVENT_TYPES"
+            :key="type.value"
+            class="filter-chip"
+            :class="{ active: typeFilter === type.value }"
+            type="button"
+            @click="setType(type.value)"
+          >
+            {{ type.label }}
           </button>
-          <button :class="['view-btn', viewMode === 'list' && 'view-btn-active']" @click="viewMode = 'list'" aria-label="List view">
-            <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <button
+            class="filter-chip"
+            :class="{ active: activeView === 'favorites' }"
+            type="button"
+            @click="activeView = activeView === 'favorites' ? 'all' : 'favorites'"
+          >
+            Favorites
           </button>
         </div>
       </div>
+    </header>
+
+    <div v-if="loading" class="listing-grid loading-grid">
+      <div class="event-card event-card-feature loading-card"></div>
+      <div v-for="n in 4" :key="n" class="event-card loading-card"></div>
     </div>
 
-    <!-- Active date range label -->
-    <div v-if="dateRangeLabel" class="date-range-bar">
-      <svg viewBox="0 0 24 24" class="cal-icon-sm"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      {{ dateRangeLabel }}
-      <button class="clear-date" @click="dateFrom=''; dateTo=''">✕</button>
-    </div>
-
-    <!-- Loading skeletons -->
-    <div v-if="loading" class="events-grid">
-      <EventCard v-for="n in 6" :key="n" />
-    </div>
-
-    <!-- Empty -->
-    <p v-else-if="filteredEvents.length === 0" class="muted small" style="padding:2rem 0;">No events found.</p>
-
-    <!-- Grid view -->
-    <div v-else-if="viewMode === 'grid'" class="events-grid">
-      <div v-for="event in filteredEvents" :key="event.eventId" class="event-card-wrap">
-        <EventCard :event="event" />
-        <button
-          class="fav-btn"
-          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
-          @click="toggleFavorite(event.eventId, $event)"
-          aria-label="Toggle favourite"
-        >
-          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
-        </button>
+    <template v-else>
+      <div v-if="visibleEvents.length === 0" class="empty-card">
+        <h2>No events found.</h2>
+        <p>Try another search or switch category.</p>
       </div>
-    </div>
 
-    <!-- List view -->
-    <div v-else class="events-list">
-      <div
-        v-for="event in filteredEvents"
-        :key="event.eventId"
-        class="list-row"
-        role="button"
-        tabindex="0"
-        @click="$router.push(`/events/${event.eventId}`)"
-        @keydown.enter="$router.push(`/events/${event.eventId}`)"
-      >
-        <EventCard :event="event" compact class="list-card" />
-        <button
-          class="fav-btn fav-btn-list"
-          :class="{ 'fav-active': favoriteIds.includes(event.eventId) }"
-          @click.stop="toggleFavorite(event.eventId, $event)"
-          aria-label="Toggle favourite"
-        >
-          <svg viewBox="0 0 24 24"><path d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.8 2 5.2 4.1 3 6.7 3c1.5 0 2.98.7 3.86 1.8C11.32 3.7 12.8 3 14.3 3 16.9 3 19 5.2 19 7.8c0 3.48-3.4 6.56-8.55 11.38L12 20.5z"/></svg>
-        </button>
+      <div v-else class="listing-grid">
+        <article v-if="featuredEvent" class="event-card event-card-feature">
+          <img v-if="featuredEvent.image" :src="featuredEvent.image" :alt="featuredEvent.name" />
+          <div class="card-overlay"></div>
+          <div class="card-copy featured-copy">
+            <div class="feature-topline">
+              <span class="tag tag-primary">Featured</span>
+              <span>{{ formatDate(featuredEvent.date) }}</span>
+            </div>
+            <h2>{{ featuredEvent.name }}</h2>
+            <p>{{ featuredEvent.venue?.name || 'Featured venue' }}</p>
+            <div class="feature-actions">
+              <button type="button" @click="router.push(`/events/${featuredEvent.eventId}`)">Get Tickets</button>
+            </div>
+          </div>
+        </article>
+
+        <article v-for="event in secondaryEvents" :key="event.eventId" class="event-card">
+          <div class="square-media">
+            <img v-if="event.image" :src="event.image" :alt="event.name" />
+            <div class="card-overlay"></div>
+            <button class="favorite-toggle" type="button" @click.stop="toggleFavorite(event.eventId)">
+              {{ favoriteIds.includes(event.eventId) ? '♥' : '♡' }}
+            </button>
+          </div>
+
+          <div class="card-copy">
+            <span class="tag">{{ event.type }}</span>
+            <h3>{{ event.name }}</h3>
+            <p>{{ formatDate(event.date) }} • {{ event.venue?.name || 'Venue TBA' }}</p>
+            <button class="secondary full-button" type="button" @click="router.push(`/events/${event.eventId}`)">Get Tickets</button>
+          </div>
+        </article>
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div v-if="totalPages > 1" class="pagination">
-      <button class="secondary" :disabled="page <= 1" @click="page--; load()">Previous</button>
-      <span class="small muted">Page {{ page }} of {{ totalPages }}</span>
-      <button class="secondary" :disabled="page >= totalPages" @click="page++; load()">Next</button>
-    </div>
-
+      <div v-if="totalPages > 1" class="pagination">
+        <button class="secondary" :disabled="page <= 1" @click="page--; load()">Previous</button>
+        <span>Page {{ page }} of {{ totalPages }}</span>
+        <button class="secondary" :disabled="page >= totalPages" @click="page++; load()">Next</button>
+      </div>
+    </template>
   </section>
 </template>
 
 <style scoped>
-.events-page { max-width: 1100px; }
+.events-page {
+  display: grid;
+  gap: 2rem;
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
+}
 
-/* ── Toolbar ── */
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.listing-header {
+  display: grid;
+  gap: 1.75rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.listing-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.6rem, 8vw, 5.8rem);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.07em;
+}
+
+.listing-header h1 span {
+  color: var(--primary);
+}
+
+.listing-controls {
+  display: grid;
   gap: 1rem;
-  margin-bottom: .85rem;
+  width: min(100%, 56rem);
+}
+
+.search-shell {
+  position: relative;
+  width: min(100%, 32rem);
+  justify-self: center;
+}
+
+.search-shell input {
+  padding-left: 3rem;
+  border-radius: 999px;
+  background: rgba(38, 38, 38, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 1.1rem;
+}
+
+.chip-row {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
-.tabs { display: flex; gap: .35rem; }
-.tab {
-  padding: .38rem 1.1rem;
+.filter-chip {
+  padding: 0.82rem 1.2rem;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: .85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background .15s, border-color .15s, color .15s;
-}
-.tab:hover { background: rgba(255,255,255,.06); color: var(--text); }
-.tab-active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(38, 38, 38, 0.82);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.toolbar-right { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-
-/* Type select */
-.type-select {
-  width: auto;
-  padding: .38rem 2.4rem .38rem .75rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: .85rem;
-  cursor: pointer;
+.filter-chip.active {
+  background: var(--primary);
+  color: #2a1203;
+  border-color: transparent;
 }
 
-.search-wrap { position: relative; display: flex; align-items: center; }
-.search-icon {
-  width: 1rem; height: 1rem;
-  position: absolute; left: .65rem;
-  stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round;
-  pointer-events: none;
-}
-.search-input {
-  padding: .42rem .9rem .42rem 2.1rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: .85rem;
-  width: 200px;
-  transition: border-color .15s;
-}
-.search-input:focus { outline: none; border-color: var(--accent); }
-.search-input::placeholder { color: var(--muted); }
-
-.date-range-wrap {
-  display: flex; align-items: center; gap: .3rem;
-  padding: .38rem .75rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-}
-.cal-icon { width: 1rem; height: 1rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; }
-.date-input {
-  background: transparent; border: none;
-  color: var(--text); font-size: .8rem; width: 110px;
-  color-scheme: dark; cursor: pointer; padding: 0;
-}
-.date-input::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
-.date-sep { color: var(--muted); font-size: .85rem; }
-
-.view-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface);
-}
-.view-btn {
-  padding: .42rem .6rem;
-  border: none; background: transparent;
-  color: var(--muted); cursor: pointer;
-  display: grid; place-items: center;
-  transition: background .15s, color .15s;
-}
-.view-btn svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.view-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
-.view-btn-active { background: rgba(249,115,22,.18); color: var(--accent); }
-
-/* ── Date range bar ── */
-.date-range-bar {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .45rem .85rem;
-  border: 1px solid var(--border);
-  border-radius: .75rem;
-  background: var(--surface);
-  font-size: .82rem; color: var(--muted);
-  margin-bottom: .75rem;
-}
-.cal-icon-sm { width: .9rem; height: .9rem; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; flex-shrink: 0; }
-.clear-date { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: .85rem; padding: 0 .2rem; }
-.clear-date:hover { color: var(--text); }
-
-/* ── Grid ── */
-.events-grid {
+.listing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem 1.25rem;
-  margin-bottom: 1.5rem;
+  gap: 1.35rem;
 }
 
-.event-card-wrap {
+.event-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.35rem;
+  background: rgba(19, 19, 19, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 17rem;
 }
 
-/* Favourite button */
-.fav-btn {
+.event-card-feature {
+  grid-column: span 2;
+  min-height: 24rem;
+}
+
+.event-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+}
+
+.event-card:hover img {
+  transform: scale(1.04);
+}
+
+.square-media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+}
+
+.card-overlay {
   position: absolute;
-  top: .8rem;
-  right: .8rem;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.86));
+}
+
+.favorite-toggle {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 14, 14, 0.48);
+  color: #fff;
+}
+
+.card-copy {
   display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background .15s, transform .15s;
-  z-index: 2;
-  padding: 0;
-}
-.fav-btn:hover { background: rgba(0,0,0,.7); transform: scale(1.1); }
-.fav-btn svg { width: 1.2rem; height: 1.2rem; fill: rgba(255,255,255,.5); transition: fill .15s; }
-.fav-btn.fav-active svg { fill: var(--accent, #f97316); }
-
-/* ── List view ── */
-.events-list { display: grid; gap: .75rem; margin-bottom: 1.5rem; }
-.list-row {
-  position: relative;
-  cursor: pointer;
-}
-.list-card {
-  pointer-events: none;
-}
-.fav-btn-list {
-  top: .6rem;
-  right: .6rem;
+  gap: 0.65rem;
+  padding: 1.2rem;
 }
 
-/* ── Misc ── */
-.pagination { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-top: .5rem; }
-
-@media (max-width: 900px) {
-  .events-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .search-input { width: 140px; }
+.featured-copy {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 1.5rem;
 }
-@media (max-width: 580px) {
-  .events-grid { grid-template-columns: 1fr; }
-  .toolbar { flex-direction: column; align-items: flex-start; }
+
+.feature-topline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.tag {
+  width: fit-content;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(38, 38, 38, 0.9);
+  color: var(--primary);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.tag-primary {
+  background: rgba(249, 115, 22, 0.95);
+  color: #230f02;
+}
+
+.featured-copy h2,
+.card-copy h3,
+.empty-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.featured-copy h2 {
+  max-width: 28rem;
+  font-size: clamp(1.9rem, 4vw, 3rem);
+}
+
+.card-copy h3 {
+  font-size: 1.22rem;
+}
+
+.card-copy p,
+.featured-copy p,
+.empty-card p,
+.pagination {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.feature-actions,
+.pagination {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.feature-actions button {
+  min-width: 8.75rem;
+}
+
+.full-button {
+  width: 100%;
+}
+
+.empty-card {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(19, 19, 19, 0.74);
+}
+
+.pagination {
+  justify-content: flex-end;
+}
+
+.loading-card {
+  background: linear-gradient(90deg, rgba(32, 31, 31, 0.7), rgba(44, 44, 44, 0.9), rgba(32, 31, 31, 0.7));
+}
+
+@media (max-width: 980px) {
+  .listing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .event-card-feature {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 720px) {
+  .listing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .events-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
+  }
+
+  .event-card-feature {
+    grid-column: span 1;
+    min-height: 26rem;
+  }
+
+  .pagination {
+    justify-content: flex-start;
+  }
 }
 </style>

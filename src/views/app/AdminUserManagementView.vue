@@ -1,286 +1,236 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import api from '@/api/client'
+import { computed, onMounted, ref } from 'vue'
+import { useToast } from '@/composables/useToast'
+import { isDemoMode, mockAdminUser, mockStaffUser, mockUser } from '@/services/mockData'
 
-interface User {
+interface UserRecord {
   userId: string
   email: string
   role: string
   isFlagged: boolean
+  phoneNumber?: string
+  venueId?: string | null
   createdAt: string
 }
 
-const users = ref<User[]>([])
+const toast = useToast()
+const users = ref<UserRecord[]>([])
 const loading = ref(true)
 const error = ref('')
+const search = ref('')
+const filter = ref<'all' | 'flagged' | 'clean'>('all')
 
-const fetchUsers = async () => {
+const demoUsers: UserRecord[] = [
+  mockAdminUser,
+  mockStaffUser,
+  mockUser,
+  {
+    userId: 'demo-flagged-001',
+    email: 'flagged@ticketremaster.com',
+    role: 'user',
+    isFlagged: true,
+    phoneNumber: '+6512345678',
+    venueId: null,
+    createdAt: new Date().toISOString(),
+  },
+].map((user) => ({
+  userId: user.userId,
+  email: user.email,
+  role: user.role,
+  isFlagged: user.isFlagged,
+  phoneNumber: user.phoneNumber,
+  venueId: user.venueId || null,
+  createdAt: user.createdAt,
+}))
+
+const filteredUsers = computed(() => {
+  const needle = search.value.trim().toLowerCase()
+  return users.value.filter((user) => {
+    if (filter.value === 'flagged' && !user.isFlagged) return false
+    if (filter.value === 'clean' && user.isFlagged) return false
+    if (!needle) return true
+    return (
+      user.email.toLowerCase().includes(needle) ||
+      user.userId.toLowerCase().includes(needle) ||
+      (user.phoneNumber || '').toLowerCase().includes(needle)
+    )
+  })
+})
+
+const loadUsers = async () => {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await api.get('/users')
-    users.value = data || []
-  } catch (e: any) {
-    error.value = e?.response?.data?.error?.message || 'Failed to fetch users'
+    users.value = demoUsers
+    if (!isDemoMode()) {
+      toast.info('Standalone user management is currently a frontend-only preview and does not call live admin services.', 3600)
+    }
+  } catch {
+    error.value = 'Failed to prepare the preview users.'
+    if (!users.value.length) users.value = demoUsers
   } finally {
     loading.value = false
   }
 }
 
-const promoteToStaff = async (user: User) => {
-  if (!confirm(`Promote ${user.email} to staff?`)) return
+const promoteToStaff = async (user: UserRecord) => {
+  if (!window.confirm(`Promote ${user.email} to staff?`)) return
   try {
-    await api.patch(`/users/${user.userId}`, { role: 'staff' })
     user.role = 'staff'
-  } catch (e: any) {
-    alert(e?.response?.data?.error?.message || 'Failed to promote user')
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
-const demoteToUser = async (user: User) => {
-  if (!confirm(`Demote ${user.email} back to user?`)) return
+const demoteToUser = async (user: UserRecord) => {
+  if (!window.confirm(`Demote ${user.email} back to user?`)) return
   try {
-    await api.patch(`/users/${user.userId}`, { role: 'user' })
     user.role = 'user'
-  } catch (e: any) {
-    alert(e?.response?.data?.error?.message || 'Failed to demote user')
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
-const toggleFlag = async (user: User) => {
-  const action = user.isFlagged ? 'Unflag' : 'Flag'
-  if (!confirm(`${action} user ${user.email}?`)) return
+const toggleFlag = async (user: UserRecord) => {
+  const nextFlag = !user.isFlagged
+  if (!window.confirm(`${nextFlag ? 'Flag' : 'Unflag'} ${user.email}?`)) return
   try {
-    await api.patch(`/users/${user.userId}`, { isFlagged: !user.isFlagged })
-    user.isFlagged = !user.isFlagged
-  } catch (e: any) {
-    alert(e?.response?.data?.error?.message || `Failed to ${action.toLowerCase()} user`)
+    user.isFlagged = nextFlag
+    toast.push('Preview updated locally. Live admin user mutation is not enabled on this screen.', 'success', 3000)
+  } catch {
+    toast.push('Failed to update the local preview.', 'error', 3000)
   }
 }
 
-onMounted(() => {
-  fetchUsers()
-})
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString('en-SG', { year: 'numeric', month: 'short', day: 'numeric' })
+
+onMounted(loadUsers)
 </script>
 
 <template>
-  <section class="page admin-users">
-    <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:1.5rem">
-      <div>
-        <!-- <span class="badge">Admin Tools</span> -->
-        <h1 class="section-title">User Management</h1>
+  <section class="admin-users-page">
+    <header class="hero panel">
+      <span class="eyebrow">Admin Oversight</span>
+      <div class="hero-row">
+        <div>
+          <h1>User Management</h1>
+          <p>Review accounts, promote staff, and handle flagged profiles from a single control room.</p>
+        </div>
+        <button class="secondary" :disabled="loading" @click="loadUsers">Refresh</button>
       </div>
-      <button class="btn-secondary" @click="fetchUsers" :disabled="loading">
-        Refresh
-      </button>
-    </div>
+    </header>
 
-    <div v-if="loading" class="loading-state">Loading users...</div>
-    <div v-else-if="error" class="error-state">{{ error }}</div>
-    
-    <div v-else class="table-container glass">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>User ID</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr 
-            v-for="user in users" 
-            :key="user.userId"
-            :class="{ 'row-flagged': user.isFlagged }"
-          >
-            <td class="mono small">{{ user.userId.substring(0, 8) }}...</td>
-            <td>{{ user.email }}</td>
-            <td>
-              <span class="role-badge" :class="user.role">{{ user.role }}</span>
-            </td>
-            <td>
-              <div class="actions">
-                <button 
-                  v-if="user.role === 'user'" 
-                  class="btn-sm btn-outline"
-                  @click="promoteToStaff(user)"
-                >
-                  Promote to Staff
-                </button>
-                <button 
-                  v-if="user.role === 'staff'" 
-                  class="btn-sm btn-demote"
-                  @click="demoteToUser(user)"
-                >
-                  Demote to User
-                </button>
-                <button 
-                  v-if="user.role !== 'admin'"
-                  class="btn-sm" 
-                  :class="user.isFlagged ? 'btn-danger' : 'btn-warning'"
-                  @click="toggleFlag(user)"
-                >
-                  {{ user.isFlagged ? 'Unflag' : 'Flag' }}
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="users.length === 0" class="empty-state">
-        No users found.
+    <section class="toolbar panel">
+      <label class="search-field">
+        <span>Search</span>
+        <input v-model="search" placeholder="Email, phone, or user id" @keyup.enter="loadUsers" />
+      </label>
+      <div class="filter-row">
+        <button :class="{ active: filter === 'all' }" @click="filter = 'all'; loadUsers()">All</button>
+        <button :class="{ active: filter === 'flagged' }" @click="filter = 'flagged'; loadUsers()">Flagged</button>
+        <button :class="{ active: filter === 'clean' }" @click="filter = 'clean'; loadUsers()">Clean</button>
       </div>
-    </div>
+    </section>
+
+    <section class="state-shell panel preview-note">
+      This route remains available as a frontend preview only. Live admin user operations stay out of the current browser-facing API contract.
+    </section>
+
+    <div v-if="loading" class="state-shell panel">Loading users…</div>
+    <div v-else-if="error && !users.length" class="state-shell panel error">{{ error }}</div>
+
+    <section v-else class="grid-shell">
+      <article class="summary-card panel">
+        <span class="meta-label">Accounts Loaded</span>
+        <strong>{{ users.length }}</strong>
+      </article>
+      <article class="summary-card panel">
+        <span class="meta-label">Flagged Profiles</span>
+        <strong>{{ users.filter((user) => user.isFlagged).length }}</strong>
+      </article>
+      <article class="summary-card panel">
+        <span class="meta-label">Staff Accounts</span>
+        <strong>{{ users.filter((user) => user.role === 'staff').length }}</strong>
+      </article>
+    </section>
+
+    <section v-if="!loading && filteredUsers.length === 0" class="state-shell panel">
+      No users matched the current filters.
+    </section>
+
+    <section v-else class="users-grid">
+      <article v-for="user in filteredUsers" :key="user.userId" class="user-card panel" :class="{ flagged: user.isFlagged }">
+        <div class="user-head">
+          <div>
+            <h2>{{ user.email }}</h2>
+            <p>{{ user.userId }}</p>
+          </div>
+          <span class="role-pill" :class="user.role">{{ user.role }}</span>
+        </div>
+
+        <div class="user-meta">
+          <div><span class="meta-label">Created</span><strong>{{ formatDate(user.createdAt) }}</strong></div>
+          <div><span class="meta-label">Phone</span><strong>{{ user.phoneNumber || 'Not available' }}</strong></div>
+          <div><span class="meta-label">Venue</span><strong>{{ user.venueId || 'Unassigned' }}</strong></div>
+          <div><span class="meta-label">Status</span><strong>{{ user.isFlagged ? 'Flagged' : 'Normal' }}</strong></div>
+        </div>
+
+        <div class="actions">
+          <button v-if="user.role === 'user'" class="secondary" @click="promoteToStaff(user)">Promote To Staff</button>
+          <button v-if="user.role === 'staff'" class="secondary" @click="demoteToUser(user)">Demote To User</button>
+          <button v-if="user.role !== 'admin'" :class="user.isFlagged ? 'secondary' : ''" @click="toggleFlag(user)">
+            {{ user.isFlagged ? 'Unflag User' : 'Flag User' }}
+          </button>
+        </div>
+      </article>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.admin-users {
-  max-width: 1000px;
+.admin-users-page, .hero, .toolbar { display: grid; gap: 1rem; }
+.eyebrow, .meta-label {
+  font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
 }
-
-.table-container {
-  border-radius: 12px;
-  overflow: hidden;
+.eyebrow { color: var(--primary); }
+.meta-label { color: var(--text-dim); display: block; margin-bottom: .35rem; }
+.hero-row { display: flex; justify-content: space-between; gap: 1rem; align-items: start; flex-wrap: wrap; }
+.hero h1 {
+  margin: 0 0 .4rem; font-family: var(--font-display); font-size: clamp(2.6rem, 5vw, 4.6rem); line-height: .95; letter-spacing: -.05em;
 }
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.hero p { margin: 0; max-width: 40rem; color: var(--text-muted); line-height: 1.7; }
+.toolbar { grid-template-columns: minmax(0,1fr) auto; align-items: end; }
+.search-field { display: grid; gap: .35rem; }
+.search-field span { color: var(--text-dim); font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.filter-row, .actions, .hero-row { display: flex; gap: .75rem; flex-wrap: wrap; }
+.filter-row button {
+  padding: .8rem 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.03); color: var(--text-dim); font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
 }
-
-.data-table th,
-.data-table td {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.filter-row button.active { border-color: rgba(249,115,22,.4); background: rgba(249,115,22,.14); color: var(--primary); }
+.grid-shell { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+.summary-card strong { display: block; font-size: 2rem; margin-top: .3rem; }
+.state-shell { padding: 1.4rem; text-align: center; color: var(--text-muted); }
+.state-shell.error { color: #ff8f84; }
+.users-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+.user-card { display: grid; gap: 1rem; }
+.user-card.flagged { border-color: rgba(255,143,132,.22); background: rgba(120,30,24,.12); }
+.user-head { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.user-head h2 { margin: 0 0 .25rem; font-size: 1.15rem; }
+.user-head p { margin: 0; color: var(--text-muted); font-size: .82rem; word-break: break-all; }
+.role-pill {
+  width: fit-content; padding: .45rem .75rem; border-radius: 999px; background: rgba(255,255,255,.05);
+  color: var(--text); font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
 }
-
-.data-table th {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.data-table tr:last-child td {
-  border-bottom: none;
-}
-
-.data-table tbody tr {
-  transition: background-color 0.2s ease;
-}
-
-.data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.row-flagged {
-  background: rgba(239, 68, 68, 0.1) !important;
-}
-.row-flagged:hover {
-  background: rgba(239, 68, 68, 0.15) !important;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.role-badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.role-badge.admin {
-  background: rgba(168, 85, 247, 0.15);
-  color: #d8b4fe;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.role-badge.staff {
-  background: rgba(56, 189, 248, 0.15);
-  color: #7dd3fc;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-}
-
-.role-badge.user {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-sm {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.8rem;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-outline {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-}
-.btn-outline:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.btn-demote {
-  background: rgba(56, 189, 248, 0.1);
-  color: #7dd3fc;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-}
-.btn-demote:hover {
-  background: rgba(56, 189, 248, 0.2);
-}
-
-.btn-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fcd34d;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-.btn-warning:hover {
-  background: rgba(245, 158, 11, 0.25);
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-.loading-state,
-.error-state,
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
-}
-
-.error-state {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.1);
+.role-pill.admin { color: #f3c57c; }
+.role-pill.staff { color: #87c9ff; }
+.role-pill.user { color: var(--text-muted); }
+.user-meta { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; padding-top: .5rem; border-top: 1px solid rgba(255,255,255,.05); }
+.user-meta strong { display: block; }
+@media (max-width: 980px) {
+  .toolbar, .grid-shell, .users-grid, .user-meta { grid-template-columns: 1fr; }
 }
 </style>

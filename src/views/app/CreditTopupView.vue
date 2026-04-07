@@ -1,34 +1,42 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import { loadStripe, type Stripe, type StripeElements, type StripeCardElement } from '@stripe/stripe-js'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { loadStripe, type Stripe, type StripeCardElement, type StripeElements } from '@stripe/stripe-js'
+import { CreditCardIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { isDemoMode } from '@/services/mockData'
+import { useAuthStore } from '@/stores/auth'
+import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const balance = ref(0)
 const amount = ref(100)
 const loading = ref(false)
 const result = ref('')
 const resultIsError = ref(false)
+const transactions = ref<any[]>([])
 
-// Stripe refs (live mode only)
 const stripe = ref<Stripe | null>(null)
 const elements = ref<StripeElements | null>(null)
 const card = ref<StripeCardElement | null>(null)
 const cardMount = ref<HTMLDivElement | null>(null)
 const stripeReady = ref(false)
+const demoMode = computed(() => isDemoMode())
+const auth = useAuthStore()
 
-const demo = isDemoMode()
+const cardholderName = ref('ALEX VANCE')
+const expiry = ref('')
+const cvc = ref('')
 
-const QUICK_AMOUNTS = [50, 100, 200, 500]
+const quickAmounts = [25, 50, 100]
 
-const formattedBalance = (val: number) => `SGD ${val.toFixed(2)}`
+const formattedBalance = computed(() => `$${balance.value.toFixed(2)}`)
 
 const loadBalance = async () => {
-  if (demo) {
+  if (demoMode.value) {
     const stored = sessionStorage.getItem('demo_balance')
     balance.value = stored !== null ? parseFloat(stored) : 500
     return
   }
+
   try {
     const { data } = await api.get('/credits/balance')
     balance.value = data?.data?.creditBalance || 0
@@ -38,114 +46,178 @@ const loadBalance = async () => {
   }
 }
 
+const mapLedgerItem = (item: any) => {
+  const rawAmount = typeof item.delta === 'number' ? item.delta : typeof item.amount === 'number' ? item.amount : 0
+  const positive = rawAmount >= 0
+  const title =
+    item.title ||
+    (item.reason === 'topup'
+      ? 'Top-up Successful'
+      : item.reason === 'ticket_purchase'
+      ? `Ticket Purchase${item.eventName ? `: ${item.eventName}` : ''}`
+      : 'Account Activity')
+  const meta =
+    item.meta ||
+    (item.createdAt
+      ? new Date(item.createdAt).toLocaleString('en-SG', { dateStyle: 'medium', timeStyle: 'short' })
+      : 'Ledger entry')
+
+  return {
+    id: item.id || item.transactionId || title,
+    title,
+    meta,
+    positive,
+    amountLabel: `${positive ? '+' : '-'}$${Math.abs(rawAmount).toFixed(2)}`,
+  }
+}
+
+const loadTransactions = async () => {
+  if (demoMode.value) {
+    transactions.value = [
+      mapLedgerItem({ id: 'demo-ledger-001', title: 'Top-up Successful', meta: 'Visa •••• 4242', delta: 100 }),
+      mapLedgerItem({ id: 'demo-ledger-002', title: 'Ticket Purchase: Neo-Tokyo Live', meta: 'Dec 20, 2023 • Event ID #8841', delta: -450 }),
+    ]
+    return
+  }
+
+  try {
+    const { data } = await api.get('/credits/transactions', { params: { page: 1, limit: 5 } })
+    const items = data?.data?.transactions || data?.data || []
+    transactions.value = items.map(mapLedgerItem)
+  } catch {
+    transactions.value = []
+  }
+}
+
 const initStripe = async () => {
-  if (demo) return
+  if (demoMode.value) return
+
   const publishableKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || ''
   if (!publishableKey) {
     result.value = 'Stripe public key is missing.'
     resultIsError.value = true
     return
   }
+
   stripe.value = await loadStripe(publishableKey)
   if (!stripe.value) {
     result.value = 'Unable to initialize Stripe.'
     resultIsError.value = true
     return
   }
+
   elements.value = stripe.value.elements()
   card.value = elements.value.create('card', {
     style: {
       base: {
         color: '#f6f6f7',
-        fontFamily: 'Inter, -apple-system, sans-serif',
+        fontFamily: 'Plus Jakarta Sans, sans-serif',
         fontSize: '15px',
         '::placeholder': { color: '#8e8e96' },
       },
     },
   })
+
   if (cardMount.value) {
     card.value.mount(cardMount.value)
     stripeReady.value = true
   }
 }
 
-// Demo mode: simulate top-up
+const pushDemoLedger = () => {
+  transactions.value.unshift(
+    mapLedgerItem({
+      id: `demo-ledger-${Date.now()}`,
+      title: 'Top-up Successful',
+      meta: 'Simulated wallet top-up',
+      delta: amount.value,
+    }),
+  )
+}
+
 const simulateTopUp = async () => {
   if (amount.value <= 0) {
     result.value = 'Amount must be positive.'
     resultIsError.value = true
     return
   }
+
   loading.value = true
   result.value = ''
   resultIsError.value = false
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 900))
+
   const current = parseFloat(sessionStorage.getItem('demo_balance') || '500')
   const newBalance = current + amount.value
   sessionStorage.setItem('demo_balance', String(newBalance))
   balance.value = newBalance
-  result.value = `SGD ${amount.value.toFixed(2)} added. New balance: ${formattedBalance(newBalance)}`
-  resultIsError.value = false
+  pushDemoLedger()
+  result.value = `${amount.value.toFixed(2)} credits added. New balance: $${newBalance.toFixed(2)}`
   loading.value = false
 }
 
-// Live mode: Stripe top-up
 const createTopUp = async () => {
   if (amount.value <= 0) {
     result.value = 'Amount must be positive.'
     resultIsError.value = true
     return
   }
+
   loading.value = true
   result.value = ''
   resultIsError.value = false
+
   try {
     const { data } = await api.post('/credits/topup/initiate', { amount: amount.value })
     const clientSecret = data?.data?.clientSecret
     const paymentIntentId = data?.data?.paymentIntentId
+
     if (!clientSecret) {
       result.value = 'No client secret returned.'
       resultIsError.value = true
       return
     }
+
     if (!stripe.value || !card.value) {
       result.value = 'Stripe is not ready.'
       resultIsError.value = true
       return
     }
+
     const confirmation = await stripe.value.confirmCardPayment(clientSecret, {
-      payment_method: { card: card.value },
+      payment_method: {
+        card: card.value,
+        billing_details: {
+          name: cardholderName.value,
+        },
+      },
     })
+
     if (confirmation.error) {
       result.value = confirmation.error.message || 'Card payment failed.'
       resultIsError.value = true
       return
     }
+
     if (confirmation.paymentIntent?.status === 'succeeded') {
       await api.post('/credits/topup/confirm', { paymentIntentId })
-      result.value = `Top up of SGD ${amount.value.toFixed(2)} succeeded.`
-      resultIsError.value = false
-      await loadBalance()
+      result.value = `Top-up of $${amount.value.toFixed(2)} succeeded.`
+      await Promise.all([loadBalance(), loadTransactions()])
     } else {
       result.value = `Payment status: ${confirmation.paymentIntent?.status || 'unknown'}`
       resultIsError.value = true
     }
-  } catch (e: any) {
-    const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
-    if (code === 'VALIDATION_ERROR') {
-      result.value = 'Amount must be positive.'
-    } else {
-      result.value = 'Payment initiation failed.'
-    }
+  } catch {
+    result.value = 'Payment initiation failed.'
     resultIsError.value = true
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  loadBalance()
-  initStripe()
+onMounted(async () => {
+  await Promise.all([loadBalance(), loadTransactions()])
+  void initStripe()
 })
 
 onUnmounted(() => {
@@ -154,121 +226,544 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="page" style="max-width:760px;">
-    <article class="glass" style="padding:1.2rem;display:grid;gap:.9rem;">
-      <h1 class="section-title">Credit Top Up</h1>
+  <section class="page credits-page">
+    <header class="credits-header">
+      <h1>Account <span>Credits</span></h1>
+    </header>
 
-      <!-- Balance -->
-      <article class="panel" style="padding:.8rem;display:grid;gap:.3rem;">
-        <p class="small">Current Balance</p>
-        <p style="font-size:1.4rem;font-weight:700;">{{ formattedBalance(balance) }}</p>
-      </article>
+    <div class="credits-layout">
+      <AccountSidebar active-key="credits" />
 
-      <!-- Demo mode badge -->
-      <div v-if="demo" class="demo-pill small">
-        🎭 Demo Mode — no real charges
-      </div>
+      <div class="credits-content">
+        <article class="glass balance-card">
+          <div>
+            <span class="card-label">Current Balance</span>
+            <div
+              class="balance-value"
+              style="background: linear-gradient(135deg, #f97316, #ff7a23); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text"
+            >{{ formattedBalance }}</div>
+          </div>
 
-      <!-- Quick amount buttons -->
-      <div>
-        <label>Quick Select</label>
-        <div class="row">
+          <div class="balance-meta">
+            <span class="last-active">Last active {{ demoMode ? 'in demo mode' : 'moments ago' }}</span>
+            <div class="status-pill">
+              <span class="dot"></span>
+              <span>{{ demoMode ? 'Offline Demo Wallet' : 'Secured Obsidian Vault' }}</span>
+            </div>
+          </div>
+        </article>
+
+        <section class="credits-section">
+          <h2>Select Top-up Amount</h2>
+
+          <div class="quick-grid">
+            <button
+              v-for="quickAmount in quickAmounts"
+              :key="quickAmount"
+              class="amount-card"
+              :class="{ active: amount === quickAmount }"
+              style="border-radius: 0.75rem"
+              @click="amount = quickAmount"
+            >
+              <span>${{ quickAmount }}</span>
+            </button>
+
+            <label class="amount-card custom-card" style="border-radius: 0.75rem">
+              <span class="custom-label">Custom</span>
+              <div class="custom-input">
+                <strong>$</strong>
+                <input v-model.number="amount" type="number" min="1" placeholder="0.00" />
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <section class="glass payment-card">
+          <div class="payment-heading">
+            <CreditCardIcon class="heading-icon" />
+            <h2>Payment Method</h2>
+          </div>
+
+          <div class="payment-grid">
+            <div class="field-stack">
+              <label>Cardholder Name</label>
+              <input v-model="cardholderName" placeholder="ALEXANDER VANCE" :readonly="demoMode" />
+            </div>
+
+            <div class="field-stack">
+              <label>Secure Card Entry</label>
+              <div v-if="demoMode" class="card-field-demo">
+                <input value="•••• •••• •••• 4242" disabled class="card-field-input" />
+                <span class="visa-badge">VISA</span>
+              </div>
+              <div v-else ref="cardMount" class="card-mount"></div>
+            </div>
+
+            <div class="field-stack">
+              <label>Expiry Date</label>
+              <input v-model="expiry" placeholder="MM / YY" :readonly="!demoMode" />
+            </div>
+
+            <div class="field-stack">
+              <label>CVC</label>
+              <input v-model="cvc" placeholder="•••" :readonly="!demoMode" />
+            </div>
+          </div>
+
+          <p class="secure-note">
+            {{ demoMode ? 'Use the simulated flow to test wallet updates and seeded balances.' : 'Payments are encrypted and processed securely via the live credit pipeline.' }}
+          </p>
+
           <button
-            v-for="q in QUICK_AMOUNTS"
-            :key="q"
-            class="secondary"
-            :class="{ 'amount-active': amount === q }"
-            @click="amount = q"
+            class="complete-button"
+            style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%); border-radius: 999px; width: min(100%, 20rem); justify-self: center; padding-block: 0.95rem; box-shadow: 0 10px 30px rgba(249,115,22,0.3); border: 0; color: #fff; font-weight: 800"
+            :disabled="loading || amount <= 0 || (!demoMode && !stripeReady)"
+            @click="demoMode ? simulateTopUp() : createTopUp()"
           >
-            SGD {{ q }}
+            {{ loading ? 'Processing...' : demoMode ? 'Simulate Top-up' : 'Complete Top-up' }}
           </button>
-        </div>
+
+          <p class="compliance-note">PCI-DSS compliant infrastructure</p>
+
+          <p v-if="result" class="result-msg" :class="{ error: resultIsError, success: !resultIsError }">{{ result }}</p>
+        </section>
+
+        <section class="ledger-card">
+          <div class="ledger-head">
+            <h2>Recent Ledger</h2>
+            <button class="activity-link" type="button">View All Activity</button>
+          </div>
+
+          <div v-if="transactions.length === 0" class="ledger-empty">No ledger activity yet.</div>
+
+          <article v-for="item in transactions" v-else :key="item.id" class="ledger-row" style="transition: background-color 0.2s; cursor: default">
+            <div class="ledger-icon" :class="{ positive: item.positive, negative: !item.positive }">
+              <span>{{ item.positive ? '+' : '−' }}</span>
+            </div>
+
+            <div class="ledger-copy">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.meta }}</span>
+            </div>
+
+            <span class="ledger-amount" :class="{ positive: item.positive, negative: !item.positive }">{{ item.amountLabel }}</span>
+          </article>
+        </section>
       </div>
-
-      <!-- Custom amount -->
-      <div>
-        <label>Custom Amount (SGD)</label>
-        <input v-model.number="amount" min="1" type="number" placeholder="Enter amount" />
-      </div>
-
-      <!-- Demo: Simulate Top Up button -->
-      <template v-if="demo">
-        <button :disabled="loading || amount <= 0" @click="simulateTopUp">
-          {{ loading ? 'Processing...' : `Simulate Top Up — SGD ${amount}` }}
-        </button>
-      </template>
-
-      <!-- Live: Stripe card element + pay button -->
-      <template v-else>
-        <div>
-          <label>Card Details</label>
-          <div
-            ref="cardMount"
-            class="card-mount"
-          ></div>
-        </div>
-        <button :disabled="loading || !stripeReady || amount <= 0" @click="createTopUp">
-          {{ loading ? 'Processing...' : `Pay SGD ${amount} with Card` }}
-        </button>
-      </template>
-
-      <!-- Result message -->
-      <p
-        v-if="result"
-        class="small result-msg"
-        :class="{ 'result-error': resultIsError, 'result-success': !resultIsError }"
-      >
-        {{ result }}
-      </p>
-    </article>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.demo-pill {
+.credits-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.credits-header {
+  text-align: center;
+}
+
+.credits-header h1 {
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.9rem, 7vw, 4.6rem);
+  font-weight: 800;
+  letter-spacing: -0.08em;
+}
+
+.credits-header span {
+  color: var(--primary);
+}
+
+.credits-layout {
+  display: grid;
+  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.credits-content {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.balance-card,
+.payment-card {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(34, 31, 30, 0.84);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.balance-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at right top, rgba(249, 115, 22, 0.16), transparent 34%),
+    rgba(34, 31, 30, 0.84);
+}
+
+.card-label {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.balance-value {
+  margin-top: 0.45rem;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.6rem, 6vw, 4.3rem);
+  font-weight: 800;
+  letter-spacing: -0.08em;
+  background: linear-gradient(135deg, #f97316, #ff7a23);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.balance-meta {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+}
+
+.last-active {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.status-pill {
   display: inline-flex;
   align-items: center;
-  gap: .4rem;
-  padding: .3rem .75rem;
+  gap: 0.45rem;
+  padding: 0.45rem 0.75rem;
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #37d080;
+  box-shadow: 0 0 12px rgba(55, 208, 128, 0.65);
+}
+
+.credits-section {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.credits-section h2,
+.payment-heading h2,
+.ledger-head h2 {
+  font-size: 1.15rem;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.amount-card {
+  min-height: 5.5rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.amount-card span {
+  font-size: 1.2rem;
+}
+
+.amount-card.active {
+  border-color: rgba(249, 115, 22, 0.34);
   background: rgba(249, 115, 22, 0.12);
-  border: 1px solid rgba(249, 115, 22, 0.3);
-  color: var(--accent-2);
-  width: fit-content;
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.18), 0 0 24px rgba(249, 115, 22, 0.12);
 }
 
+.custom-card {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+}
+
+.custom-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.custom-input {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.custom-input strong {
+  color: var(--primary);
+}
+
+.custom-input input {
+  width: 4.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.payment-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.payment-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.heading-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--textMuted);
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.field-stack {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field-stack input,
+.card-placeholder,
 .card-mount {
-  padding: .65rem .85rem;
-  border: 1px solid var(--border);
-  border-radius: .75rem;
-  background: var(--surface-2);
-  transition: border-color 0.2s ease;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.card-mount:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+.card-placeholder,
+.card-mount {
+  min-height: 3.35rem;
+  display: grid;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  color: var(--textMuted);
 }
 
-.amount-active {
-  border-color: var(--accent) !important;
-  color: var(--accent) !important;
+.card-field-demo {
+  position: relative;
+}
+
+.card-field-input {
+  width: 100%;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.9rem 1rem;
+  color: var(--textMuted);
+}
+
+.visa-badge {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.secure-note {
+  color: var(--textMuted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.complete-button {
+  width: min(100%, 20rem);
+  justify-self: center;
+  border-radius: 999px;
+  padding-block: 0.95rem;
+  background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+  border: 0;
+  color: #fff;
+  font-weight: 800;
+}
+
+.compliance-note {
+  justify-self: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .result-msg {
-  padding: .5rem .75rem;
-  border-radius: .6rem;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
 }
 
-.result-success {
-  color: var(--success);
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+.result-msg.success {
+  color: #37d080;
+  background: rgba(55, 208, 128, 0.08);
+  border: 1px solid rgba(55, 208, 128, 0.16);
 }
 
-.result-error {
-  color: var(--accent);
-  background: rgba(249, 115, 22, 0.08);
-  border: 1px solid rgba(249, 115, 22, 0.2);
+.result-msg.error {
+  color: #ff8f84;
+  background: rgba(255, 143, 132, 0.08);
+  border: 1px solid rgba(255, 143, 132, 0.16);
+}
+
+.ledger-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ledger-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.activity-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primarySoft);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.activity-link:hover {
+  transform: none;
+  filter: none;
+}
+
+.ledger-empty,
+.ledger-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ledger-row {
+  transition: background-color 0.2s;
+  cursor: default;
+}
+
+.ledger-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ledger-empty {
+  grid-template-columns: 1fr;
+  color: var(--textMuted);
+}
+
+.ledger-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.ledger-icon.positive {
+  background: rgba(55, 208, 128, 0.12);
+  color: #37d080;
+}
+
+.ledger-icon.negative {
+  background: rgba(255, 95, 95, 0.12);
+  color: #ff5f5f;
+}
+
+.ledger-copy strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.ledger-copy span {
+  color: var(--textMuted);
+  font-size: 0.78rem;
+}
+
+.ledger-amount {
+  font-weight: 800;
+}
+
+.ledger-amount.positive {
+  color: #37d080;
+}
+
+.ledger-amount.negative {
+  color: var(--text);
+}
+
+@media (max-width: 980px) {
+  .credits-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-grid,
+  .payment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .balance-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .balance-meta {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .ledger-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .ledger-amount {
+    grid-column: 2;
+  }
 }
 </style>

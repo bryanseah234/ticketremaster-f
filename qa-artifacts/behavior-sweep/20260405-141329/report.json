@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-04-05T06:13:29Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "results": [
+    {
+      "flow": "guest-search",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/events?search=Taylor",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\guest-search.png"
+    },
+    {
+      "flow": "guest-event-detail",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/events/demo-event-001",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\guest-event-detail.png"
+    },
+    {
+      "flow": "user-login",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/events",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-login.png"
+    },
+    {
+      "flow": "user-seat-reserve",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/events/demo-event-001/seats",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-seat-reserve.png"
+    },
+    {
+      "flow": "user-checkout",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/checkout/demo-inv-001",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-checkout.png"
+    },
+    {
+      "flow": "user-tickets",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/tickets",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-tickets.png"
+    },
+    {
+      "flow": "user-transfer",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/transfer/demo-transfer-001",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-transfer.png"
+    },
+    {
+      "flow": "user-profile",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/profile",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\user-profile.png"
+    },
+    {
+      "flow": "admin-create-event",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/admin/events/new",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\admin-create-event.png"
+    },
+    {
+      "flow": "admin-users",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/admin/users",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\admin-users.png"
+    },
+    {
+      "flow": "staff-manual-verify",
+      "status": "passed",
+      "url": "http://127.0.0.1:3000/staff/scan",
+      "screenshot": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots\\staff-manual-verify.png"
+    }
+  ],
+  "summary": {
+    "flows": 11,
+    "passed": 11,
+    "failed": 0,
+    "reportPath": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\report.json",
+    "screenshotsDir": "C:\\ticketremaster\\ticketremaster-f\\qa-artifacts\\behavior-sweep\\20260405-141329\\screenshots"
+  }
+}

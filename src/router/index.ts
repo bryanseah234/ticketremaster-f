@@ -5,6 +5,7 @@ interface RouteMeta {
   requiresAuth?: boolean
   requiresAdmin?: boolean
   requiresStaff?: boolean
+  disallowStaff?: boolean
   title?: string
   subtitle?: string
   sections?: Array<{ heading: string; body: string }>
@@ -25,6 +26,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/demo-login', component: () => import('@/views/app/DemoLoginView.vue') },
   { path: '/register', component: () => import('@/views/app/RegisterView.vue') },
   { path: '/verify', component: () => import('@/views/app/VerifyView.vue') },
+  { path: '/verify/success', component: () => import('@/views/app/VerificationSuccessView.vue') },
   { path: '/design', component: () => import('@/views/app/DesignSystemView.vue') },
   {
     path: '/about',
@@ -79,33 +81,7 @@ const routes: RouteRecordRaw[] = [
       ],
     },
   },
-  {
-    path: '/help',
-    component: () => import('@/views/app/InfoPageView.vue'),
-    props: {
-      title: 'Help Center',
-      subtitle:
-        'Get support for buying, selling, and managing tickets.',
-      sections: [
-        {
-          heading: 'Buying tickets',
-          body: 'Browse events, select seats, and check out securely using credits or card top-up.',
-        },
-        {
-          heading: 'Selling tickets',
-          body: 'List verified tickets and manage resale offers with protected transfers.',
-        },
-        {
-          heading: 'Account access',
-          body: 'Use your email and phone to sign in, verify, and manage ticket ownership.',
-        },
-        {
-          heading: 'Payments and refunds',
-          body: 'We process secure payments and issue fast refunds if a listing cannot be fulfilled.',
-        },
-      ],
-    },
-  },
+  { path: '/help', component: () => import('@/views/app/SupportCenterView.vue') },
   { path: '/resale-guarantees', component: () => import('@/views/app/ResaleGuaranteesView.vue') },
   {
     path: '/terms',
@@ -168,7 +144,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/checkout/:orderId',
     component: () => import('@/views/app/CheckoutView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/tickets',
@@ -183,24 +159,34 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/transfer/initiate',
     component: () => import('@/views/app/TransferInitiateView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/transfer/:transferId',
     component: () => import('@/views/app/TransferConfirmView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
   },
   {
     path: '/credits/topup',
     component: () => import('@/views/app/CreditTopupView.vue'),
-    meta: { requiresAuth: true } as RouteMeta,
+    meta: { requiresAuth: true, disallowStaff: true } as RouteMeta,
   },
   {
     path: '/profile',
     component: () => import('@/views/app/ProfileView.vue'),
     meta: { requiresAuth: true } as RouteMeta,
   },
+  {
+    path: '/notifications',
+    component: () => import('@/views/app/NotificationsView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
+  },
   { path: '/marketplace', component: () => import('@/views/app/MarketplaceView.vue') },
-  { path: '/ticket-qr/:qrHash', component: () => import('@/views/app/TicketQrView.vue') },
+  {
+    path: '/ticket-qr/:qrHash',
+    component: () => import('@/views/app/TicketQrView.vue'),
+    meta: { requiresAuth: true } as RouteMeta,
+  },
   {
     path: '/staff/scan',
     component: () => import('@/views/app/StaffScannerView.vue'),
@@ -238,6 +224,7 @@ router.beforeEach((to) => {
   if (meta.requiresAuth && !auth.isLoggedIn) return '/login'
   if (meta.requiresAdmin && !auth.isAdmin) return '/events'
   if (meta.requiresStaff && !auth.isStaff) return '/events'
+  if (meta.disallowStaff && auth.isStaff) return '/events'
   return true
 })
 
