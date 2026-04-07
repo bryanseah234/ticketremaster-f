@@ -450,6 +450,7 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(26, 25, 25, 0.84);
   backdrop-filter: blur(20px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18);
 }
 
 .payment-card {
@@ -460,8 +461,9 @@ onUnmounted(() => {
 .payment-card h2,
 .order-card h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .wallet-panel {
@@ -609,6 +611,12 @@ onUnmounted(() => {
   color: #fff;
 }
 
+.confirm-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .cancel-button {
   width: 100%;
 }
@@ -686,6 +694,7 @@ onUnmounted(() => {
 .order-copy strong {
   font-size: 1rem;
   font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .order-copy-price {

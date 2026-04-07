@@ -8,16 +8,77 @@ import {
   ClockIcon,
 } from '@heroicons/vue/24/outline'
 import { useSellerNotifications } from '@/composables/useSellerNotifications'
+import { isDemoMode } from '@/services/mockData'
 
 const { notifications, checkNotifications, dismiss } = useSellerNotifications()
 
 // Normalize notifications: handle both real Vue computed refs and plain mock objects
-const notifList = computed<any[]>(() => {
+const liveNotifications = computed<any[]>(() => {
   if (isRef(notifications)) return (notifications as any).value
   const n = notifications as any
   if (Array.isArray(n?.value)) return n.value
   if (Array.isArray(n)) return n
   return []
+})
+
+const seededNotifications = [
+  {
+    transferId: 'demo-transfer-001',
+    creditAmount: 180,
+    createdAt: new Date(Date.now() - 2 * 60_000).toISOString(),
+    type: 'transfer_request',
+    title: 'Transfer Request',
+    body: 'Alex wants to transfer 2 VIP passes for Neon Nights to your wallet.',
+    primaryLabel: 'Open transfer',
+    primaryTo: '/transfer/demo-transfer-001',
+    secondaryLabel: 'Dismiss',
+  },
+  {
+    transferId: 'demo-topup-success',
+    creditAmount: 500,
+    createdAt: new Date(Date.now() - 45 * 60_000).toISOString(),
+    type: 'topup_success',
+    title: 'Top-up Success',
+    body: 'Your account has been credited with 500.00 Credits. Transaction #TR-9902 is complete.',
+    primaryLabel: null,
+    primaryTo: null,
+    secondaryLabel: 'Dismiss',
+  },
+  {
+    transferId: 'demo-ticket-sold',
+    creditAmount: 349.99,
+    createdAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+    type: 'ticket_sold',
+    title: 'Ticket Sold',
+    body: 'Great news! Your listing for Underground Bass Festival was purchased by a verified buyer.',
+    primaryLabel: null,
+    primaryTo: null,
+    secondaryLabel: 'Dismiss',
+  },
+  {
+    transferId: 'demo-hold-expiring',
+    creditAmount: 0,
+    createdAt: new Date(Date.now() - 5 * 60 * 60_000).toISOString(),
+    type: 'hold_expiring',
+    title: 'Hold Expiring Soon',
+    body: 'Your reservation for The Opera Gala expires in 15 minutes. Complete checkout now.',
+    primaryLabel: 'Checkout now',
+    primaryTo: '/checkout/demo-inv-001',
+    secondaryLabel: null,
+  },
+]
+
+const notifList = computed<any[]>(() => {
+  if (isDemoMode()) return seededNotifications
+  return liveNotifications.value.map((item) => ({
+    ...item,
+    type: (item as any).type || 'transfer_request',
+    title: 'Transfer Request',
+    body: `A transfer request is waiting for review. Credits involved: $${Number(item.creditAmount || 0).toFixed(2)}.`,
+    primaryLabel: 'Open transfer',
+    primaryTo: `/transfer/${item.transferId}`,
+    secondaryLabel: 'Dismiss',
+  }))
 })
 
 onMounted(() => {
@@ -60,19 +121,14 @@ function formatRelativeTime(isoString: string): string {
 
 <template>
   <section class="page notifications-page">
-    <div class="page-head">
-      <div>
-        <span class="badge">Notifications</span>
-        <h1 class="section-title">Stay on top of transfer requests and account activity.</h1>
-        <p class="section-subtitle">Review pending seller actions and jump directly into the related transfer flow.</p>
-      </div>
-      <button class="secondary" @click="checkNotifications">Refresh</button>
-    </div>
+    <header class="notifications-header">
+      <h1>Notifications</h1>
+      <button class="ghost-refresh" type="button" @click="checkNotifications">Refresh</button>
+    </header>
 
     <article v-if="notifList.length === 0" class="glass empty-state">
-      <span class="badge">All clear</span>
       <h2>No pending notifications</h2>
-      <p class="small muted">You'll see transfer requests and seller-related activity appear here.</p>
+      <p class="small muted">You’ll see transfer requests and account activity appear here.</p>
     </article>
 
     <div v-else class="notification-list">
@@ -97,19 +153,18 @@ function formatRelativeTime(isoString: string): string {
           <!-- Clause 1.19: notification-header with timestamp -->
           <div class="notification-header">
             <!-- Clause 1.17: type-aware badge label -->
-            <span class="badge">{{ getNotificationMeta((item as any).type).label }}</span>
+            <span class="notification-chip">{{ getNotificationMeta((item as any).type).label }}</span>
             <span class="notification-timestamp">{{ formatRelativeTime(item.createdAt) }}</span>
           </div>
 
           <div class="notification-main">
-            <h2>{{ getNotificationMeta((item as any).type).label }}</h2>
-            <p class="small muted">Transfer ID: {{ item.transferId }}</p>
-            <p class="small muted">Credits involved: ${{ item.creditAmount }}</p>
+            <h2>{{ item.title || getNotificationMeta((item as any).type).label }}</h2>
+            <p class="small muted">{{ item.body }}</p>
           </div>
 
           <div class="notification-actions">
-            <RouterLink :to="`/transfer/${item.transferId}`"><button>Open transfer</button></RouterLink>
-            <button class="secondary" @click="dismiss(item.transferId)">Dismiss</button>
+            <RouterLink v-if="item.primaryLabel && item.primaryTo" :to="item.primaryTo"><button>{{ item.primaryLabel }}</button></RouterLink>
+            <button v-if="item.secondaryLabel" class="secondary" @click="dismiss(item.transferId)">{{ item.secondaryLabel }}</button>
           </div>
         </div>
       </article>
@@ -120,25 +175,48 @@ function formatRelativeTime(isoString: string): string {
 <style scoped>
 .notifications-page {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.page-head {
+.notifications-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
 }
 
-.empty-state {
-  padding: 1.4rem;
-  display: grid;
-  gap: 0.8rem;
+.notifications-header h1 {
+  margin: 0;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.08em;
 }
 
-/* Clause 1.16: position relative + overflow hidden for accent bar */
-/* Clause 1.18: flex layout for icon avatar shell */
+.ghost-refresh {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--textMuted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ghost-refresh:hover {
+  transform: none;
+  filter: none;
+  color: var(--primarySoft);
+}
+
+.empty-state {
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
 .notification-card {
   padding: 1.4rem 1.4rem 1.4rem 1.8rem;
   position: relative;
@@ -148,7 +226,6 @@ function formatRelativeTime(isoString: string): string {
   align-items: flex-start;
 }
 
-/* Clause 1.16: left-edge accent bar */
 .notification-accent-bar {
   position: absolute;
   left: 0;
@@ -159,7 +236,6 @@ function formatRelativeTime(isoString: string): string {
   border-radius: 999px 0 0 999px;
 }
 
-/* Clause 1.18: icon avatar shell */
 .icon-avatar-shell {
   width: 3rem;
   height: 3rem;
@@ -183,7 +259,6 @@ function formatRelativeTime(isoString: string): string {
   min-width: 0;
 }
 
-/* Clause 1.19: notification header with timestamp */
 .notification-header {
   display: flex;
   justify-content: space-between;
@@ -191,7 +266,19 @@ function formatRelativeTime(isoString: string): string {
   gap: 0.5rem;
 }
 
-/* Clause 1.19: styled timestamp label */
+.notification-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.78rem;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--primarySoft);
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .notification-timestamp {
   font-size: 0.68rem;
   font-weight: 700;
@@ -209,17 +296,30 @@ function formatRelativeTime(isoString: string): string {
 
 .notification-main {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.4rem;
 }
 
 .notification-main h2 {
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
   font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .notification-actions {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .notification-card {
+    padding: 1.1rem 1.1rem 1.1rem 1.4rem;
+  }
+
+  .notification-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
-import { MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/vue/24/outline'
+import { MagnifyingGlassIcon, ArrowRightIcon, ChatBubbleLeftRightIcon, CreditCardIcon, LockClosedIcon, TicketIcon } from '@heroicons/vue/24/outline'
 
 const supportCards = [
   {
-    title: 'Buying tickets',
-    body: 'Browse events, compare listings, reserve seats, and complete checkout with credits in a single flow.',
+    title: 'Ticket Troubleshooting',
+    body: 'Issues with barcode scanning, wallet delivery, or ticket downloads? Start with the most common fixes here.',
+    cta: 'View Solutions',
+    icon: TicketIcon,
   },
   {
-    title: 'Transfers and resale',
-    body: 'Manage seller acceptance, OTP checks, and protected resale with clear status updates for both parties.',
+    title: 'Payments & Credits',
+    body: 'Manage billing history, pending credits, and top-up questions without leaving the editorial flow.',
+    cta: 'Manage Billing',
+    icon: CreditCardIcon,
   },
   {
-    title: 'Account and verification',
-    body: 'Register, verify your phone number, and recover access without leaving the app experience.',
-  },
-  {
-    title: 'Payments and top-ups',
-    body: 'Use secure top-up and purchase flows with clear feedback around balance, holds, and payment status.',
+    title: 'Account Security',
+    body: 'Update your profile, verify access, and recover your account with the same security-first system used in live mode.',
+    cta: 'Security Settings',
+    icon: LockClosedIcon,
   },
 ]
 
@@ -52,49 +53,55 @@ const faqItems = [
   <section class="page support-page">
     <article class="support-hero glass">
       <div class="support-copy">
-        <span class="badge">Support Center</span>
         <h1 class="support-title">
           <span class="support-title-accent">Support</span>
           <span>Center</span>
         </h1>
         <p class="section-subtitle">
-          Find guidance for booking tickets, verifying accounts, resolving transfer issues, and getting event-day support.
+          Everything you need to manage your tickets, marketplace transactions, and account security in one place.
         </p>
         <div class="support-search-wrap">
           <MagnifyingGlassIcon class="search-icon" />
-          <input type="search" class="support-search" placeholder="Search for help topics..." />
+          <input type="search" class="support-search" placeholder="Search for help..." />
         </div>
-      </div>
-      <div class="support-actions">
-        <RouterLink to="/events"><button>Browse Events</button></RouterLink>
-        <RouterLink to="/marketplace"><button class="secondary">Open Marketplace</button></RouterLink>
       </div>
     </article>
 
     <div class="support-bento">
-      <!-- Featured card: Contact Concierge -->
       <article class="support-card-featured panel">
         <div class="featured-overlay" aria-hidden="true"></div>
         <div class="featured-content">
-          <span class="badge">Contact Concierge</span>
-          <h2 class="featured-heading">Get personal support from our team</h2>
-          <p class="featured-body">Our concierge team handles payment disputes, transfer issues, and event-day emergencies with priority response.</p>
+          <span class="priority-chip"><span class="priority-dot"></span>Priority Support</span>
+          <h2 class="featured-heading">Contact Concierge</h2>
+          <p class="featured-body">Our premium support team is available 24/7 to assist with complex transfers, large orders, and exclusive event access.</p>
+          <button class="featured-button" type="button">
+            Start Chat
+            <ChatBubbleLeftRightIcon class="featured-button-icon" />
+          </button>
         </div>
       </article>
 
-      <!-- Topic cards -->
       <article v-for="card in supportCards" :key="card.title" class="support-card-topic panel">
-        <div class="icon-avatar-shell" aria-hidden="true"></div>
-        <span class="badge">{{ card.title }}</span>
+        <div class="icon-avatar-shell" aria-hidden="true">
+          <component :is="card.icon" class="topic-icon" />
+        </div>
+        <h3>{{ card.title }}</h3>
         <p>{{ card.body }}</p>
-        <button class="card-arrow-link" type="button" aria-label="Learn more">
+        <button class="card-arrow-link" type="button" :aria-label="card.cta">
+          {{ card.cta }}
           <ArrowRightIcon class="arrow-icon" />
         </button>
       </article>
     </div>
 
     <section class="faq-section">
-      <h2 class="faq-heading">Common Questions</h2>
+      <div class="faq-head">
+        <div>
+          <h2 class="faq-heading">Common Questions</h2>
+          <p class="faq-subhead">The fastest way to get back to the show.</p>
+        </div>
+        <button class="faq-link" type="button">View Full FAQ</button>
+      </div>
       <div
         v-for="(item, i) in faqItems"
         :key="i"
@@ -111,7 +118,6 @@ const faqItems = [
 
     <article class="glass contact-panel">
       <div>
-        <span class="badge">Need more help?</span>
         <h2>Contact TicketRemaster support</h2>
         <p class="small muted">Our support team can help with payment issues, transfer disputes, and event-day access questions.</p>
       </div>
@@ -132,12 +138,12 @@ const faqItems = [
 <style scoped>
 .support-page {
   display: grid;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .support-hero,
 .contact-panel {
-  padding: 1.5rem;
+  padding: 1.75rem;
   display: grid;
   gap: 1rem;
 }
@@ -147,7 +153,6 @@ const faqItems = [
   gap: 0.8rem;
 }
 
-/* 7.1 — Editorial hero h1 */
 .support-title {
   font-size: clamp(3rem, 7vw, 4.5rem);
   font-weight: 800;
@@ -161,7 +166,6 @@ const faqItems = [
   color: var(--primary, #f97316);
 }
 
-/* 7.3 — Search bar */
 .support-search-wrap {
   position: relative;
   width: 100%;
@@ -189,17 +193,6 @@ const faqItems = [
   outline: none;
 }
 
-.support-search::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-
-.support-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-/* 7.2 — Bento asymmetric grid */
 .support-bento {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -211,29 +204,36 @@ const faqItems = [
   min-height: 18rem;
   position: relative;
   overflow: hidden;
-  padding: 1.5rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(14, 14, 14, 0.88)),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.24), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.06), transparent 24%),
+    rgba(30, 28, 27, 0.9);
 }
 
 .featured-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.18) 0%, rgba(0, 0, 0, 0.45) 100%);
   pointer-events: none;
 }
 
 .featured-content {
   position: relative;
   display: grid;
-  gap: 0.6rem;
+  gap: 0.75rem;
+  max-width: 34rem;
 }
 
 .featured-heading {
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.05em;
 }
 
 .featured-body {
@@ -242,7 +242,50 @@ const faqItems = [
   font-size: 0.9rem;
 }
 
-/* 7.5 — Topic card */
+.priority-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  background: rgba(249, 115, 22, 0.14);
+  color: var(--primarySoft);
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.priority-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 16px rgba(249, 115, 22, 0.8);
+}
+
+.featured-button {
+  width: fit-content;
+  margin-top: 0.25rem;
+  padding: 0.95rem 1.25rem;
+  border-radius: 0.95rem;
+  border: 0;
+  background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%);
+  color: #fff;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  box-shadow: 0 10px 30px rgba(249, 115, 22, 0.22);
+}
+
+.featured-button-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
 .support-card-topic {
   grid-column: span 4;
   padding: 1.25rem;
@@ -250,12 +293,19 @@ const faqItems = [
   gap: 0.8rem;
 }
 
+.support-card-topic h3 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
 .support-card-topic p {
   line-height: 1.65;
   color: var(--textMuted);
+  font-size: 0.9rem;
 }
 
-/* 7.5 — Icon avatar shell */
 .icon-avatar-shell {
   width: 3rem;
   height: 3rem;
@@ -267,7 +317,12 @@ const faqItems = [
   flex-shrink: 0;
 }
 
-/* 7.5 — Arrow link */
+.topic-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary);
+}
+
 .card-arrow-link {
   padding: 0;
   border: 0;
@@ -276,7 +331,9 @@ const faqItems = [
   display: flex;
   align-items: center;
   justify-self: start;
-  color: var(--textMuted, rgba(255, 255, 255, 0.6));
+  gap: 0.45rem;
+  color: var(--primarySoft);
+  font-weight: 700;
 }
 
 .arrow-icon {
@@ -284,7 +341,6 @@ const faqItems = [
   height: 1.1rem;
 }
 
-/* Mobile breakpoint */
 @media (max-width: 900px) {
   .support-card-featured,
   .support-card-topic {
@@ -292,20 +348,44 @@ const faqItems = [
   }
 }
 
-/* 7.4 — FAQ section */
 .faq-section {
   display: grid;
   gap: 0;
-  padding: 1.5rem;
+  padding: 1.5rem 1.5rem 0;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 1rem;
 }
 
-.faq-heading {
-  font-size: 1.2rem;
-  font-weight: 700;
+.faq-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.faq-heading {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.04em;
+}
+
+.faq-subhead {
+  margin: 0.25rem 0 0;
+  color: var(--textMuted);
+}
+
+.faq-link {
+  padding: 0 0 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--primarySoft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .faq-row {
@@ -360,5 +440,12 @@ const faqItems = [
 .contact-panel h2 {
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
   font-size: 1.4rem;
+}
+
+@media (max-width: 720px) {
+  .faq-head {
+    align-items: start;
+    flex-direction: column;
+  }
 }
 </style>
