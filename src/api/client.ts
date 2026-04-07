@@ -148,9 +148,14 @@ const canUseMockData = (url: string, method: string): boolean => {
     '/venues',
     '/marketplace',
     '/tickets',
-    '/transfers',
+    '/transfer/',
+    '/transfer/pending',
     '/users',
     '/auth/me',
+    '/credits/balance',
+    '/credits/transactions',
+    '/admin/users',
+    '/admin/events/',
   ]
   return readOnlyPaths.some(path => url.includes(path))
 }
@@ -291,6 +296,9 @@ api.interceptors.response.use(
     // Skip this for auth/login itself — wrong password returns 401 and should be handled in LoginView
     const isLoginRequest = error?.config?.url?.includes('/auth/login')
     if (status === 401 && !isLoginRequest) {
+      if (isDemoMode()) {
+        return Promise.reject(error)
+      }
       const auth = useAuthStore()
       auth.clearSession()
       window.location.href = '/login'
@@ -299,6 +307,9 @@ api.interceptors.response.use(
 
     // If the current user's own record returns 404, their account no longer exists — force logout
     if (status === 404) {
+      if (isDemoMode()) {
+        return Promise.reject(error)
+      }
       const auth = useAuthStore()
       const userId = auth.state.user?.userId
       const url = error.config ? resolveUrl(error.config as InternalAxiosRequestConfig) : ''

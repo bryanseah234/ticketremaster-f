@@ -1,631 +1,377 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
+import { Bars3Icon, BellIcon, UserCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api/client'
 import { useSellerNotifications } from '@/composables/useSellerNotifications'
+import { useLogout } from '@/composables/useLogout'
 import { isDemoMode } from '@/services/mockData'
 
 const auth = useAuthStore()
 const route = useRoute()
-const router = useRouter()
-const { notifications, dismiss } = useSellerNotifications()
-const bellOpen = ref(false)
+const { notifications, checkNotifications } = useSellerNotifications()
+const { logout } = useLogout()
+
 const balance = ref<number | null>(null)
 const balanceLoading = ref(false)
-const balanceError = ref(false)
 const mobileMenuOpen = ref(false)
 let balanceTimer: number | undefined
+const minimalTopNav = computed(() => auth.isAdmin || auth.isStaff || (auth.isLoggedIn && isDemoMode()))
+const showNotifications = computed(() => auth.isLoggedIn && !auth.isStaff && !auth.isAdmin && !isDemoMode())
+const showGuestNotifications = computed(() => !auth.isLoggedIn && !minimalTopNav.value)
+const adminEventId = computed(() => {
+  const paramId = typeof route.params.eventId === 'string' ? route.params.eventId : null
+  if (paramId) return paramId
 
-const items = computed(() => {
+  const queryId = typeof route.query.eventId === 'string' ? route.query.eventId : null
+  return queryId || null
+})
+const profileRoute = computed(() => {
+  if (!auth.isLoggedIn) return '/login'
+  if (auth.isAdmin && adminEventId.value) return `/profile?eventId=${encodeURIComponent(adminEventId.value)}`
+  return '/profile'
+})
+
+const primaryNav = computed(() => {
+  if (minimalTopNav.value) return []
+  return [
+    { to: '/events', label: 'Events' },
+    { to: '/marketplace', label: 'Marketplace' },
+  ]
+})
+
+const mobileNav = computed(() => {
   if (auth.isStaff) {
     return [
-      { to: '/staff/scan', label: 'Scanner', key: 'scan' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: profileRoute.value, label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   if (auth.isAdmin) {
     return [
-      { to: '/', label: 'Home', key: 'home' },
-      { to: '/events', label: 'Events', key: 'events' },
-      { to: '/admin/events/new', label: 'Admin Tools', key: 'admin-events' },
-      { to: '/admin/users', label: 'User Management', key: 'admin-users' },
-      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: profileRoute.value, label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   if (auth.isLoggedIn) {
     return [
-      { to: '/', label: 'Home', key: 'home' },
-      { to: '/events', label: 'Events', key: 'events' },
-      { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-      { to: '/tickets', label: 'My Tickets', key: 'tickets' },
-      { to: '/profile', label: 'Profile', key: 'profile' },
+      { to: '/events', label: 'Events' },
+      { to: '/marketplace', label: 'Marketplace' },
+      { to: '/tickets', label: 'My Tickets' },
+      { to: '/credits/topup', label: 'Credits' },
+      ...(showNotifications.value ? [{ to: '/notifications', label: 'Notifications' }] : []),
+      { to: profileRoute.value, label: 'Profile' },
+      { to: '/help', label: 'Support' },
     ]
   }
   return [
-    { to: '/', label: 'Home', key: 'home' },
-    { to: '/events', label: 'Events', key: 'events' },
-    { to: '/marketplace', label: 'Marketplace', key: 'marketplace' },
-    { to: '/login', label: 'Login', key: 'login' },
+    { to: '/events', label: 'Events' },
+    { to: '/marketplace', label: 'Marketplace' },
+    { to: '/login', label: 'Login' },
+    { to: '/register', label: 'Register' },
+    { to: '/help', label: 'Support' },
   ]
 })
 
 const fetchBalance = async () => {
   if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) {
     balance.value = null
-    balanceError.value = false
     return
   }
   balanceLoading.value = true
-  balanceError.value = false
   try {
+    if (isDemoMode()) {
+      const stored = sessionStorage.getItem('demo_balance')
+      balance.value = stored !== null ? parseFloat(stored) : 500
+      return
+    }
     const { data } = await api.get('/credits/balance')
     const value = data?.data?.creditBalance ?? data?.creditBalance
     balance.value = typeof value === 'number' ? value : null
   } catch {
-    balanceError.value = true
+    balance.value = null
   } finally {
     balanceLoading.value = false
   }
 }
 
 const scheduleBalance = () => {
-  if (balanceTimer) window.clearTimeout(balanceTimer)
+  if (balanceTimer) clearTimeout(balanceTimer)
   balanceTimer = window.setTimeout(fetchBalance, 250)
 }
 
-watch(() => auth.isLoggedIn, (loggedIn, wasLoggedIn) => {
-  if (loggedIn && !wasLoggedIn) scheduleBalance()
-  if (!loggedIn) {
-    balance.value = null
-    balanceError.value = false
+const balanceLabel = computed(() => {
+  if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return null
+  if (balanceLoading.value) return 'Credits ...'
+  if (balance.value === null) return 'Credits --'
+  return `Credits $${balance.value.toFixed(0)}`
+})
+
+const isActive = (target: string) => route.path === target || route.path.startsWith(`${target}/`)
+
+watch(() => auth.isLoggedIn, () => {
+  if (auth.isLoggedIn) {
+    scheduleBalance()
+    if (showNotifications.value) checkNotifications()
   }
 })
 
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false
-  if (auth.isLoggedIn) scheduleBalance()
 })
-
-const goToTransfer = (transferId: string) => {
-  dismiss(transferId)
-  bellOpen.value = false
-  router.push(`/transfer/${transferId}`)
-}
 
 onMounted(() => {
-  if (auth.isLoggedIn) scheduleBalance()
+  if (auth.isLoggedIn) {
+    scheduleBalance()
+    if (showNotifications.value) checkNotifications()
+  }
 })
 
-
-const balanceLabel = computed(() => {
-  if (!auth.isLoggedIn) return ''
-  if (balanceLoading.value) return 'Credits: ...'
-  if (balanceError.value) return 'Credits: --'
-  if (balance.value === null) return 'Credits: --'
-  return `Credits: $${balance.value}`
-})
-
-const logout = () => {
-  auth.clearSession()
-  router.push('/login')
-}
 </script>
 
 <template>
-  <header class="header">
-    <div class="inner" :class="{ 'inner-wide': auth.isAdmin }">
-      <RouterLink to="/" class="brand">
-        <img src="/logo.svg" alt="TicketRemaster logo" />
-        <span>TicketRemaster</span>
-      </RouterLink>
+  <header class="nav-shell">
+    <div class="nav-pill">
+      <RouterLink to="/" class="brand">TicketRemaster</RouterLink>
 
-      <!-- Desktop Navigation -->
-      <div class="right-cluster desktop-only">
-        <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="nav-credit">{{ balanceLabel }}</RouterLink>
+      <nav v-if="primaryNav.length" class="desktop-nav" aria-label="Primary">
+        <RouterLink
+          v-for="item in primaryNav"
+          :key="item.to"
+          :to="item.to"
+          class="center-link"
+          :class="{ active: isActive(item.to) }"
+        >
+          {{ item.label }}
+        </RouterLink>
+      </nav>
 
-        <!-- Notification Bell -->
-        <div v-if="auth.isLoggedIn" class="bell-wrap">
-          <button class="bell-btn" :class="{ 'bell-active': notifications.length }" @click="bellOpen = !bellOpen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span v-if="notifications.length" class="bell-badge">{{ notifications.length }}</span>
-          </button>
-          <Transition name="dropdown">
-            <div v-if="bellOpen" class="bell-dropdown">
-              <p v-if="!notifications.length" class="bell-empty">No pending requests</p>
-              <button
-                v-for="n in notifications"
-                :key="n.transferId"
-                class="bell-item"
-                @click="goToTransfer(n.transferId)"
-              >
-                <span class="bell-dot" />
-                <div>
-                  <p class="bell-title">Buyer wants your ticket</p>
-                  <p class="bell-sub">${{ n.creditAmount }} · {{ new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</p>
-                </div>
-              </button>
-            </div>
-          </Transition>
-        </div>
-
-        <span v-if="isDemoMode()" class="demo-pill">DEMO</span>
-        <nav>
-          <RouterLink v-for="item in items" :key="item.to" :to="item.to" :class="['nav-link', `nav-${item.key}`]">{{ item.label }}</RouterLink>
-          <button v-if="auth.isLoggedIn" class="nav-button" @click="logout">Logout</button>
-        </nav>
+      <div class="action-cluster">
+        <RouterLink v-if="balanceLabel" to="/credits/topup" class="balance-chip">
+          {{ balanceLabel }}
+        </RouterLink>
+        <span v-if="isDemoMode()" class="demo-chip">Demo</span>
+        <RouterLink v-if="showGuestNotifications" to="/login" class="icon-button" aria-label="Notifications">
+          <BellIcon class="icon" />
+        </RouterLink>
+        <RouterLink v-if="showNotifications" to="/notifications" class="icon-button" aria-label="Notifications">
+          <BellIcon class="icon" />
+          <span v-if="notifications.length" class="icon-count">{{ notifications.length }}</span>
+        </RouterLink>
+        <RouterLink :to="profileRoute" class="icon-button profile-button" :aria-label="auth.isLoggedIn ? 'Profile' : 'Login'">
+          <UserCircleIcon class="icon" />
+        </RouterLink>
+        <button
+          class="icon-button mobile-toggle"
+          type="button"
+          :aria-label="mobileMenuOpen ? 'Close navigation' : 'Open navigation'"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <XMarkIcon v-if="mobileMenuOpen" class="icon" />
+          <Bars3Icon v-else class="icon" />
+        </button>
       </div>
-
-      <!-- Mobile Menu Button -->
-      <button 
-        class="mobile-menu-btn mobile-only" 
-        :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
-        :class="{ active: mobileMenuOpen }"
-        @click="mobileMenuOpen = !mobileMenuOpen"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
     </div>
 
-    <!-- Mobile Navigation Menu -->
-    <nav v-if="mobileMenuOpen" class="mobile-menu">
-      <RouterLink v-for="item in items" :key="item.to" :to="item.to" class="mobile-nav-link">{{ item.label }}</RouterLink>
-      <RouterLink v-if="auth.isLoggedIn && !auth.isStaff && !auth.isAdmin" to="/credits/topup" class="mobile-nav-link mobile-credit">{{ balanceLabel }}</RouterLink>
-      <button v-if="auth.isLoggedIn" class="mobile-nav-link" @click="logout">Logout</button>
+    <nav v-if="mobileMenuOpen" class="mobile-panel" aria-label="Mobile">
+      <RouterLink
+        v-for="item in mobileNav"
+        :key="item.to"
+        :to="item.to"
+        class="mobile-link"
+      >
+        {{ item.label }}
+      </RouterLink>
+      <button v-if="auth.isLoggedIn" class="mobile-link mobile-logout" type="button" @click="logout">Logout</button>
     </nav>
   </header>
 </template>
 
 <style scoped>
-.header {
+.nav-shell {
   position: fixed;
-  top: 0.75rem;
-  left: 0;
-  right: 0;
+  top: 1.5rem;
+  left: 50%;
   z-index: 100;
-  pointer-events: none;
-  background: transparent;
-  backdrop-filter: none;
-  border: none;
+  width: min(90%, 64rem);
+  transform: translateX(-50%);
 }
 
-.inner {
-  pointer-events: auto;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0.35rem 1.25rem;
-  display: flex;
+.nav-pill {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 1rem;
-  background: rgba(18, 18, 23, 0.75);
-  backdrop-filter: blur(16px);
+  min-height: 4rem;
+  padding: 0.8rem 1.4rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
-  position: relative;
+  border-radius: 999px;
+  background: rgba(14, 14, 14, 0.7);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  font-size: 0.95rem;
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
   color: #fff;
-  text-decoration: none;
   white-space: nowrap;
 }
 
-.brand span {
-  background: linear-gradient(135deg, #fff 0%, #fbd4c2 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.brand img {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.right-cluster {
-  margin-left: auto;
+.desktop-nav {
   display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 0.6rem;
+  gap: 1.75rem;
 }
 
-.nav-credit {
-  padding: 0.35rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid rgba(251, 146, 60, 0.3);
-  color: #fed7aa;
-  font-weight: 700;
-  font-size: 0.85rem;
-  background: rgba(251, 146, 60, 0.08);
-  text-decoration: none;
-  transition: all 0.2s ease;
+.center-link {
+  padding-bottom: 0.2rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: color 0.18s ease, border-color 0.18s ease;
+  border-bottom: 2px solid transparent;
 }
 
-.nav-credit:hover {
-  background: rgba(251, 146, 60, 0.15);
-  border-color: rgba(251, 146, 60, 0.5);
+.center-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
 }
 
-nav {
+.action-cluster {
   display: flex;
-  gap: 0.25rem;
   justify-content: flex-end;
   align-items: center;
-  flex-wrap: wrap;
+  gap: 0.55rem;
 }
 
-.nav-link {
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  text-decoration: none;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-.nav-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.nav-link.router-link-active {
-  background: rgba(249, 115, 22, 0.9);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-}
-
-.nav-button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-}
-
-.nav-button:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* Utility classes */
-.desktop-only {
-  display: flex !important;
-}
-
-.mobile-only {
-  display: none !important;
-}
-
-/* Mobile Menu Button */
-.mobile-menu-btn {
-  display: none;
-  flex-direction: column;
-  gap: 0.375rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  margin-left: auto;
-  z-index: 1001;
-}
-
-.mobile-menu-btn span {
-  display: block;
-  width: 24px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 1px;
-  transition: all 0.3s ease;
-}
-
-.mobile-menu-btn.active span:nth-child(1) {
-  transform: rotate(45deg) translate(8px, 8px);
-}
-
-.mobile-menu-btn.active span:nth-child(2) {
-  opacity: 0;
-}
-
-.mobile-menu-btn.active span:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -7px);
-}
-
-/* Mobile Menu */
-.mobile-menu {
-  position: absolute;
-  top: calc(100% + 0.65rem);
-  right: 0;
-  background: rgba(18, 18, 23, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  display: none;
-  flex-direction: column;
-  padding: 0.5rem 0;
-  pointer-events: auto;
-  min-width: 200px;
-  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-.mobile-nav-link {
-  padding: 0.6rem 1.25rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  text-decoration: none;
-  display: block;
-  width: 100%;
-}
-
-.mobile-nav-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.mobile-nav-link.router-link-active {
-  background: rgba(249, 115, 22, 0.9);
-  color: #fff;
-}
-
-.mobile-credit {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  color: #fed7aa;
-}
-
-/* Bell */
-.bell-wrap {
-  position: relative;
-}
-
-.bell-btn {
-  position: relative;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: 999px;
-  padding: .35rem .45rem;
-  cursor: pointer;
-  color: rgba(255,255,255,.7);
-  display: flex;
+.balance-chip,
+.demo-chip {
+  display: inline-flex;
   align-items: center;
-  transition: background .15s;
-}
-.bell-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
-.bell-btn.bell-active { color: #fb923c; border-color: rgba(251,146,60,.4); }
-
-.bell-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #ef4444;
-  color: #fff;
-  font-size: .6rem;
-  font-weight: 700;
-  min-width: 16px;
-  height: 16px;
+  padding: 0.48rem 0.85rem;
   border-radius: 999px;
-  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo-chip {
+  color: var(--primary);
+}
+
+.icon-button {
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 3px;
-}
-
-.bell-dropdown {
-  position: absolute;
-  top: calc(100% + .6rem);
-  right: 0;
-  background: rgba(18,18,23,.97);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: .75rem;
-  min-width: 240px;
-  padding: .4rem 0;
-  box-shadow: 0 16px 40px rgba(0,0,0,.5);
-  z-index: 200;
-}
-
-.bell-empty {
-  padding: .6rem 1rem;
-  font-size: .82rem;
-  color: rgba(255,255,255,.4);
-}
-
-.bell-item {
-  width: 100%;
-  background: none;
-  border: none;
-  padding: .6rem 1rem;
-  display: flex;
-  align-items: flex-start;
-  gap: .6rem;
-  cursor: pointer;
-  text-align: left;
-  transition: background .15s;
-}
-.bell-item:hover { background: rgba(255,255,255,.06); }
-
-.bell-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fb923c;
-  flex-shrink: 0;
-  margin-top: .3rem;
-}
-
-.bell-title {
-  font-size: .84rem;
-  font-weight: 600;
-  color: #fff;
-  margin: 0;
-}
-
-.bell-sub {
-  font-size: .74rem;
-  color: rgba(255,255,255,.45);
-  margin: .1rem 0 0;
-}
-
-.dropdown-enter-active, .dropdown-leave-active { transition: opacity .15s, transform .15s; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
-
-.demo-pill {
-  padding: 0.2rem 0.55rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
   border-radius: 999px;
-  font-size: 0.68rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.profile-button {
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.18);
+  color: var(--primary);
+}
+
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.icon-count {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.1rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #1f0d03;
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-  border: 1px solid rgba(249, 115, 22, 0.4);
-  background: rgba(249, 115, 22, 0.1);
-  white-space: nowrap;
-  flex-shrink: 0;
+  line-height: 1rem;
+  text-align: center;
 }
 
-
-/* Desktop breakpoint - 1025px and above */
-@media (min-width: 1025px) {
-  /* Show all desktop navigation */
-  .nav-link {
-    display: inline-block;
-  }
-  
-  .desktop-only {
-    display: flex !important;
-  }
-  
-  .mobile-only {
-    display: none !important;
-  }
-  
-  .mobile-menu {
-    display: none !important;
-  }
-  
-  .inner {
-    max-width: 860px;
-  }
-
-  .inner.inner-wide {
-    max-width: 1080px;
-  }
+.mobile-toggle {
+  display: none;
 }
 
-/* Below desktop - show hamburger menu */
-@media (max-width: 1024px) {
-  /* Hide desktop navigation */
-  .desktop-only {
-    display: none !important;
+.mobile-panel {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.75rem;
+  background: rgba(14, 14, 14, 0.84);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.32);
+}
+
+.mobile-link {
+  display: block;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  color: rgba(255, 255, 255, 0.84);
+  font-weight: 600;
+}
+
+.mobile-logout {
+  width: 100%;
+  justify-content: flex-start;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 900px) {
+  .nav-pill {
+    grid-template-columns: auto 1fr auto;
+    padding-inline: 1rem;
   }
-  
-  /* Show mobile hamburger and dropdown */
-  .mobile-only {
-    display: flex !important;
+
+  .desktop-nav,
+  .balance-chip,
+  .demo-chip {
+    display: none;
   }
-  
-  .mobile-menu {
-    display: flex;
-  }
-  
-  .nav-link {
-    display: none !important;
-  }
-  
-  .inner {
-    max-width: 90%;
-  }
-  
-  .brand span {
-    display: inline;
+
+  .mobile-toggle {
+    display: inline-flex;
   }
 }
 
-@media (max-width: 640px) {
-  .inner {
-    padding: 0.3rem 0.6rem;
-    width: calc(100% - 1.2rem);
-    margin: 0.75rem 0.6rem;
+@media (max-width: 540px) {
+  .nav-shell {
+    top: 1rem;
+    width: min(94%, 40rem);
   }
-  
+
+  .nav-pill {
+    min-height: 3.6rem;
+    padding: 0.6rem 0.9rem;
+  }
+
   .brand {
-    font-size: 0.85rem;
-    gap: 0.3rem;
-  }
-  
-  .brand img {
-    width: 20px;
-    height: 20px;
-  }
-  
-  .mobile-menu {
-    max-width: calc(100vw - 1.2rem);
-  }
-  
-  .mobile-nav-link {
-    padding: 0.55rem 1rem;
-    font-size: 0.9rem;
-  }
-  
-  .mobile-menu-btn {
-    padding: 0.35rem;
-  }
-  
-  .mobile-menu-btn span {
-    width: 20px;
-    height: 2px;
-  }
-}
-
-@media (max-width: 480px) {
-  .inner {
-    padding: 0.25rem 0.5rem;
-    width: calc(100% - 1rem);
-    margin: 0.75rem 0.5rem;
-  }
-  
-  .brand {
-    font-size: 0.8rem;
-    gap: 0.25rem;
-  }
-  
-  .brand img {
-    width: 18px;
-    height: 18px;
-  }
-  
-  .mobile-menu {
-    max-width: calc(100vw - 1rem);
-  }
-  
-  .mobile-nav-link {
-    padding: 0.5rem 0.9rem;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
   }
 }
 </style>

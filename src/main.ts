@@ -11,8 +11,10 @@ import { applyThemeVariables } from '@/config/theme'
 // Apply runtime theme tokens before app mount
 applyThemeVariables()
 
+const analyticsEnabled = import.meta.env.PROD
+
 // Initialize Sentry for error tracking and performance monitoring
-if (import.meta.env.VITE_SENTRY_DSN) {
+if (analyticsEnabled && import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || 'development',
@@ -50,7 +52,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 }
 
 // Initialize PostHog for product analytics
-if (import.meta.env.VITE_POSTHOG_API_KEY) {
+if (analyticsEnabled && import.meta.env.VITE_POSTHOG_API_KEY) {
   posthog.init(import.meta.env.VITE_POSTHOG_API_KEY, {
     api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
     defaults: '2026-01-30',
@@ -88,12 +90,12 @@ app.mount('#app')
 // Graceful shutdown handling
 window.addEventListener('beforeunload', () => {
   // Flush Sentry events on page unload
-  if (import.meta.env.VITE_SENTRY_DSN) {
+  if (analyticsEnabled && import.meta.env.VITE_SENTRY_DSN) {
     Sentry.flush(1000) // Wait up to 1 second
   }
   
   // Flush PostHog events on page unload
-  if (import.meta.env.VITE_POSTHOG_API_KEY) {
+  if (analyticsEnabled && import.meta.env.VITE_POSTHOG_API_KEY) {
     posthog.capture('application_terminated', {
       timestamp: new Date().toISOString(),
     })

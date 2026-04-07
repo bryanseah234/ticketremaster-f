@@ -27,7 +27,9 @@ test.describe('Client-Side Validation', () => {
             await page.goto('/register');
 
             // Fill with invalid email (no @ symbol)
+            await page.fill('input[placeholder*="your name"]', 'Validation User');
             await page.fill('input[placeholder*="email"]', 'invalid-email');
+            await page.fill('input[placeholder*="Phone number"]', '91234567');
             await page.fill('input[type="password"]', 'password123');
 
             // Submit the form
@@ -41,6 +43,8 @@ test.describe('Client-Side Validation', () => {
             await page.goto('/register');
 
             // Leave email empty, fill password
+            await page.fill('input[placeholder*="your name"]', 'Validation User');
+            await page.fill('input[placeholder*="Phone number"]', '91234567');
             await page.fill('input[type="password"]', 'password123');
 
             // Submit the form
@@ -53,7 +57,9 @@ test.describe('Client-Side Validation', () => {
         test('should show error for empty password field', async ({ page }) => {
             await page.goto('/register');
 
+            await page.fill('input[placeholder*="your name"]', 'Validation User');
             await page.fill('input[placeholder*="email"]', 'test@example.com');
+            await page.fill('input[placeholder*="Phone number"]', '91234567');
             // Leave password empty
 
             // Submit the form
@@ -63,31 +69,27 @@ test.describe('Client-Side Validation', () => {
             await expect(page.locator('.field-error:has-text("Password is required")')).toBeVisible({ timeout: 5000 });
         });
 
-        test('should show error for mismatched passwords', async ({ page }) => {
+        test('should show error for empty full name', async ({ page }) => {
             await page.goto('/register');
 
             await page.fill('input[placeholder*="email"]', 'test@example.com');
-            // Fill both password fields
-            const passwordInputs = page.locator('input[type="password"]');
-            await passwordInputs.nth(0).fill('password123');
-            await passwordInputs.nth(1).fill('different-password');
-            await page.fill('input[placeholder*="+65"]', '+1234567890');
+            await page.fill('input[placeholder*="Phone number"]', '91234567');
+            await page.fill('input[type="password"]', 'password123');
 
             // Submit the form
             await page.click('button[type="submit"]');
 
-            // Should show password mismatch error
-            await expect(page.locator('.field-error:has-text("Passwords do not match")')).toBeVisible({ timeout: 5000 });
+            // Should show required full name error
+            await expect(page.locator('.field-error:has-text("Full name is required")')).toBeVisible({ timeout: 5000 });
         });
 
         test('should show error for short password', async ({ page }) => {
             await page.goto('/register');
 
+            await page.fill('input[placeholder*="your name"]', 'Validation User');
             await page.fill('input[placeholder*="email"]', 'test@example.com');
-            const passwordInputs = page.locator('input[type="password"]');
-            await passwordInputs.nth(0).fill('123');
-            await passwordInputs.nth(1).fill('123');
-            await page.fill('input[placeholder*="+65"]', '+1234567890');
+            await page.fill('input[type="password"]', '123');
+            await page.fill('input[placeholder*="Phone number"]', '91234567');
 
             // Submit the form
             await page.click('button[type="submit"]');
@@ -99,11 +101,10 @@ test.describe('Client-Side Validation', () => {
         test('should show error for invalid phone number', async ({ page }) => {
             await page.goto('/register');
 
+            await page.fill('input[placeholder*="your name"]', 'Validation User');
             await page.fill('input[placeholder*="email"]', 'test@example.com');
-            const passwordInputs = page.locator('input[type="password"]');
-            await passwordInputs.nth(0).fill('password123');
-            await passwordInputs.nth(1).fill('password123');
-            await page.fill('input[placeholder*="+65"]', 'invalid-phone');
+            await page.fill('input[type="password"]', 'password123');
+            await page.fill('input[placeholder*="Phone number"]', 'invalid-phone');
 
             // Submit the form
             await page.click('button[type="submit"]');

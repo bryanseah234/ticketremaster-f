@@ -4,13 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { isDemoMode, mockServices } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
+import type { Event } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 
-/* ── State ─────────────────────────────────────────────────────────────── */
 interface Seat {
   inventoryId: string
   seatId: string
@@ -18,13 +20,26 @@ interface Seat {
   seatNumber: string
   status: 'AVAILABLE' | 'HELD' | 'SOLD'
   heldUntil?: string | null
+  section?: string
+  price?: number
 }
 
-const rows = ref<Map<string, Seat[]>>(new Map())
+interface SeatRowGroup {
+  label: string
+  seats: Seat[]
+}
+
+interface SeatSectionGroup {
+  section: string
+  rows: SeatRowGroup[]
+}
+
+const sections = ref<SeatSectionGroup[]>([])
 const selectedSeat = ref<Seat | null>(null)
 const holdSeconds = ref(0)
 const orderId = ref('')
 const loading = ref(false)
+const eventData = ref<Event | null>(null)
 let timer: number | undefined
 
 const holdDisplay = computed(() => {
@@ -33,321 +48,729 @@ const holdDisplay = computed(() => {
   return `${m}:${String(s).padStart(2, '0')}`
 })
 
-const totalAvailable = computed(() => {
-  let n = 0
-  rows.value.forEach(seats => seats.forEach(s => { if (s.status === 'AVAILABLE') n++ }))
-  return n
+const totalAvailable = computed(() =>
+  sections.value.reduce(
+    (count, section) => count + section.rows.reduce((rowCount, row) => rowCount + row.seats.filter((seat) => seat.status === 'AVAILABLE').length, 0),
+    0,
+  ),
+)
+
+const subtotal = computed(() => selectedSeat.value?.price ?? eventData.value?.price ?? 0)
+const serviceFee = computed(() => (subtotal.value ? Math.max(12.5, subtotal.value * 0.11) : 0))
+const totalAmount = computed(() => subtotal.value + serviceFee.value)
+
+const eventDateLabel = computed(() => {
+  if (!eventData.value?.date) return 'Date TBA'
+  return new Date(eventData.value.date).toLocaleDateString('en-SG', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 })
 
-/* ── Load ──────────────────────────────────────────────────────────────── */
-const loadSeats = async () => {
-  loading.value = true
-  toast.push('Loading seat map…', 'info', 1600)
-  try {
-    const eventId = route.params.eventId as string
+const setSectionsFromSeats = (rawSeats: any[]) => {
+  const sectionMap = new Map<string, Map<string, Seat[]>>()
 
-    // Single enriched call — event-orchestrator now joins inventory + seat metadata server-side
-    const { data } = await api.get(`/events/${eventId}/seats`)
-    const rawSeats: any[] = data?.data?.seats || []
-
-    const rowMap = new Map<string, Seat[]>()
-    for (const s of rawSeats) {
-      const row = s.rowNumber ?? 'GA'
-      const merged: Seat = {
-        inventoryId: s.inventoryId,
-        seatId:      s.seatId,
-        rowNumber:   row,
-        seatNumber:  s.seatNumber ?? s.inventoryId.slice(-4),
-        status:      (s.status ?? 'available').toUpperCase() as Seat['status'],
-        heldUntil:   s.heldUntil,
-      }
-      if (!rowMap.has(row)) rowMap.set(row, [])
-      rowMap.get(row)!.push(merged)
+  for (const rawSeat of rawSeats) {
+    const sectionName = rawSeat.section || 'General Admission'
+    const rowName = rawSeat.rowNumber ?? 'GA'
+    const seat: Seat = {
+      inventoryId: rawSeat.inventoryId,
+      seatId: rawSeat.seatId,
+      rowNumber: rowName,
+      seatNumber: rawSeat.seatNumber ?? rawSeat.inventoryId?.slice?.(-4) ?? '--',
+      status: (rawSeat.status ?? 'available').toUpperCase() as Seat['status'],
+      heldUntil: rawSeat.heldUntil,
+      section: sectionName,
+      price: Number(rawSeat.price ?? eventData.value?.price ?? 0),
     }
 
-    rows.value = new Map(
-      [...rowMap.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
-        .map(([r, seats]) => [
-          r,
-          seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
-        ])
-    )
+    if (!sectionMap.has(sectionName)) sectionMap.set(sectionName, new Map())
+    const rowsForSection = sectionMap.get(sectionName)!
+    if (!rowsForSection.has(rowName)) rowsForSection.set(rowName, [])
+    rowsForSection.get(rowName)!.push(seat)
+  }
+
+  sections.value = [...sectionMap.entries()].map(([section, rowMap]) => ({
+    section,
+    rows: [...rowMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(([label, seats]) => ({
+        label,
+        seats: seats.sort((a, b) => a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true })),
+      })),
+  }))
+}
+
+const loadEvent = async () => {
+  try {
+    const eventId = String(route.params.eventId)
+    if (isDemoMode() || eventId.startsWith('demo-')) {
+      eventData.value = await mockServices.getEvent(eventId)
+      return
+    }
+    const { data } = await api.get(`/events/${eventId}`)
+    eventData.value = data?.data
+      ? {
+          ...data.data,
+          image: resolveEventImage({
+            image: data.data.image,
+            eventId,
+            type: data.data.type,
+            context: 'event',
+          }),
+        }
+      : null
+  } catch {
+    try {
+      eventData.value = await mockServices.getEvent(String(route.params.eventId))
+    } catch {
+      eventData.value = null
+    }
+  }
+}
+
+const loadSeats = async () => {
+  loading.value = true
+  try {
+    if (isDemoMode()) {
+      const result = await mockServices.getSeats(String(route.params.eventId))
+      setSectionsFromSeats(result.seats)
+      return
+    }
+    const { data } = await api.get(`/events/${route.params.eventId}/seats`)
+    const rawSeats: any[] = data?.data?.seats || []
+    setSectionsFromSeats(rawSeats)
   } catch (e) {
-    console.error(e)
-    toast.push('Failed to load seat map.', 'error', 3200)
+    try {
+      const result = await mockServices.getSeats(String(route.params.eventId))
+      setSectionsFromSeats(result.seats)
+      toast.push('Showing demo seat map.', 'info', 2800)
+    } catch {
+      console.error(e)
+      toast.push('Failed to load seat map.', 'error', 3200)
+    }
   } finally {
     loading.value = false
   }
 }
 
-/* ── Reserve ───────────────────────────────────────────────────────────── */
+const selectSeat = async (seat: Seat) => {
+  selectedSeat.value = seat
+
+  const eventId = String(route.params.eventId)
+  if (isDemoMode() || eventId.startsWith('demo-')) return
+
+  try {
+    const { data } = await api.get(`/events/${eventId}/seats/${seat.inventoryId}`)
+    const raw = data?.data
+    if (!raw) return
+
+    selectedSeat.value = {
+      ...seat,
+      inventoryId: raw.inventoryId || seat.inventoryId,
+      seatId: raw.seatId || seat.seatId,
+      rowNumber: raw.rowNumber ?? seat.rowNumber,
+      seatNumber: raw.seatNumber ?? seat.seatNumber,
+      status: (raw.status ?? seat.status).toUpperCase() as Seat['status'],
+      heldUntil: raw.heldUntil ?? seat.heldUntil,
+      section: raw.section || seat.section,
+      price: Number(raw.price ?? seat.price ?? eventData.value?.price ?? 0),
+    }
+  } catch {
+    // Keep the optimistic local seat selection if the detail lookup fails.
+  }
+}
+
 const reserveSeat = async () => {
   if (!selectedSeat.value || !auth.state.user) return
+
   try {
     const inventoryId = selectedSeat.value.inventoryId
+    const selectedPrice = selectedSeat.value.price ?? eventData.value?.price ?? 0
+
+    if (isDemoMode()) {
+      holdSeconds.value = 300
+      if (timer) clearInterval(timer)
+      timer = window.setInterval(() => {
+        holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+      }, 1000)
+      orderId.value = inventoryId
+      localStorage.setItem(
+        'pendingOrder',
+        JSON.stringify({
+          orderId: orderId.value,
+          inventoryId: orderId.value,
+          holdToken: 'demo-hold-token',
+          heldUntil: new Date(Date.now() + 300000).toISOString(),
+          eventId: route.params.eventId,
+          seat: {
+            seatId: selectedSeat.value.seatId,
+            rowNumber: selectedSeat.value.rowNumber,
+            seatNumber: selectedSeat.value.seatNumber,
+            price: selectedPrice,
+            section: selectedSeat.value.section,
+          },
+        event: {
+          name: eventData.value?.name || 'Selected Event',
+          image: eventData.value?.image,
+          eventDate: eventData.value?.date,
+          venueName: eventData.value?.venue?.name,
+        },
+      }),
+      )
+      toast.push('Seat held. You have 5 minutes to finish checkout.', 'success', 3200)
+      return
+    }
+
     const { data } = await api.post(`/purchase/hold/${inventoryId}`)
     const heldUntil = data?.data?.heldUntil || data?.data?.held_until
     holdSeconds.value = heldUntil
       ? Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
       : 300
     if (timer) clearInterval(timer)
-    timer = window.setInterval(() => { holdSeconds.value = Math.max(0, holdSeconds.value - 1) }, 1000)
+    timer = window.setInterval(() => {
+      holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+    }, 1000)
     orderId.value = data?.data?.inventoryId || inventoryId
-    localStorage.setItem('pendingOrder', JSON.stringify({
-      orderId: orderId.value,
-      inventoryId: orderId.value,
-      holdToken: data?.data?.holdToken || '',
-      eventId: route.params.eventId,
-      seat: {
-        seatId: selectedSeat.value.seatId,
-        rowNumber: selectedSeat.value.rowNumber,
-        seatNumber: selectedSeat.value.seatNumber,
-        price: 0,
-      },
-    }))
-    toast.push('Seat held! You have 5 minutes to complete checkout.', 'success', 3200)
+    localStorage.setItem(
+      'pendingOrder',
+      JSON.stringify({
+        orderId: orderId.value,
+        inventoryId: orderId.value,
+        holdToken: data?.data?.holdToken || '',
+        eventId: route.params.eventId,
+        seat: {
+          seatId: selectedSeat.value.seatId,
+          rowNumber: selectedSeat.value.rowNumber,
+          seatNumber: selectedSeat.value.seatNumber,
+          price: selectedPrice,
+          section: selectedSeat.value.section,
+        },
+        event: {
+          name: eventData.value?.name,
+          image: eventData.value?.image,
+          eventDate: eventData.value?.date,
+          venueName: eventData.value?.venue?.name,
+        },
+      }),
+    )
+    toast.push('Seat held. You have 5 minutes to finish checkout.', 'success', 3200)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code
     const status = e?.response?.status
-    const msg = code === 'SEAT_UNAVAILABLE' || status === 409 ? 'Seat is no longer available.' :
-      code === 'EVENT_ENDED' || status === 410 ? 'Event has ended.' :
-      'Unable to reserve seat.'
-    toast.push(msg, 'error', 3200)
+    const message =
+      code === 'SEAT_UNAVAILABLE' || status === 409
+        ? 'Seat is no longer available.'
+        : code === 'EVENT_ENDED' || status === 410
+          ? 'Event has ended.'
+          : 'Unable to reserve seat.'
+    toast.push(message, 'error', 3200)
   }
 }
 
-onMounted(loadSeats)
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onMounted(async () => {
+  await loadEvent()
+  await loadSeats()
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <template>
-  <section class="page">
-    <h1 class="section-title">Seat Selection</h1>
-    <p class="section-subtitle">Choose an available seat to reserve it for 5 minutes.</p>
-
-    <!-- Legend -->
-    <div class="legend">
-      <span class="dot available"></span> Available ({{ totalAvailable }})
-      <span class="dot held"></span> Held
-      <span class="dot sold"></span> Sold
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading seat map…</p>
-    </div>
-
-    <!-- Seat map -->
-    <article v-else class="glass seat-map">
-      <!-- Stage indicator -->
-      <div class="stage">
-        <span>STAGE</span>
+  <section class="seat-page">
+    <header class="seat-header">
+      <span class="seat-pill">Live Selection</span>
+      <h1>{{ eventData?.name || 'Seat Selection' }}</h1>
+      <div class="seat-meta">
+        <span>{{ eventData?.venue?.name || 'Venue TBA' }}</span>
+        <span class="seat-dot"></span>
+        <span>{{ eventDateLabel }}</span>
       </div>
+    </header>
 
-      <div v-if="rows.size === 0" class="empty-state">No seats available for this event.</div>
-
-      <div v-for="[rowLabel, seats] in rows" :key="rowLabel" class="seat-row">
-        <span class="row-label">{{ rowLabel }}</span>
-        <div class="seats">
-          <button
-            v-for="seat in seats"
-            :key="seat.inventoryId"
-            class="seat-btn"
-            :class="{
-              available: seat.status === 'AVAILABLE',
-              held: seat.status === 'HELD',
-              sold: seat.status === 'SOLD',
-              selected: selectedSeat?.inventoryId === seat.inventoryId
-            }"
-            :disabled="seat.status !== 'AVAILABLE'"
-            :title="`Row ${seat.rowNumber} · Seat ${seat.seatNumber} · ${seat.status}`"
-            @click="selectedSeat = seat"
-          >
-            {{ seat.seatNumber }}
-          </button>
+    <div class="seat-layout">
+      <section class="seat-map-card">
+        <div class="seat-map-top">
+          <h2>Floor Level Selection</h2>
+          <div class="seat-legend">
+            <span><i class="legend-box available"></i>Available</span>
+            <span><i class="legend-box selected"></i>Selected</span>
+            <span><i class="legend-box sold"></i>Sold</span>
+          </div>
         </div>
-      </div>
-    </article>
 
-    <!-- Action bar -->
-    <article class="glass action-bar">
-      <div class="selection-info">
-        <template v-if="selectedSeat">
-          <span class="badge">Row {{ selectedSeat.rowNumber }}, Seat {{ selectedSeat.seatNumber }}</span>
-          <span v-if="holdSeconds > 0" class="badge warning">⏱ {{ holdDisplay }} remaining</span>
-        </template>
-        <span v-else class="muted">No seat selected</span>
-      </div>
-      <div class="actions">
-        <button :disabled="!selectedSeat || holdSeconds > 0" @click="reserveSeat">
-          {{ holdSeconds > 0 ? 'Seat Reserved ✓' : 'Reserve Seat' }}
-        </button>
-        <button v-if="orderId" class="secondary" @click="router.push(`/checkout/${orderId}`)">
-          Proceed to Checkout →
-        </button>
-      </div>
-    </article>
+        <div class="stage-rail">
+          <span>Stage Front</span>
+        </div>
+
+        <div v-if="loading" class="seat-loading">Loading seat map...</div>
+
+        <div v-else class="seat-sections">
+          <article v-for="section in sections" :key="section.section" class="seat-section">
+            <div class="seat-section-header">
+              <h3>{{ section.section }}</h3>
+              <span>{{ section.rows.length }} rows</span>
+            </div>
+
+            <div v-for="row in section.rows" :key="`${section.section}-${row.label}`" class="seat-row">
+              <span class="row-label">{{ row.label }}</span>
+              <div class="seat-track">
+                <button
+                  v-for="seat in row.seats"
+                  :key="seat.inventoryId"
+                  class="seat-tile"
+                  :class="{
+                    available: seat.status === 'AVAILABLE',
+                    held: seat.status === 'HELD',
+                    sold: seat.status === 'SOLD',
+                    chosen: selectedSeat?.inventoryId === seat.inventoryId
+                  }"
+                  :disabled="seat.status !== 'AVAILABLE'"
+                  @click="selectSeat(seat)"
+                >
+                  {{ seat.seatNumber }}
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <div v-if="sections.length === 0" class="seat-loading">No seats available for this event.</div>
+        </div>
+      </section>
+
+      <aside class="seat-sidebar">
+        <article class="sidebar-card timer-card">
+          <div>
+            <span class="mini-label">Time Remaining</span>
+            <strong>{{ holdSeconds > 0 ? holdDisplay : '05:00' }}</strong>
+          </div>
+          <div class="status-block">
+            <span class="mini-label">Status</span>
+            <span class="status-pill" :class="{ active: holdSeconds > 0 }">
+              {{ holdSeconds > 0 ? 'Reserved' : 'Ready' }}
+            </span>
+          </div>
+        </article>
+
+        <article class="sidebar-card">
+          <h2>Selected Tickets</h2>
+
+          <div class="ticket-summary-card" v-if="selectedSeat">
+            <div>
+              <p>{{ selectedSeat.section || 'Selected Section' }}</p>
+              <small>Seat {{ selectedSeat.rowNumber }}-{{ selectedSeat.seatNumber }}</small>
+            </div>
+            <strong>SGD {{ subtotal.toFixed(2) }}</strong>
+          </div>
+
+          <div v-else class="empty-ticket-card">
+            Choose one available seat to generate your checkout summary.
+          </div>
+
+          <div class="total-breakdown">
+            <div>
+              <span>Subtotal</span>
+              <strong>SGD {{ subtotal.toFixed(2) }}</strong>
+            </div>
+            <div>
+              <span>Service Fees</span>
+              <strong>SGD {{ serviceFee.toFixed(2) }}</strong>
+            </div>
+            <div class="total-row">
+              <span>Total Amount</span>
+              <strong>SGD {{ totalAmount.toFixed(2) }}</strong>
+            </div>
+          </div>
+
+          <button type="button" :disabled="!selectedSeat || holdSeconds > 0" @click="reserveSeat">
+            {{ holdSeconds > 0 ? 'Seat Reserved' : 'Reserve Seat' }}
+          </button>
+          <button v-if="orderId" class="secondary" type="button" @click="router.push(`/checkout/${orderId}`)">
+            Checkout Now
+          </button>
+
+          <p class="secure-note">{{ totalAvailable }} seats currently available. Secure encrypted transaction.</p>
+        </article>
+      </aside>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 1.2rem;
-  margin-bottom: 1rem;
-  font-size: .85rem;
-  color: var(--text-muted, #a1a1aa);
-}
-.dot {
-  display: inline-block;
-  width: .75rem;
-  height: .75rem;
-  border-radius: 50%;
-  margin-right: .3rem;
-}
-.dot.available { background: #22c55e; }
-.dot.held      { background: #f59e0b; }
-.dot.sold      { background: #52525b; }
-
-/* Stage */
-.stage {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  padding: .4rem 2rem;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent);
-  border-radius: .4rem;
-  font-size: .75rem;
-  letter-spacing: .2em;
-  color: #a1a1aa;
-}
-
-/* Map container */
-.seat-map {
-  padding: 1.5rem 1rem;
-  overflow-x: auto;
-  display: flex;
-  flex-direction: column;
-  gap: .45rem;
-  max-height: 65vh;
-  overflow-y: auto;
-}
-
-/* Row */
-.seat-row {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.row-label {
-  width: 2rem;
-  text-align: center;
-  font-size: .72rem;
-  font-weight: 600;
-  color: #71717a;
-  flex-shrink: 0;
-}
-.seats {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: .25rem;
-}
-
-/* Seat button */
-.seat-btn {
-  width: 2rem;
-  height: 2rem;
-  border-radius: .3rem;
-  border: 1px solid transparent;
-  font-size: .65rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
-  flex-shrink: 0;
-  padding: 0;
+.seat-page {
   display: grid;
-  place-items: center;
-}
-.seat-btn.available {
-  background: rgba(34,197,94,.18);
-  border-color: #22c55e;
-  color: #86efac;
-}
-.seat-btn.available:hover {
-  background: rgba(34,197,94,.35);
-  transform: scale(1.15);
-}
-.seat-btn.held {
-  background: rgba(245,158,11,.14);
-  border-color: #f59e0b;
-  color: #fcd34d;
-  cursor: not-allowed;
-}
-.seat-btn.sold {
-  background: rgba(82,82,91,.2);
-  border-color: #3f3f46;
-  color: #52525b;
-  cursor: not-allowed;
-}
-.seat-btn.selected {
-  background: rgba(249,115,22,.35) !important;
-  border-color: #f97316 !important;
-  color: #fed7aa !important;
-  box-shadow: 0 0 0 2px #f97316;
-  transform: scale(1.2);
+  gap: 2rem;
+  width: min(100% - 3rem, 84rem);
+  margin: 0 auto;
+  padding: 7.5rem 0 4.5rem;
 }
 
-/* Action bar */
-.action-bar {
-  margin-top: 1rem;
-  padding: .9rem 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.selection-info {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  flex-wrap: wrap;
-}
-.actions {
-  display: flex;
-  gap: .6rem;
-}
-.badge.warning {
-  background: rgba(245,158,11,.2);
-  border-color: #f59e0b;
-  color: #fcd34d;
-}
-.muted { color: #71717a; font-size: .9rem; }
-
-/* Loading */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3rem;
-  gap: 1rem;
-  color: #a1a1aa;
-}
-.spinner {
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 3px solid rgba(255,255,255,.1);
-  border-top-color: #f97316;
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.empty-state {
+.seat-header {
+  display: grid;
+  justify-items: center;
+  gap: 0.9rem;
   text-align: center;
-  padding: 2rem;
-  color: #71717a;
+}
+
+.seat-pill,
+.mini-label {
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.seat-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 5.4rem);
+  font-weight: 900;
+  line-height: 0.94;
+  letter-spacing: -0.06em;
+}
+
+.seat-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+}
+
+.seat-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.seat-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 0.92fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.seat-map-card,
+.sidebar-card {
+  border-radius: 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(19, 19, 19, 0.9);
+}
+
+.seat-map-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem;
+}
+
+.seat-map-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.05), transparent 30%);
+  pointer-events: none;
+}
+
+.seat-map-top,
+.seat-section-header,
+.ticket-summary-card,
+.total-breakdown div,
+.timer-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.seat-map-top {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.seat-map-top h2,
+.sidebar-card h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.seat-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.seat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.legend-box {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 0.2rem;
+  display: inline-block;
+}
+
+.legend-box.available {
+  background: rgba(249, 115, 22, 0.42);
+}
+
+.legend-box.selected {
+  background: #3b82f6;
+}
+
+.legend-box.sold {
+  background: #202020;
+}
+
+.stage-rail {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 2rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #0f0f0f;
+}
+
+.stage-rail span {
+  position: absolute;
+  bottom: calc(100% + 0.8rem);
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.seat-sections {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1rem;
+}
+
+.seat-section {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  background: rgba(26, 25, 25, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.seat-section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.seat-section-header span,
+.row-label,
+.secure-note,
+.empty-ticket-card,
+.ticket-summary-card small {
+  color: var(--text-muted);
+}
+
+.seat-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.row-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.seat-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.seat-tile {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.seat-tile.available {
+  background: rgba(249, 115, 22, 0.38);
+  border-color: rgba(249, 115, 22, 0.24);
+}
+
+.seat-tile.held {
+  background: rgba(109, 40, 217, 0.32);
+  border-color: rgba(109, 40, 217, 0.2);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.seat-tile.sold {
+  background: #1f1f1f;
+  border-color: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.seat-tile.chosen {
+  background: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.32);
+}
+
+.seat-sidebar {
+  display: grid;
+  gap: 1rem;
+}
+
+.sidebar-card {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.4rem;
+}
+
+.timer-card strong {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--primary);
+}
+
+.status-block {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+}
+
+.status-pill {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.status-pill.active {
+  background: rgba(249, 115, 22, 0.16);
+  color: var(--primary);
+}
+
+.ticket-summary-card,
+.empty-ticket-card {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(26, 25, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ticket-summary-card p {
+  margin: 0 0 0.2rem;
+  font-weight: 700;
+}
+
+.ticket-summary-card strong,
+.total-row strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.empty-ticket-card {
+  line-height: 1.6;
+}
+
+.total-breakdown {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.total-breakdown span {
+  color: var(--text-muted);
+}
+
+.total-row {
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.secure-note,
+.seat-loading {
+  text-align: center;
+  line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+  .seat-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .seat-page {
+    width: min(100% - 1rem, 84rem);
+    padding-top: 6.5rem;
+  }
+
+  .seat-map-top,
+  .timer-card,
+  .ticket-summary-card,
+  .total-breakdown div {
+    align-items: start;
+  }
+
+  .seat-map-top,
+  .timer-card,
+  .ticket-summary-card,
+  .total-breakdown div,
+  .seat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .seat-map-top,
+  .timer-card,
+  .ticket-summary-card,
+  .total-breakdown div {
+    display: grid;
+  }
+
+  .seat-row {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .row-label {
+    text-align: left;
+  }
 }
 </style>
