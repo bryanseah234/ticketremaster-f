@@ -148,10 +148,12 @@ onMounted(() => {
 .account-card {
   position: relative;
   overflow: hidden;
-  padding: 1.5rem;
+  max-width: 56rem;
+  padding: 1.8rem;
   border-radius: 1.5rem;
   background: rgba(34, 31, 30, 0.84);
   border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
 }
 
 .card-heading {
@@ -167,6 +169,7 @@ onMounted(() => {
 .card-heading h2 {
   font-size: 1.45rem;
   letter-spacing: -0.03em;
+  font-weight: 800;
 }
 
 .card-heading p {
@@ -206,15 +209,25 @@ onMounted(() => {
   gap: 0.4rem;
 }
 
+.field-stack label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.52);
+}
+
 .field-stack input {
   background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  min-height: 3.4rem;
 }
 
 .primary-action {
   margin-top: 1.35rem;
   width: fit-content;
-  border-radius: 0.8rem;
+  border-radius: 0.95rem;
   padding-inline: 1.4rem;
   padding-block: 0.9rem;
 }

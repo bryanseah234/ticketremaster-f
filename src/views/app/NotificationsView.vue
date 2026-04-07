@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, isRef, computed } from 'vue'
+import { onMounted, isRef, computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   BellIcon,
@@ -11,6 +11,7 @@ import { useSellerNotifications } from '@/composables/useSellerNotifications'
 import { isDemoMode } from '@/services/mockData'
 
 const { notifications, checkNotifications, dismiss } = useSellerNotifications()
+const dismissedIds = ref<string[]>([])
 
 // Normalize notifications: handle both real Vue computed refs and plain mock objects
 const liveNotifications = computed<any[]>(() => {
@@ -69,8 +70,9 @@ const seededNotifications = [
 ]
 
 const notifList = computed<any[]>(() => {
-  if (isDemoMode()) return seededNotifications
-  return liveNotifications.value.map((item) => ({
+  const base = isDemoMode()
+    ? seededNotifications
+    : liveNotifications.value.map((item) => ({
     ...item,
     type: (item as any).type || 'transfer_request',
     title: 'Transfer Request',
@@ -79,6 +81,8 @@ const notifList = computed<any[]>(() => {
     primaryTo: `/transfer/${item.transferId}`,
     secondaryLabel: 'Dismiss',
   }))
+
+  return base.filter((item) => !dismissedIds.value.includes(item.transferId))
 })
 
 onMounted(() => {
@@ -116,6 +120,11 @@ function formatRelativeTime(isoString: string): string {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   return `${days}d ago`
+}
+
+function dismissItem(transferId: string) {
+  dismissedIds.value = [...dismissedIds.value, transferId]
+  if (!isDemoMode()) dismiss(transferId)
 }
 </script>
 
@@ -164,7 +173,7 @@ function formatRelativeTime(isoString: string): string {
 
           <div class="notification-actions">
             <RouterLink v-if="item.primaryLabel && item.primaryTo" :to="item.primaryTo"><button>{{ item.primaryLabel }}</button></RouterLink>
-            <button v-if="item.secondaryLabel" class="secondary" @click="dismiss(item.transferId)">{{ item.secondaryLabel }}</button>
+            <button v-if="item.secondaryLabel" class="secondary" @click="dismissItem(item.transferId)">{{ item.secondaryLabel }}</button>
           </div>
         </div>
       </article>

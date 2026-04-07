@@ -89,32 +89,36 @@ const links = computed(() => {
   top: 6.8rem;
   display: grid;
   gap: 1rem;
-  padding: 0.55rem;
-  border-radius: 1.5rem;
-  background: rgba(38, 38, 38, 0.7);
+  padding: 0.7rem;
+  border-radius: 1.65rem;
+  background: rgba(38, 38, 38, 0.72);
   border-color: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(24px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
 }
 
 .sidebar-nav {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .side-link {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
+  min-height: 3.35rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 1.05rem;
   color: var(--textMuted);
   font-weight: 600;
+  border: 1px solid transparent;
 }
 
 .side-link.active {
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(249, 115, 22, 0.14);
   color: var(--primarySoft);
   border: 1px solid rgba(249, 115, 22, 0.18);
+  box-shadow: 0 0 22px rgba(249, 115, 22, 0.08);
 }
 
 .side-icon {
@@ -124,10 +128,12 @@ const links = computed(() => {
 
 .sidebar-logout {
   width: 100%;
+  min-height: 3.35rem;
   background: transparent;
   border-color: rgba(255, 255, 255, 0.08);
   color: var(--text);
-  border-radius: 1rem;
+  border-radius: 1.05rem;
+  font-weight: 700;
 }
 
 @media (max-width: 980px) {

@@ -389,12 +389,20 @@ watch([loading, tickets], ([isLoading, items]) => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(38, 38, 38, 0.4);
   backdrop-filter: blur(16px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
 }
 
 .ticket-card {
   display: grid;
   grid-template-columns: 14rem minmax(0, 1fr);
   overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.ticket-card:hover {
+  border-color: rgba(249, 115, 22, 0.18);
+  box-shadow: 0 20px 60px rgba(249, 115, 22, 0.1);
+  transform: translateY(-2px);
 }
 
 .ticket-media {
@@ -441,6 +449,7 @@ watch([loading, tickets], ([isLoading, items]) => {
   font-size: 1.7rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.02;
 }
 
 .ticket-copy p,
@@ -522,6 +531,7 @@ watch([loading, tickets], ([isLoading, items]) => {
 
 .archive-shell {
   overflow: hidden;
+  background: rgba(38, 38, 38, 0.46);
 }
 
 .archive-row {
