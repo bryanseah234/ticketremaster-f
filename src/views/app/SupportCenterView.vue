@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { MagnifyingGlassIcon, ArrowRightIcon, ChatBubbleLeftRightIcon, CreditCardIcon, LockClosedIcon, TicketIcon } from '@heroicons/vue/24/outline'
 
 const supportCards = [
@@ -8,18 +9,21 @@ const supportCards = [
     body: 'Issues with barcode scanning, wallet delivery, or ticket downloads? Start with the most common fixes here.',
     cta: 'View Solutions',
     icon: TicketIcon,
+    to: '/tickets',
   },
   {
     title: 'Payments & Credits',
     body: 'Manage billing history, pending credits, and top-up questions without leaving the editorial flow.',
     cta: 'Manage Billing',
     icon: CreditCardIcon,
+    to: '/credits/topup',
   },
   {
     title: 'Account Security',
     body: 'Update your profile, verify access, and recover your account with the same security-first system used in live mode.',
     cta: 'Security Settings',
     icon: LockClosedIcon,
+    to: '/profile',
   },
 ]
 
@@ -74,10 +78,10 @@ const faqItems = [
           <span class="priority-chip"><span class="priority-dot"></span>Priority Support</span>
           <h2 class="featured-heading">Contact Concierge</h2>
           <p class="featured-body">Our premium support team is available 24/7 to assist with complex transfers, large orders, and exclusive event access.</p>
-          <button class="featured-button" type="button">
+          <a class="featured-button" href="#contact-support">
             Start Chat
             <ChatBubbleLeftRightIcon class="featured-button-icon" />
-          </button>
+          </a>
         </div>
       </article>
 
@@ -87,10 +91,10 @@ const faqItems = [
         </div>
         <h3>{{ card.title }}</h3>
         <p>{{ card.body }}</p>
-        <button class="card-arrow-link" type="button" :aria-label="card.cta">
+        <RouterLink class="card-arrow-link" :to="card.to" :aria-label="card.cta">
           {{ card.cta }}
           <ArrowRightIcon class="arrow-icon" />
-        </button>
+        </RouterLink>
       </article>
     </div>
 
@@ -116,7 +120,7 @@ const faqItems = [
       </div>
     </section>
 
-    <article class="glass contact-panel">
+    <article id="contact-support" class="glass contact-panel">
       <div>
         <h2>Contact TicketRemaster support</h2>
         <p class="small muted">Our support team can help with payment issues, transfer disputes, and event-day access questions.</p>
