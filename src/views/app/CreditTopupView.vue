@@ -384,7 +384,7 @@ onUnmounted(() => {
 
 .credits-content {
   display: grid;
-  gap: 1.2rem;
+  gap: 1.5rem;
 }
 
 .balance-card,
@@ -404,6 +404,7 @@ onUnmounted(() => {
   background:
     radial-gradient(circle at right top, rgba(249, 115, 22, 0.16), transparent 34%),
     rgba(34, 31, 30, 0.84);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.24);
 }
 
 .card-label {
@@ -469,7 +470,10 @@ onUnmounted(() => {
 .credits-section h2,
 .payment-heading h2,
 .ledger-head h2 {
-  font-size: 1.15rem;
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .quick-grid {
@@ -479,7 +483,7 @@ onUnmounted(() => {
 }
 
 .amount-card {
-  min-height: 5.5rem;
+  min-height: 6rem;
   border-radius: 0.75rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -532,7 +536,7 @@ onUnmounted(() => {
 
 .payment-card {
   display: grid;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
 .payment-heading {
@@ -603,6 +607,7 @@ onUnmounted(() => {
   color: var(--textMuted);
   font-size: 0.8rem;
   line-height: 1.5;
+  max-width: 30rem;
 }
 
 .complete-button {
@@ -646,7 +651,7 @@ onUnmounted(() => {
 
 .ledger-card {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .ledger-head {

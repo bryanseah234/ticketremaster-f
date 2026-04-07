@@ -323,7 +323,10 @@ onUnmounted(() => {
               @input="handleOtpInput"
               @keyup.enter="verifyOtp"
             />
-            <span v-for="(digit, index) in otpDigits" :key="index" class="otp-box">{{ digit }}</span>
+            <template v-for="(digit, index) in otpDigits" :key="index">
+              <span class="otp-box">{{ digit }}</span>
+              <span v-if="index === 2" class="otp-divider" aria-hidden="true">-</span>
+            </template>
           </div>
 
           <button class="otp-submit" :disabled="loading || otp.length < 6 || rateLimited" @click="verifyOtp">
@@ -538,8 +541,9 @@ onUnmounted(() => {
 .otp-grid {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto repeat(3, minmax(0, 1fr));
   gap: 0.65rem;
+  align-items: center;
 }
 
 .otp-hidden-input {
@@ -559,6 +563,12 @@ onUnmounted(() => {
   color: var(--primary);
   font-size: 1.5rem;
   font-weight: 800;
+}
+
+.otp-divider {
+  color: rgba(255, 255, 255, 0.26);
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
 .otp-submit {
@@ -627,6 +637,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.9rem;
   padding: 1rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .trust-icon,
