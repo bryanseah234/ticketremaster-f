@@ -21,6 +21,8 @@ const loading = ref(false)
 const created = ref<{ eventId: string; seatsCreated: number } | null>(null)
 const venues = ref<any[]>([])
 const dashboardTo = computed(() => (created.value?.eventId ? `/admin/events/${created.value.eventId}/dashboard` : null))
+const selectedVenue = computed(() => venues.value.find(v => v.venueId === form.venueId) || null)
+const lockedVenueFields = computed(() => Boolean(selectedVenue.value))
 
 onMounted(async () => {
   try {
@@ -137,21 +139,22 @@ const submit = async () => {
               <option disabled value="">Select a venue...</option>
               <option v-for="venue in venues" :key="venue.venueId" :value="venue.venueId">{{ venue.name }}</option>
             </select>
+            <p v-if="lockedVenueFields" class="small muted field-note">Venue-backed values are locked from seeded data.</p>
           </div>
           <div>
             <label>Total Seats</label>
-            <input v-model="form.totalSeats" type="number" min="1" />
+            <input v-model="form.totalSeats" type="number" min="1" :readonly="lockedVenueFields" :disabled="lockedVenueFields" />
           </div>
         </div>
 
         <div class="grid-2">
           <div>
             <label>Venue Name</label>
-            <input v-model="form.venueName" placeholder="Venue name" />
+            <input v-model="form.venueName" placeholder="Venue name" :readonly="lockedVenueFields" :disabled="lockedVenueFields" />
           </div>
           <div>
             <label>Ticket Price</label>
-            <input v-model="form.cat1Price" type="number" min="1" />
+            <input v-model="form.cat1Price" type="number" min="1" :readonly="lockedVenueFields" :disabled="lockedVenueFields" />
           </div>
         </div>
 
@@ -220,6 +223,18 @@ const submit = async () => {
   gap: 1rem;
   flex-wrap: wrap;
 }
+
+.field-note {
+  margin-top: 0.45rem;
+}
+
+.admin-form input:disabled,
+.admin-form select:disabled,
+.admin-form textarea:disabled {
+  opacity: 0.78;
+  cursor: not-allowed;
+}
+
 @media (max-width: 920px) {
   .admin-layout { grid-template-columns: 1fr; }
 }

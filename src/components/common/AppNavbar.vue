@@ -29,23 +29,21 @@ const adminEventId = computed(() => {
 })
 const profileRoute = computed(() => {
   if (!auth.isLoggedIn) return '/login'
+  if (auth.isStaff) return '/staff/scan'
   if (auth.isAdmin && adminEventId.value) return `/profile?eventId=${encodeURIComponent(adminEventId.value)}`
   return '/profile'
 })
 
-const primaryNav = computed(() => {
-  if (minimalTopNav.value) return []
-  return [
-    { to: '/events', label: 'Events' },
-    { to: '/marketplace', label: 'Marketplace' },
-  ]
-})
+const primaryNav = [
+  { to: '/events', label: 'Events' },
+  { to: '/marketplace', label: 'Marketplace' },
+]
 
 const mobileNav = computed(() => {
   if (auth.isStaff) {
     return [
-      { to: profileRoute.value, label: 'Profile' },
-      { to: '/help', label: 'Support' },
+      { to: '/profile', label: 'Profile' },
+      { to: '/staff/scan', label: 'Scanner' },
     ]
   }
   if (auth.isAdmin) {
@@ -103,9 +101,9 @@ const scheduleBalance = () => {
 
 const balanceLabel = computed(() => {
   if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return null
-  if (balanceLoading.value) return 'Credits ...'
-  if (balance.value === null) return 'Credits --'
-  return `Credits $${balance.value.toFixed(0)}`
+  if (balanceLoading.value) return '$ ...'
+  if (balance.value === null) return null
+  return `$${balance.value.toFixed(2)}`
 })
 
 const isActive = (target: string) => route.path === target || route.path.startsWith(`${target}/`)
@@ -119,6 +117,7 @@ watch(() => auth.isLoggedIn, () => {
 
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false
+  if (auth.isLoggedIn && !auth.isStaff && !auth.isAdmin) scheduleBalance()
 })
 
 onMounted(() => {
@@ -135,7 +134,7 @@ onMounted(() => {
     <div class="nav-pill">
       <RouterLink to="/" class="brand">TicketRemaster</RouterLink>
 
-      <nav v-if="primaryNav.length" class="desktop-nav" aria-label="Primary">
+      <nav class="desktop-nav" aria-label="Primary">
         <RouterLink
           v-for="item in primaryNav"
           :key="item.to"
@@ -256,12 +255,21 @@ onMounted(() => {
   align-items: center;
   padding: 0.48rem 0.85rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.72);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+}
+
+.balance-chip {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.22);
+  color: var(--primary);
+}
+
+.demo-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--primary);
   text-transform: uppercase;
 }
 

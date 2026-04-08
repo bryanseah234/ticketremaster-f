@@ -15,6 +15,7 @@ const balance = ref(0)
 const order = ref<any>(null)
 const loading = ref(false)
 const holdSeconds = ref(0)
+const holdExpired = ref(false)
 const ticket = ref<any>(null)
 const eventName = ref('')
 const trustRowRef = ref<HTMLElement | null>(null)
@@ -90,9 +91,20 @@ const loadOrder = () => {
       const heldUntil = parsed?.heldUntil
       if (heldUntil) {
         holdSeconds.value = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
-        holdTimer = window.setInterval(() => {
-          holdSeconds.value = Math.max(0, holdSeconds.value - 1)
-        }, 1000)
+        if (holdSeconds.value === 0) {
+          holdExpired.value = true
+        } else {
+          holdTimer = window.setInterval(() => {
+            holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+            if (holdSeconds.value === 0) {
+              clearInterval(holdTimer)
+              holdExpired.value = true
+              localStorage.removeItem('pendingOrder')
+              toast.push('Your seat hold has expired. Please select a seat again.', 'error', 4000)
+              router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
+            }
+          }, 1000)
+        }
       }
     }
   } catch {
@@ -154,6 +166,11 @@ const cancel = async () => {
 }
 
 const pay = async () => {
+  if (holdExpired.value) {
+    toast.push('Your seat hold has expired. Please select a seat again.', 'error', 4000)
+    router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
+    return
+  }
   loading.value = true
   try {
     if (isDemoMode()) {
@@ -302,7 +319,7 @@ onUnmounted(() => {
             <button
               class="confirm-button"
               style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%)"
-              :disabled="loading || !hasEnoughCredits"
+              :disabled="loading || !hasEnoughCredits || holdExpired"
               @click="pay"
             >
               <span>{{ loading ? 'Processing...' : 'Confirm Purchase' }}</span>
