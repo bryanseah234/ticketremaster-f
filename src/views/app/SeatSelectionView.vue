@@ -275,6 +275,46 @@ const reserveSeat = async () => {
 onMounted(async () => {
   await loadEvent()
   await loadSeats()
+
+  // Check if user already has an active hold for this event (e.g. returning from top-up)
+  if (!isDemoMode() && auth.state.user) {
+    try {
+      const eventId = String(route.params.eventId)
+      const { data } = await api.get(`/purchase/hold/resume/${eventId}`)
+      const hold = data?.data
+      if (hold?.inventoryId && hold?.heldUntil) {
+        const secondsLeft = Math.max(0, Math.floor((new Date(hold.heldUntil).getTime() - Date.now()) / 1000))
+        if (secondsLeft > 0) {
+          // Restore the hold into localStorage and redirect straight to checkout
+          localStorage.setItem('pendingOrder', JSON.stringify({
+            orderId: hold.inventoryId,
+            inventoryId: hold.inventoryId,
+            holdToken: hold.holdToken || '',
+            heldUntil: hold.heldUntil,
+            eventId,
+            seat: {
+              seatId: hold.seat?.seatId,
+              rowNumber: hold.seat?.rowNumber,
+              seatNumber: hold.seat?.seatNumber,
+              price: hold.seat?.price ?? eventData.value?.price ?? 0,
+              section: hold.seat?.section,
+            },
+            event: {
+              name: hold.event?.name ?? eventData.value?.name,
+              image: hold.event?.image ?? eventData.value?.image,
+              eventDate: hold.event?.date ?? eventData.value?.date,
+              venueName: hold.event?.venueName ?? eventData.value?.venue?.name,
+            },
+          }))
+          toast.push('Resuming your existing seat hold.', 'info', 3000)
+          router.push(`/checkout/${hold.inventoryId}`)
+          return
+        }
+      }
+    } catch {
+      // No active hold - continue normally
+    }
+  }
 })
 
 onUnmounted(() => {

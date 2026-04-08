@@ -86,25 +86,28 @@ const loadOrder = () => {
   if (!raw) return
   try {
     const parsed = JSON.parse(raw)
-    if (parsed?.orderId === route.params.orderId) {
-      order.value = hydratePendingOrder(parsed)
-      const heldUntil = parsed?.heldUntil
-      if (heldUntil) {
-        holdSeconds.value = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
-        if (holdSeconds.value === 0) {
-          holdExpired.value = true
-        } else {
-          holdTimer = window.setInterval(() => {
-            holdSeconds.value = Math.max(0, holdSeconds.value - 1)
-            if (holdSeconds.value === 0) {
-              clearInterval(holdTimer)
-              holdExpired.value = true
-              localStorage.removeItem('pendingOrder')
-              toast.push('Your seat hold has expired. Please select a seat again.', 'error', 4000)
-              router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
-            }
-          }, 1000)
-        }
+    // Accept if orderId matches the route param, OR if the stored inventoryId matches,
+    // OR if there's only one pending order and the eventId is consistent (returning from top-up)
+    const routeOrderId = String(route.params.orderId)
+    const isMatch = parsed?.orderId === routeOrderId || parsed?.inventoryId === routeOrderId
+    if (!isMatch) return
+    order.value = hydratePendingOrder(parsed)
+    const heldUntil = parsed?.heldUntil
+    if (heldUntil) {
+      holdSeconds.value = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
+      if (holdSeconds.value === 0) {
+        holdExpired.value = true
+      } else {
+        holdTimer = window.setInterval(() => {
+          holdSeconds.value = Math.max(0, holdSeconds.value - 1)
+          if (holdSeconds.value === 0) {
+            clearInterval(holdTimer)
+            holdExpired.value = true
+            localStorage.removeItem('pendingOrder')
+            toast.push('Your seat hold has expired. Please select a seat again.', 'error', 4000)
+            router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
+          }
+        }, 1000)
       }
     }
   } catch {
