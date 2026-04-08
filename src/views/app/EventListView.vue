@@ -13,9 +13,12 @@ const toast = useToast()
 
 const EVENT_TYPES: Array<{ value: EventType | 'all'; label: string }> = [
   { value: 'all', label: 'All Categories' },
-  { value: 'concert', label: 'Music' },
+  { value: 'concert', label: 'Concert' },
   { value: 'sports', label: 'Sports' },
-  { value: 'theater', label: 'Theater' },
+  { value: 'theatre', label: 'Theatre' },
+  { value: 'classical', label: 'Classical' },
+  { value: 'festival', label: 'Festival' },
+  { value: 'other', label: 'Other' },
 ]
 const listingFallbackImages = [
   '/stitch-media/listing/listing-featured-rooftop.jpg',
