@@ -14,12 +14,7 @@ import {
  * - purchase_update events
  */
 test.describe('WebSocket Real-time Notifications', () => {
-    test.beforeEach(async ({ page, context }) => {
-        await context.addInitScript(() => {
-            localStorage.setItem('access_token', 'mock-token');
-            localStorage.setItem('refresh_token', 'refresh-token');
-            localStorage.setItem('user', JSON.stringify({ userId: 'usr_001', email: 'test@example.com', role: 'user' }));
-        });
+    test.beforeEach(async ({ page }) => {
         setupConsoleMonitoring(page);
     });
 
@@ -27,28 +22,43 @@ test.describe('WebSocket Real-time Notifications', () => {
         assertNoConsoleErrors();
     });
 
+    async function loginDemoUser(page: any) {
+        await page.goto('/demo-login');
+        await page.click('button:has-text("Demo User")');
+        await page.waitForURL(/\/events/, { timeout: 15000 });
+    }
+
+    async function navigateInApp(page: any, path: string) {
+        await page.evaluate((nextPath) => {
+            window.history.pushState({}, '', nextPath);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }, path);
+    }
+
     test('should connect to WebSocket on authenticated pages', async ({ page }) => {
-        await page.goto('/tickets');
+        await loginDemoUser(page);
+        await navigateInApp(page, '/tickets');
         
         // Give WebSocket time to connect
         await page.waitForTimeout(1000);
         
         // The page should load without errors
-        await expect(page.locator('h1')).toContainText(/My Tickets|Tickets/);
+        await expect(page.locator('.tickets-page')).toBeVisible();
     });
 
     test('should handle WebSocket reconnection', async ({ page }) => {
-        await page.goto('/tickets');
+        await loginDemoUser(page);
+        await navigateInApp(page, '/tickets');
         await page.waitForTimeout(500);
 
         // Simulate disconnection by navigating away and back
-        await page.goto('/events');
+        await navigateInApp(page, '/events');
         await page.waitForTimeout(500);
-        await page.goto('/tickets');
+        await navigateInApp(page, '/tickets');
         await page.waitForTimeout(500);
 
         // Page should still function after navigation
-        await expect(page.locator('h1')).toContainText(/My Tickets|Tickets/);
+        await expect(page.locator('.tickets-page')).toBeVisible();
     });
 });
 

@@ -37,6 +37,7 @@ const countdownFormatted = computed(
     `${String(Math.floor(rateLimitCountdown.value / 60)).padStart(2, '0')}:${String(rateLimitCountdown.value % 60).padStart(2, '0')}`,
 )
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
+const activeDigitIndex = computed(() => Math.min(otp.value.length, 5))
 const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?.image || FALLBACK_TRANSFER_IMAGE)
 
 const verifyCopy = computed(() =>
@@ -374,7 +375,7 @@ onUnmounted(() => {
               @keyup.enter="verifyOtp"
             />
             <template v-for="(digit, index) in otpDigits" :key="index">
-              <span class="otp-box">{{ digit }}</span>
+              <span class="otp-box" :class="{ active: index === activeDigitIndex }">{{ digit }}</span>
               <span v-if="index === 2" class="otp-divider" aria-hidden="true">-</span>
             </template>
           </div>
@@ -467,7 +468,7 @@ onUnmounted(() => {
               <span>{{ loading ? 'Processing...' : 'Accept Transfer' }}</span>
               <ArrowRightIcon class="btn-arrow-icon" />
             </button>
-            <button class="decline-button" :disabled="loading" type="button" @click="rejectTransfer">Decline Transfer</button>
+            <button class="decline-button" style="border: 0; background: transparent;" :disabled="loading" type="button" @click="rejectTransfer">Decline Transfer</button>
           </template>
 
           <template v-else-if="status === 'pending_seller_acceptance'">

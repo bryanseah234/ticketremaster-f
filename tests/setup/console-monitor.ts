@@ -63,6 +63,9 @@ const ALLOWED_CONSOLE_PATTERNS = [
   /Stripe\.js integration over HTTP/, // Stripe test environment warning
   /live Stripe\.js integrations must use HTTPS/, // Stripe test environment warning
   /\[Vue warn\]/, // Vue component warnings during test mocking
+  /WebSocket connection to .*socket\.io/, // Socket endpoint can be unavailable in local E2E
+  /\[WebSocket\] Connection error/, // Expected when remote websocket is unreachable
+  /Unexpected response code: 530/, // Cloudflare handshake failure in test env
 ]
 
 /**

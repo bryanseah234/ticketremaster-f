@@ -71,6 +71,11 @@ const faqItems = [
       </div>
     </article>
 
+    <section class="support-actions">
+      <RouterLink class="support-action-link" to="/events">Browse Events</RouterLink>
+      <RouterLink class="support-action-link" to="/marketplace">Open Marketplace</RouterLink>
+    </section>
+
     <div class="support-bento">
       <article class="support-card-featured panel">
         <div class="featured-overlay" aria-hidden="true"></div>
@@ -143,6 +148,27 @@ const faqItems = [
 .support-page {
   display: grid;
   gap: 1.5rem;
+}
+
+.support-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.support-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text, #fff);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .support-hero,

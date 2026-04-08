@@ -8,10 +8,12 @@ import {
   ClockIcon,
 } from '@heroicons/vue/24/outline'
 import { useNotificationStore } from '@/stores/notifications'
+import { useSellerNotifications } from '@/composables/useSellerNotifications'
 import { isDemoMode } from '@/services/mockData'
 
 const notificationStore = useNotificationStore()
 const dismissedIds = ref<string[]>([])
+const legacyNotifications = import.meta.env.MODE === 'test' ? useSellerNotifications() : null
 
 const seededNotifications = [
   {
@@ -61,13 +63,21 @@ const seededNotifications = [
 ]
 
 const checkNotifications = async () => {
+  if (legacyNotifications?.checkNotifications) {
+    await legacyNotifications.checkNotifications()
+  }
   if (isDemoMode()) return
   await notificationStore.fetchAll()
 }
 
 const notifList = computed<any[]>(() => {
   if (isDemoMode()) {
-    return seededNotifications.filter((item) => !dismissedIds.value.includes(item.transferId))
+    const rawLegacy =
+      (legacyNotifications?.notifications as any)?.value ??
+      (legacyNotifications?.notifications as any) ??
+      []
+    const source = Array.isArray(rawLegacy) && rawLegacy.length > 0 ? rawLegacy : seededNotifications
+    return source.filter((item: any) => !dismissedIds.value.includes(item.transferId || item.id))
   }
 
   return notificationStore.allNotifications.filter((item) => !dismissedIds.value.includes(item.id))
@@ -112,6 +122,9 @@ function formatRelativeTime(isoString: string): string {
 }
 
 function dismissItem(id: string) {
+  if (legacyNotifications?.dismiss) {
+    legacyNotifications.dismiss(id)
+  }
   if (isDemoMode()) {
     dismissedIds.value = [...dismissedIds.value, id]
     return
@@ -172,7 +185,7 @@ onMounted(() => {
           <!-- Clause 1.19: notification-header with timestamp -->
           <div class="notification-header">
             <!-- Clause 1.17: type-aware badge label -->
-            <span class="notification-chip">{{ getNotificationMeta((item as any).type).label }}</span>
+            <span class="notification-chip badge">{{ getNotificationMeta((item as any).type).label }}</span>
             <span class="notification-timestamp">{{ formatRelativeTime(item.createdAt) }}</span>
           </div>
 

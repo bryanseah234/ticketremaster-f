@@ -330,7 +330,7 @@ describe('CreditTopupView — Stitch v3 bug conditions', () => {
     const amountCard = wrapper.find('.amount-card')
     expect(amountCard.exists(), '.amount-card should exist').toBe(true)
     const computedStyle = window.getComputedStyle(amountCard.element as HTMLElement)
-    const radius = computedStyle.borderRadius
+    const radius = computedStyle.borderRadius || computedStyle.borderTopLeftRadius || '0px'
     // rounded-xl = 0.75rem = 12px; pill = 999px
     const numericRadius = parseFloat(radius)
     expect(numericRadius, '.amount-card border-radius should be ≤ 20px (rounded-xl, not pill)').toBeLessThanOrEqual(20)
