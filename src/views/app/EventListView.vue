@@ -334,6 +334,7 @@ onMounted(load)
 .listing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
   gap: 1.35rem;
 }
 
