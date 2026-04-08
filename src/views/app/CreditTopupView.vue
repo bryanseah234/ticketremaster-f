@@ -23,8 +23,6 @@ const demoMode = computed(() => isDemoMode())
 const auth = useAuthStore()
 
 const cardholderName = ref('ALEX VANCE')
-const expiry = ref('')
-const cvc = ref('')
 
 const quickAmounts = [25, 50, 100]
 
@@ -299,15 +297,6 @@ onUnmounted(() => {
               <div v-else ref="cardMount" class="card-mount"></div>
             </div>
 
-            <div class="field-stack">
-              <label>Expiry Date</label>
-              <input v-model="expiry" placeholder="MM / YY" :readonly="!demoMode" />
-            </div>
-
-            <div class="field-stack">
-              <label>CVC</label>
-              <input v-model="cvc" placeholder="•••" :readonly="!demoMode" />
-            </div>
           </div>
 
           <p class="secure-note">

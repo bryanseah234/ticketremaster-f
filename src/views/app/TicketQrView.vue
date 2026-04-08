@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeftIcon, CalendarDaysIcon, MapPinIcon, WalletIcon } from '@heroicons/vue/24/outline'
+import QRCode from 'qrcode'
 import api from '@/api/client'
 import type { Event, Ticket, Venue } from '@/types'
 import { isDemoMode, mockTickets } from '@/services/mockData'
@@ -14,7 +15,20 @@ const event = ref<Event | null>(null)
 const venue = ref<Venue | null>(null)
 const loading = ref(false)
 const expiresIn = ref(60)
+const qrCanvas = ref<HTMLCanvasElement | null>(null)
 let countdownInterval: number | undefined
+
+const renderQr = async (value: string) => {
+  if (!qrCanvas.value || !value) return
+  await QRCode.toCanvas(qrCanvas.value, value, {
+    width: 224,
+    margin: 1,
+    color: { dark: '#111111', light: '#f5f5f5' },
+    errorCorrectionLevel: 'M',
+  })
+}
+
+watch(qrHash, (val) => { if (val) renderQr(val) })
 
 const formattedExpires = computed(() => (expiresIn.value > 0 ? `${expiresIn.value}s` : 'Expired'))
 const formattedDate = computed(() => {
@@ -33,12 +47,6 @@ const formattedTime = computed(() => {
     hour12: true,
   })
 })
-const qrCells = computed(() =>
-  Array.from({ length: 81 }, (_, index) => {
-    const code = qrHash.value.charCodeAt(index % qrHash.value.length) || 0
-    return ((code + index * 7) % 3) === 0
-  }),
-)
 const ticketStatusLabel = computed(() => (ticket.value?.status === 'active' ? 'confirmed' : ticket.value?.status || 'confirmed'))
 
 onMounted(async () => {
@@ -75,6 +83,7 @@ onMounted(async () => {
     }
   } finally {
     loading.value = false
+    await renderQr(ticket.value?.qrHash || qrHash.value)
   }
 })
 
@@ -99,9 +108,7 @@ onUnmounted(() => {
     <article class="ticket-shell">
       <div class="qr-column">
         <div class="qr-paper">
-          <div class="qr-grid">
-            <span v-for="(filled, index) in qrCells" :key="index" :class="{ filled }"></span>
-          </div>
+          <canvas ref="qrCanvas"></canvas>
         </div>
 
         <div class="qr-timer">
@@ -248,22 +255,6 @@ onUnmounted(() => {
   border: 2px dashed rgba(0, 0, 0, 0.12);
 }
 
-.qr-grid {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 0.3rem;
-  width: 14rem;
-  height: 14rem;
-}
-
-.qr-grid span {
-  border-radius: 0.18rem;
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.qr-grid span.filled {
-  background: #111;
-}
 
 .qr-timer {
   display: flex;

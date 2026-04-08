@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import {
   CreditCardIcon,
-  LifebuoyIcon,
   PlusIcon,
   QrCodeIcon,
   Squares2X2Icon,
@@ -40,26 +39,39 @@ watch(routeEventId, (id) => {
   if (id) sessionStorage.setItem(ADMIN_LAST_EVENT_KEY, id)
 }, { immediate: true })
 
+const resolvedAdminEventId = computed(() => routeEventId.value || sessionStorage.getItem(ADMIN_LAST_EVENT_KEY))
+
+const resolvedProfileTo = computed(() => {
+  if (auth.isAdmin && resolvedAdminEventId.value) {
+    return `/profile?eventId=${encodeURIComponent(resolvedAdminEventId.value)}`
+  }
+  return '/profile'
+})
+
+const resolvedCreateTo = computed(() => {
+  if (!auth.isAdmin) return null
+  return props.createTo || '/admin/events/new'
+})
+
 const resolvedDashboardTo = computed(() => {
   if (props.dashboardTo) return props.dashboardTo
-  const id = routeEventId.value || sessionStorage.getItem(ADMIN_LAST_EVENT_KEY)
+  const id = resolvedAdminEventId.value
   return id ? `/admin/events/${id}/dashboard` : null
 })
 
 const links = computed(() => {
   if (auth.isStaff) {
     return [
-      { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
+      { key: 'profile', to: resolvedProfileTo.value, label: 'Profile', icon: UserCircleIcon },
       { key: 'scanner', to: '/staff/scan', label: 'Scanner', icon: QrCodeIcon },
-      { key: 'support', to: '/help', label: 'Support', icon: LifebuoyIcon },
     ]
   }
 
   if (auth.isAdmin) {
     return [
-      { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
-      ...(props.createTo
-        ? [{ key: 'create', to: props.createTo, label: 'Create', icon: PlusIcon }]
+      { key: 'profile', to: resolvedProfileTo.value, label: 'Profile', icon: UserCircleIcon },
+      ...(resolvedCreateTo.value
+        ? [{ key: 'create', to: resolvedCreateTo.value, label: 'Create', icon: PlusIcon }]
         : []),
       ...(resolvedDashboardTo.value
         ? [{ key: 'dashboard', to: resolvedDashboardTo.value, label: 'Dashboard', icon: Squares2X2Icon }]
@@ -68,7 +80,7 @@ const links = computed(() => {
   }
 
   return [
-    { key: 'profile', to: '/profile', label: 'Profile', icon: UserCircleIcon },
+    { key: 'profile', to: resolvedProfileTo.value, label: 'Profile', icon: UserCircleIcon },
     { key: 'credits', to: '/credits/topup', label: 'Credits', icon: CreditCardIcon },
     { key: 'tickets', to: '/tickets', label: 'Tickets', icon: TicketIcon },
   ]
