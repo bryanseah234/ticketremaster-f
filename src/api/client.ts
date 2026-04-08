@@ -140,6 +140,10 @@ const logApiError = (error: AxiosError<ApiError>) => {
     headers,
     response: error?.response?.data,
   }
+  if (status && status >= 400 && status < 500) {
+    console.warn('API request rejected', details)
+    return
+  }
   console.error('API error', details)
 }
 
@@ -330,7 +334,7 @@ api.interceptors.response.use(
       const codeMessage =
         errorCode === 'SERVICE_TIMEOUT'
           ? 'The request took too long. Please try again.'
-          : errorCode === 'SEAT_UNAVAILABLE'
+          : errorCode === 'SEAT_UNAVAILABLE' || errorCode === 'SEAT_NOT_AVAILABLE'
           ? 'Seat is currently unavailable.'
           : errorCode === 'SEAT_ALREADY_SOLD'
           ? 'Seat has already been sold.'

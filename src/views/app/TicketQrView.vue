@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { ArrowLeftIcon, CalendarDaysIcon, MapPinIcon, WalletIcon } from '@heroicons/vue/24/outline'
+import { ArrowLeftIcon, CalendarDaysIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import QRCode from 'qrcode'
 import api from '@/api/client'
 import type { Event, Ticket, Venue } from '@/types'
@@ -56,16 +56,72 @@ const displayRow = computed(() => ticket.value?.seat?.rowNumber || '--')
 const displaySeat = computed(() => ticket.value?.seat?.seatNumber || '--')
 const displayGate = computed(() => (ticket.value?.seat as any)?.gate || '--')
 
+const normalizeSeat = (payload: any) => {
+  const rawSeat = payload?.seat && typeof payload.seat === 'object' ? payload.seat : {}
+  const seat = {
+    ...(ticket.value?.seat || {}),
+    ...(rawSeat || {}),
+    seatId: rawSeat?.seatId || payload?.seatId || ticket.value?.seat?.seatId || '',
+    venueId: rawSeat?.venueId || payload?.venueId || ticket.value?.seat?.venueId || '',
+    section: rawSeat?.section || payload?.seatSection || payload?.seat_section || payload?.section || ticket.value?.seat?.section,
+    rowNumber: rawSeat?.rowNumber || rawSeat?.row || payload?.seatRow || payload?.seat_row || payload?.rowNumber || ticket.value?.seat?.rowNumber,
+    seatNumber: rawSeat?.seatNumber || rawSeat?.seat || payload?.seatNumber || payload?.seat_number || payload?.seatNo || ticket.value?.seat?.seatNumber,
+  }
+  const gate = rawSeat?.gate || payload?.seatGate || payload?.seat_gate || payload?.gate || (ticket.value?.seat as any)?.gate
+
+  if (!seat.section && !seat.rowNumber && !seat.seatNumber && !gate) return ticket.value?.seat
+  return gate ? { ...seat, gate } : seat
+}
+
+const normalizeEvent = (payload: any) => {
+  const rawEvent = payload?.event && typeof payload.event === 'object' ? payload.event : {}
+  const name = rawEvent?.name || payload?.eventName || payload?.event_name || event.value?.name
+  const date = rawEvent?.date || rawEvent?.eventDate || payload?.eventDate || payload?.date || event.value?.date
+
+  if (!name && !date) return event.value
+  return {
+    ...(event.value || {}),
+    ...(rawEvent || {}),
+    eventId: rawEvent?.eventId || payload?.eventId || event.value?.eventId || '',
+    venueId: rawEvent?.venueId || payload?.venueId || event.value?.venueId || '',
+    name,
+    date,
+    price: Number(rawEvent?.price ?? payload?.price ?? event.value?.price ?? 0),
+    type: rawEvent?.type || event.value?.type || 'other',
+  } as Event
+}
+
+const normalizeVenue = (payload: any) => {
+  const rawVenue = payload?.venue && typeof payload.venue === 'object' ? payload.venue : {}
+  const name = rawVenue?.name || payload?.venueName || payload?.venue_name || payload?.location || venue.value?.name
+  const address = rawVenue?.address || payload?.venueAddress || payload?.address || venue.value?.address
+
+  if (!name && !address) return venue.value
+  return {
+    ...(venue.value || {}),
+    ...(rawVenue || {}),
+    venueId: rawVenue?.venueId || payload?.venueId || venue.value?.venueId || '',
+    name: name || venue.value?.name || '',
+    address,
+    createdAt: rawVenue?.createdAt || venue.value?.createdAt || '',
+  } as Venue
+}
+
 const applyTicketContext = (payload: any) => {
   if (!payload) return
+  const normalizedSeat = normalizeSeat(payload)
   ticket.value = {
     ...(ticket.value || {}),
     ...payload,
     qrHash: payload.qrHash || ticket.value?.qrHash || qrHash.value,
-    seat: payload.seat || ticket.value?.seat,
+    eventId: payload.eventId || ticket.value?.eventId || '',
+    ownerId: payload.ownerId || ticket.value?.ownerId || '',
+    seatId: payload.seatId || normalizedSeat?.seatId || ticket.value?.seatId || '',
+    purchasedAt: payload.createdAt || payload.purchasedAt || ticket.value?.purchasedAt || '',
+    seat: normalizedSeat,
   } as Ticket
-  event.value = payload.event || event.value
-  venue.value = payload.venue || venue.value
+  event.value = normalizeEvent(payload) || event.value
+  venue.value = normalizeVenue(payload) || venue.value
 }
 
 onMounted(async () => {
@@ -89,6 +145,11 @@ onMounted(async () => {
     const ticketData = data?.data
     if (ticketData) {
       applyTicketContext(ticketData)
+      const resolvedQrHash = ticketData.qrHash || qrHash.value
+      if (!isQrHashToken.value && resolvedQrHash) {
+        const contextResponse = await api.get(`/tickets/qr/${resolvedQrHash}`)
+        applyTicketContext(contextResponse?.data?.data)
+      }
     }
   } catch (error) {
     const fallback = mockTickets.find((item) => item.qrHash === qrHash.value || item.ticketId === qrHash.value) || null
@@ -175,13 +236,6 @@ onUnmounted(() => {
             <MapPinIcon class="detail-icon" />
             <span>{{ venue?.address || 'Present this code to venue staff for entry verification.' }}</span>
           </div>
-        </div>
-
-        <div class="actions">
-          <button>
-            <WalletIcon class="wallet-icon" />
-            <span>Add to Apple Wallet</span>
-          </button>
         </div>
       </div>
     </article>
@@ -375,24 +429,6 @@ onUnmounted(() => {
 .detail-list span {
   color: var(--text-muted);
   font-weight: 500;
-}
-
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.wallet-icon {
-  width: 1rem;
-  height: 1rem;
 }
 
 @media (max-width: 860px) {

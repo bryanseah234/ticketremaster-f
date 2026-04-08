@@ -116,7 +116,7 @@ const onSeatChange = async (seat: SeatItem) => {
     toast.push('Seat held for 5 minutes.', 'success', 3200)
   } catch (e: any) {
     const code = e?.response?.data?.error?.code
-    const msg = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_ALREADY_SOLD'
+    const msg = code === 'SEAT_UNAVAILABLE' || code === 'SEAT_NOT_AVAILABLE' || code === 'SEAT_ALREADY_SOLD'
       ? 'Seat unavailable, please choose another.'
       : 'Could not hold seat. Please try again.'
     toast.push(msg, 'error', 3200)

@@ -215,6 +215,143 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     wrapper.unmount()
   })
 
+  it('ticket QR view hydrates full seat details when entered with a ticket id first', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    const { useRoute } = await import('vue-router')
+    vi.mocked(useRoute).mockReturnValueOnce({
+      path: '/ticket-qr/tkt-qr-002',
+      fullPath: '/ticket-qr/tkt-qr-002',
+      params: { qrHash: 'tkt-qr-002' },
+      query: {},
+    } as any)
+
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/tickets/tkt-qr-002/qr') {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'tkt-qr-002',
+              qrHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+              status: 'active',
+              event: { name: 'Taylor Swift | The Eras Tour', date: '2026-06-15T11:30:00Z' },
+              venue: { name: 'Esplanade Concert Hall', address: '1 Esplanade Drive' },
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/tickets/qr/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'tkt-qr-002',
+              qrHash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+              status: 'active',
+              seat: { section: 'GA', rowNumber: 'A', seatNumber: '12', gate: 'North' },
+              event: { name: 'Taylor Swift | The Eras Tour', date: '2026-06-15T11:30:00Z' },
+              venue: { name: 'Esplanade Concert Hall', address: '1 Esplanade Drive' },
+            },
+          },
+        }) as any
+      }
+
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    const { default: TicketQrView } = await import('../TicketQrView.vue')
+    const wrapper = shallowMount(TicketQrView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Taylor Swift | The Eras Tour')
+    expect(wrapper.text()).toContain('Esplanade Concert Hall')
+    expect(wrapper.text()).toContain('GA')
+    expect(wrapper.text()).toContain('North')
+    expect(wrapper.text()).not.toContain('Add to Apple Wallet')
+    wrapper.unmount()
+  })
+
+  it('ticket detail view hydrates seat context from the qr hash lookup and hides secondary actions', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    const { useRoute } = await import('vue-router')
+    vi.mocked(useRoute).mockReturnValueOnce({
+      path: '/tickets/tkt-detail-001',
+      fullPath: '/tickets/tkt-detail-001',
+      params: { ticketId: 'tkt-detail-001' },
+      query: {},
+    } as any)
+
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/tickets') {
+        return Promise.resolve({
+          data: {
+            data: {
+              tickets: [
+                {
+                  ticketId: 'tkt-detail-001',
+                  status: 'active',
+                  price: 188,
+                  createdAt: '2026-04-08T12:00:00Z',
+                  event: {
+                    eventId: 'evt-001',
+                    name: 'Taylor Swift | The Eras Tour',
+                    date: '2026-06-15T11:30:00Z',
+                  },
+                  venue: {
+                    venueId: 'ven-001',
+                    name: 'Esplanade Concert Hall',
+                  },
+                },
+              ],
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/tickets/tkt-detail-001/qr') {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'tkt-detail-001',
+              qrHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+              event: { name: 'Taylor Swift | The Eras Tour', date: '2026-06-15T11:30:00Z' },
+              venue: { name: 'Esplanade Concert Hall', address: '1 Esplanade Drive' },
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/tickets/qr/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc') {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'tkt-detail-001',
+              qrHash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+              status: 'active',
+              seat: { section: 'GA', rowNumber: 'A', seatNumber: '12', gate: 'North' },
+              event: { name: 'Taylor Swift | The Eras Tour', date: '2026-06-15T11:30:00Z' },
+              venue: { name: 'Esplanade Concert Hall', address: '1 Esplanade Drive' },
+            },
+          },
+        }) as any
+      }
+
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    const { default: TicketDetailView } = await import('../TicketDetailView.vue')
+    const wrapper = shallowMount(TicketDetailView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Taylor Swift | The Eras Tour')
+    expect(wrapper.text()).toContain('Esplanade Concert Hall')
+    expect(wrapper.text()).toContain('GA')
+    expect(wrapper.text()).toContain('North')
+    expect(wrapper.text()).not.toContain('Add to Apple Wallet')
+    expect(wrapper.text()).not.toContain('Open Full QR')
+    wrapper.unmount()
+  })
+
   it('verification success stays sidebar-free and keeps primary card layout', async () => {
     const { default: VerificationSuccessView } = await import('../VerificationSuccessView.vue')
     const wrapper = mount(VerificationSuccessView)
