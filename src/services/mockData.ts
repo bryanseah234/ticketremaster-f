@@ -1,7 +1,7 @@
 /**
  * Mock Data Service for Offline UI Development
  * Provides realistic mock data when backend is unavailable.
- * Used for UI development and demo purposes only.
+ * Aligned with real seeded backend data (venues, events, users).
  */
 import type {
   User,
@@ -20,311 +20,402 @@ import { resolveEventImage } from '@/utils/eventMedia'
 
 export const mockUser: User = {
   userId: 'demo-user-001',
-  email: 'demo@ticketremaster.com',
-  phoneNumber: '+1234567890',
+  email: 'user@ticketremaster.local',
+  phoneNumber: '+6500000003',
   role: 'user',
   isFlagged: false,
-  createdAt: '2024-01-01T00:00:00Z',
-  favoriteEvents: ['demo-event-001', 'demo-event-002'],
+  createdAt: '2026-01-01T00:00:00Z',
+  favoriteEvents: ['evt_001', 'evt_005'],
 }
 
 export const mockAdminUser: User = {
   userId: 'demo-admin-001',
-  email: 'admin@ticketremaster.com',
-  phoneNumber: '+1234567891',
+  email: 'admin@ticketremaster.local',
+  phoneNumber: '+6500000001',
   role: 'admin',
   isFlagged: false,
-  createdAt: '2024-01-01T00:00:00Z',
-  venueId: 'demo-venue-001',
+  createdAt: '2026-01-01T00:00:00Z',
+  venueId: 'ven_001',
 }
 
 export const mockStaffUser: User = {
   userId: 'demo-staff-001',
-  email: 'staff@ticketremaster.com',
-  phoneNumber: '+1234567892',
+  email: 'staff@ticketremaster.local',
+  phoneNumber: '+6500000002',
   role: 'staff',
   isFlagged: false,
-  createdAt: '2024-01-01T00:00:00Z',
-  venueId: 'demo-venue-001',
+  createdAt: '2026-01-01T00:00:00Z',
+  venueId: 'ven_001',
 }
 
 // ── Mock Venues ────────────────────────────────────────────────────
 
 export const mockVenues: Venue[] = [
   {
-    venueId: 'demo-venue-001',
-    name: 'Madison Square Garden',
-    address: '4 Pennsylvania Plaza',
-    city: 'New York',
-    country: 'USA',
-    capacity: 20789,
-    createdAt: '2024-01-01T00:00:00Z',
+    venueId: 'ven_001',
+    name: 'Esplanade Concert Hall',
+    address: '1 Esplanade Drive, Singapore',
+    postalCode: '038981',
+    capacity: 1600,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
-    venueId: 'demo-venue-002',
-    name: 'Wembley Stadium',
-    address: 'Wembley',
-    city: 'London',
-    country: 'UK',
-    capacity: 90000,
-    createdAt: '2024-01-01T00:00:00Z',
+    venueId: 'ven_002',
+    name: 'Singapore Indoor Stadium',
+    address: '2 Stadium Walk, Singapore',
+    postalCode: '397691',
+    capacity: 12000,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
   },
   {
-    venueId: 'demo-venue-003',
-    name: 'Tokyo Dome',
-    address: '1-3-61 Koraku, Bunkyo City',
-    city: 'Tokyo',
-    country: 'Japan',
+    venueId: 'ven_003',
+    name: 'Capitol Theatre',
+    address: '17 Stamford Road, Singapore',
+    postalCode: '178907',
+    capacity: 800,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    venueId: 'ven_004',
+    name: 'Sands Theatre',
+    address: '10 Bayfront Avenue, B1-69/70 The Shoppes at Marina Bay Sands, Singapore',
+    postalCode: '018971',
+    capacity: 1680,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    venueId: 'ven_005',
+    name: 'National Stadium',
+    address: '1 Stadium Drive, Singapore',
+    postalCode: '397629',
     capacity: 55000,
-    createdAt: '2024-01-01T00:00:00Z',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    venueId: 'ven_006',
+    name: 'Gardens by the Bay',
+    address: '18 Marina Gardens Drive, Singapore',
+    postalCode: '018953',
+    capacity: 10000,
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00Z',
   },
 ]
 
-// ── Mock Events (≥6, varied types) ────────────────────────────────
+// ── Venue lookup helper ────────────────────────────────────────────
+
+const venueById = Object.fromEntries(mockVenues.map(v => [v.venueId, v]))
+
+// ── Mock Events ────────────────────────────────────────────────────
 
 export const mockEvents: EventSummary[] = [
   {
-    eventId: 'demo-event-001',
-    name: 'Taylor Swift - Eras Tour',
-    date: '2026-06-15T19:30:00Z',
-    venueId: 'demo-venue-001',
-    price: 149.99,
+    eventId: 'evt_001',
+    name: 'Taylor Swift | The Eras Tour',
+    date: '2026-06-15T19:30:00',
+    venueId: 'ven_001',
+    price: 248.00,
     type: 'concert',
-    image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-001',
-      name: 'Madison Square Garden',
-      address: '4 Pennsylvania Plaza, New York',
-    },
-    seatsAvailable: 1250,
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/eras-tour/800/450', eventId: 'evt_001', type: 'concert', context: 'event' }),
+    venue: venueById['ven_001'],
+    seatsAvailable: 1200,
   },
   {
-    eventId: 'demo-event-002',
-    name: 'NBA Finals - Game 1',
-    date: '2026-06-20T20:00:00Z',
-    venueId: 'demo-venue-001',
-    price: 299.99,
-    type: 'sports',
-    image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-001',
-      name: 'Madison Square Garden',
-      address: '4 Pennsylvania Plaza, New York',
-    },
-    seatsAvailable: 500,
+    eventId: 'evt_002',
+    name: "SSO Gala: Beethoven's 9th",
+    date: '2026-07-20T20:00:00',
+    venueId: 'ven_001',
+    price: 85.00,
+    type: 'classical',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/sso-beethoven/800/450', eventId: 'evt_002', type: 'classical', context: 'event' }),
+    venue: venueById['ven_001'],
+    seatsAvailable: 800,
   },
   {
-    eventId: 'demo-event-003',
-    name: 'Hamilton - West End',
-    date: '2026-07-01T14:00:00Z',
-    venueId: 'demo-venue-002',
-    price: 89.99,
-    type: 'theater',
-    image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-002',
-      name: 'Wembley Stadium',
-      address: 'Wembley, London',
-    },
-    seatsAvailable: 2000,
+    eventId: 'evt_003',
+    name: 'DAY6 10th Anniversary Tour <The DECADE>',
+    date: '2026-08-18T18:00:00',
+    venueId: 'ven_001',
+    price: 158.00,
+    type: 'concert',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/day6-decade/800/450', eventId: 'evt_003', type: 'concert', context: 'event' }),
+    venue: venueById['ven_001'],
+    seatsAvailable: 900,
   },
   {
-    eventId: 'demo-event-004',
-    name: 'TechCrunch Disrupt',
-    date: '2026-09-15T09:00:00Z',
-    venueId: 'demo-venue-003',
-    price: 499.99,
-    type: 'conference',
-    image: resolveEventImage({ eventId: 'demo-event-004', type: 'conference', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-003',
-      name: 'Tokyo Dome',
-      address: '1-3-61 Koraku, Bunkyo City, Tokyo',
-    },
+    eventId: 'evt_004',
+    name: 'Harry Styles: Together, Together',
+    date: '2026-08-26T20:00:00',
+    venueId: 'ven_002',
+    price: 150.00,
+    type: 'concert',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/harry-styles/800/450', eventId: 'evt_004', type: 'concert', context: 'event' }),
+    venue: venueById['ven_002'],
+    seatsAvailable: 8000,
+  },
+  {
+    eventId: 'evt_005',
+    name: 'Coldplay: Music of the Spheres',
+    date: '2026-09-05T20:00:00',
+    venueId: 'ven_002',
+    price: 188.00,
+    type: 'concert',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/coldplay-spheres/800/450', eventId: 'evt_005', type: 'concert', context: 'event' }),
+    venue: venueById['ven_002'],
+    seatsAvailable: 7500,
+  },
+  {
+    eventId: 'evt_006',
+    name: 'Singapore Jazz Festival 2026',
+    date: '2026-05-10T18:00:00',
+    venueId: 'ven_002',
+    price: 75.00,
+    type: 'festival',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/sg-jazz-2026/800/450', eventId: 'evt_006', type: 'festival', context: 'event' }),
+    venue: venueById['ven_002'],
     seatsAvailable: 5000,
   },
   {
-    eventId: 'demo-event-005',
-    name: 'Summer Music Festival',
-    date: '2026-08-01T12:00:00Z',
-    venueId: 'demo-venue-002',
-    price: 79.99,
-    type: 'festival',
-    image: resolveEventImage({ eventId: 'demo-event-005', type: 'festival', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-002',
-      name: 'Wembley Stadium',
-      address: 'Wembley, London',
-    },
-    seatsAvailable: 10000,
+    eventId: 'evt_007',
+    name: 'A.R. Rahman Live in Concert',
+    date: '2026-10-25T19:00:00',
+    venueId: 'ven_003',
+    price: 95.00,
+    type: 'concert',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/ar-rahman/800/450', eventId: 'evt_007', type: 'concert', context: 'event' }),
+    venue: venueById['ven_003'],
+    seatsAvailable: 600,
   },
   {
-    eventId: 'demo-event-006',
-    name: 'Tokyo Jazz Night',
-    date: '2026-10-10T20:00:00Z',
-    venueId: 'demo-venue-003',
-    price: 59.99,
-    type: 'other',
-    image: resolveEventImage({ eventId: 'demo-event-006', type: 'other', context: 'event' }),
-    venue: {
-      venueId: 'demo-venue-003',
-      name: 'Tokyo Dome',
-      address: '1-3-61 Koraku, Bunkyo City, Tokyo',
-    },
-    seatsAvailable: 800,
+    eventId: 'evt_008',
+    name: 'Hans Zimmer Live',
+    date: '2026-11-21T20:00:00',
+    venueId: 'ven_003',
+    price: 88.00,
+    type: 'classical',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/hans-zimmer/800/450', eventId: 'evt_008', type: 'classical', context: 'event' }),
+    venue: venueById['ven_003'],
+    seatsAvailable: 500,
+  },
+  {
+    eventId: 'evt_009',
+    name: "Guns N' Roses - World Tour 2026",
+    date: '2026-07-01T20:00:00',
+    venueId: 'ven_004',
+    price: 125.00,
+    type: 'concert',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/gnr-2026/800/450', eventId: 'evt_009', type: 'concert', context: 'event' }),
+    venue: venueById['ven_004'],
+    seatsAvailable: 1200,
+  },
+  {
+    eventId: 'evt_010',
+    name: 'Mountbatten Festival of Music 2026',
+    date: '2026-09-30T19:30:00',
+    venueId: 'ven_004',
+    price: 65.00,
+    type: 'classical',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/mountbatten-2026/800/450', eventId: 'evt_010', type: 'classical', context: 'event' }),
+    venue: venueById['ven_004'],
+    seatsAvailable: 1000,
+  },
+  {
+    eventId: 'evt_011',
+    name: 'HSBC SVNS Singapore 2026',
+    date: '2026-10-31T10:00:00',
+    venueId: 'ven_005',
+    price: 59.00,
+    type: 'sports',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/hsbc-svns-2026/800/450', eventId: 'evt_011', type: 'sports', context: 'event' }),
+    venue: venueById['ven_005'],
+    seatsAvailable: 40000,
+  },
+  {
+    eventId: 'evt_012',
+    name: 'Singapore Grand Prix 2026',
+    date: '2026-09-20T20:00:00',
+    venueId: 'ven_005',
+    price: 198.00,
+    type: 'sports',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/f1-sg-2026/800/450', eventId: 'evt_012', type: 'sports', context: 'event' }),
+    venue: venueById['ven_005'],
+    seatsAvailable: 35000,
+  },
+  {
+    eventId: 'evt_013',
+    name: 'Legally Blonde \u2013 The Musical',
+    date: '2026-07-29T19:30:00',
+    venueId: 'ven_001',
+    price: 98.00,
+    type: 'theatre',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'event' }),
+    venue: venueById['ven_001'],
+    seatsAvailable: 1000,
+  },
+  {
+    eventId: 'evt_014',
+    name: 'CATS \u2013 The Musical',
+    date: '2026-11-06T19:30:00',
+    venueId: 'ven_003',
+    price: 115.00,
+    type: 'theatre',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/cats-musical-sg/800/450', eventId: 'evt_014', type: 'theatre', context: 'event' }),
+    venue: venueById['ven_003'],
+    seatsAvailable: 600,
+  },
+  {
+    eventId: 'evt_015',
+    name: 'Singapore Garden Festival 2026',
+    date: '2026-07-04T09:00:00',
+    venueId: 'ven_006',
+    price: 35.00,
+    type: 'festival',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/sg-garden-fest-2026/800/450', eventId: 'evt_015', type: 'festival', context: 'event' }),
+    venue: venueById['ven_006'],
+    seatsAvailable: 8000,
+  },
+  {
+    eventId: 'evt_016',
+    name: 'i Light Singapore 2026',
+    date: '2026-06-06T19:00:00',
+    venueId: 'ven_006',
+    price: 25.00,
+    type: 'festival',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/ilight-sg-2026/800/450', eventId: 'evt_016', type: 'festival', context: 'event' }),
+    venue: venueById['ven_006'],
+    seatsAvailable: 7000,
   },
 ]
 
-// ── Mock Seats (≥40, SeatWithInventory shape) ──────────────────────
+// ── Mock Seats (SeatWithInventory shape, rows A-D x 10 cols) ───────
 
-export const mockSeats: SeatWithInventory[] = [
-  // Venue 001 — Floor section, rows A-E
-  { seatId: 'demo-seat-001', rowNumber: 'A', seatNumber: '1', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-001', status: 'available', price: 149.99 },
-  { seatId: 'demo-seat-002', rowNumber: 'A', seatNumber: '2', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-002', status: 'sold', price: 149.99 },
-  { seatId: 'demo-seat-003', rowNumber: 'A', seatNumber: '3', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-003', status: 'available', price: 149.99 },
-  { seatId: 'demo-seat-004', rowNumber: 'A', seatNumber: '4', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-004', status: 'available', price: 149.99 },
-  { seatId: 'demo-seat-005', rowNumber: 'B', seatNumber: '1', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-005', status: 'held', price: 149.99 },
-  { seatId: 'demo-seat-006', rowNumber: 'B', seatNumber: '2', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-006', status: 'available', price: 149.99 },
-  { seatId: 'demo-seat-007', rowNumber: 'B', seatNumber: '3', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-007', status: 'available', price: 149.99 },
-  { seatId: 'demo-seat-008', rowNumber: 'C', seatNumber: '1', venueId: 'demo-venue-001', section: 'Floor', inventoryId: 'demo-inv-008', status: 'sold', price: 149.99 },
-  // Venue 001 — Lower Bowl, rows A-E
-  { seatId: 'demo-seat-009', rowNumber: 'A', seatNumber: '1', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-009', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-010', rowNumber: 'A', seatNumber: '2', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-010', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-011', rowNumber: 'A', seatNumber: '3', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-011', status: 'sold', price: 99.99 },
-  { seatId: 'demo-seat-012', rowNumber: 'B', seatNumber: '1', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-012', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-013', rowNumber: 'B', seatNumber: '2', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-013', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-014', rowNumber: 'C', seatNumber: '1', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-014', status: 'held', price: 99.99 },
-  { seatId: 'demo-seat-015', rowNumber: 'C', seatNumber: '2', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-015', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-016', rowNumber: 'D', seatNumber: '1', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-016', status: 'available', price: 99.99 },
-  { seatId: 'demo-seat-017', rowNumber: 'D', seatNumber: '2', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-017', status: 'sold', price: 99.99 },
-  { seatId: 'demo-seat-018', rowNumber: 'E', seatNumber: '1', venueId: 'demo-venue-001', section: 'Lower Bowl', inventoryId: 'demo-inv-018', status: 'available', price: 99.99 },
-  // Venue 001 — Upper Bowl, rows A-E
-  { seatId: 'demo-seat-019', rowNumber: 'A', seatNumber: '1', venueId: 'demo-venue-001', section: 'Upper Bowl', inventoryId: 'demo-inv-019', status: 'available', price: 59.99 },
-  { seatId: 'demo-seat-020', rowNumber: 'A', seatNumber: '2', venueId: 'demo-venue-001', section: 'Upper Bowl', inventoryId: 'demo-inv-020', status: 'available', price: 59.99 },
-  { seatId: 'demo-seat-021', rowNumber: 'B', seatNumber: '1', venueId: 'demo-venue-001', section: 'Upper Bowl', inventoryId: 'demo-inv-021', status: 'sold', price: 59.99 },
-  { seatId: 'demo-seat-022', rowNumber: 'B', seatNumber: '2', venueId: 'demo-venue-001', section: 'Upper Bowl', inventoryId: 'demo-inv-022', status: 'available', price: 59.99 },
-  { seatId: 'demo-seat-023', rowNumber: 'C', seatNumber: '1', venueId: 'demo-venue-001', section: 'Upper Bowl', inventoryId: 'demo-inv-023', status: 'available', price: 59.99 },
-  // Venue 002 — Floor section, rows A-E
-  { seatId: 'demo-seat-024', rowNumber: 'A', seatNumber: '1', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-024', status: 'available', price: 89.99 },
-  { seatId: 'demo-seat-025', rowNumber: 'A', seatNumber: '2', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-025', status: 'available', price: 89.99 },
-  { seatId: 'demo-seat-026', rowNumber: 'A', seatNumber: '3', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-026', status: 'sold', price: 89.99 },
-  { seatId: 'demo-seat-027', rowNumber: 'B', seatNumber: '1', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-027', status: 'available', price: 89.99 },
-  { seatId: 'demo-seat-028', rowNumber: 'B', seatNumber: '2', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-028', status: 'held', price: 89.99 },
-  { seatId: 'demo-seat-029', rowNumber: 'C', seatNumber: '1', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-029', status: 'available', price: 89.99 },
-  { seatId: 'demo-seat-030', rowNumber: 'C', seatNumber: '2', venueId: 'demo-venue-002', section: 'Floor', inventoryId: 'demo-inv-030', status: 'available', price: 89.99 },
-  // Venue 002 — Lower Bowl, rows A-E
-  { seatId: 'demo-seat-031', rowNumber: 'A', seatNumber: '1', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-031', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-032', rowNumber: 'A', seatNumber: '2', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-032', status: 'sold', price: 69.99 },
-  { seatId: 'demo-seat-033', rowNumber: 'B', seatNumber: '1', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-033', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-034', rowNumber: 'B', seatNumber: '2', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-034', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-035', rowNumber: 'C', seatNumber: '1', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-035', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-036', rowNumber: 'D', seatNumber: '1', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-036', status: 'held', price: 69.99 },
-  { seatId: 'demo-seat-037', rowNumber: 'D', seatNumber: '2', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-037', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-038', rowNumber: 'E', seatNumber: '1', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-038', status: 'available', price: 69.99 },
-  { seatId: 'demo-seat-039', rowNumber: 'E', seatNumber: '2', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-039', status: 'sold', price: 69.99 },
-  { seatId: 'demo-seat-040', rowNumber: 'E', seatNumber: '3', venueId: 'demo-venue-002', section: 'Lower Bowl', inventoryId: 'demo-inv-040', status: 'available', price: 69.99 },
-]
+export const mockSeats: SeatWithInventory[] = (() => {
+  const rows = ['A', 'B', 'C', 'D']
+  const cols = 10
+  const statuses: Array<'available' | 'held' | 'sold'> = ['available', 'available', 'available', 'available', 'available', 'held', 'sold', 'available', 'available', 'available']
+  const seats: SeatWithInventory[] = []
+  let i = 1
+  for (const row of rows) {
+    for (let col = 1; col <= cols; col++) {
+      seats.push({
+        seatId: `demo-seat-${String(i).padStart(3, '0')}`,
+        rowNumber: row,
+        seatNumber: String(col),
+        venueId: 'ven_001',
+        inventoryId: `demo-inv-${String(i).padStart(3, '0')}`,
+        status: statuses[(col - 1) % statuses.length],
+        price: 248.00,
+      })
+      i++
+    }
+  }
+  return seats
+})()
 
-// ── Mock Tickets (all 4 TicketStatus values) ───────────────────────
+// ── Mock Tickets ───────────────────────────────────────────────────
 
 export const mockTickets: Ticket[] = [
   {
     ticketId: 'demo-ticket-001',
-    eventId: 'demo-event-001',
+    eventId: 'evt_001',
     seatId: 'demo-seat-001',
     ownerId: 'demo-user-001',
     status: 'active',
-    price: 149.99,
-    purchasedAt: '2026-01-15T10:30:00Z',
-    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'ticket' }) },
+    price: 248.00,
+    purchasedAt: '2026-03-01T10:30:00Z',
+    event: { ...mockEvents[0], image: resolveEventImage({ image: 'https://picsum.photos/seed/eras-tour/800/450', eventId: 'evt_001', type: 'concert', context: 'ticket' }) },
     seat: mockSeats[0],
-    venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
+    venue: venueById['ven_001'],
   },
   {
     ticketId: 'demo-ticket-002',
-    eventId: 'demo-event-002',
-    seatId: 'demo-seat-009',
+    eventId: 'evt_011',
+    seatId: 'demo-seat-011',
     ownerId: 'demo-user-001',
     status: 'used',
-    price: 299.99,
-    purchasedAt: '2026-02-20T14:45:00Z',
-    event: { ...mockEvents[1], image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'ticket' }) },
-    seat: mockSeats[8],
-    venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
+    price: 59.00,
+    purchasedAt: '2026-02-10T14:45:00Z',
+    event: { ...mockEvents[10], image: resolveEventImage({ image: 'https://picsum.photos/seed/hsbc-svns-2026/800/450', eventId: 'evt_011', type: 'sports', context: 'ticket' }) },
+    seat: mockSeats[10],
+    venue: venueById['ven_005'],
   },
   {
     ticketId: 'demo-ticket-003',
-    eventId: 'demo-event-003',
-    seatId: 'demo-seat-024',
+    eventId: 'evt_013',
+    seatId: 'demo-seat-021',
     ownerId: 'demo-user-001',
     status: 'cancelled',
-    price: 89.99,
-    purchasedAt: '2026-03-01T09:00:00Z',
-    event: { ...mockEvents[2], image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'ticket' }) },
-    seat: mockSeats[23],
-    venue: { venueId: 'demo-venue-002', name: 'Wembley Stadium', address: 'Wembley, London' },
+    price: 98.00,
+    purchasedAt: '2026-03-05T09:00:00Z',
+    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'ticket' }) },
+    seat: mockSeats[20],
+    venue: venueById['ven_001'],
   },
   {
     ticketId: 'demo-ticket-004',
-    eventId: 'demo-event-001',
-    seatId: 'demo-seat-003',
+    eventId: 'evt_005',
+    seatId: 'demo-seat-031',
     ownerId: 'demo-user-001',
     status: 'listed',
-    price: 149.99,
-    purchasedAt: '2026-01-20T11:00:00Z',
-    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'ticket' }) },
-    seat: mockSeats[2],
-    venue: { venueId: 'demo-venue-001', name: 'Madison Square Garden', address: '4 Pennsylvania Plaza, New York' },
+    price: 188.00,
+    purchasedAt: '2026-02-20T11:00:00Z',
+    event: { ...mockEvents[4], image: resolveEventImage({ image: 'https://picsum.photos/seed/coldplay-spheres/800/450', eventId: 'evt_005', type: 'concert', context: 'ticket' }) },
+    seat: mockSeats[30],
+    venue: venueById['ven_002'],
   },
 ]
 
-// ── Mock Listings (all 4 ListingStatus values) ─────────────────────
+// ── Mock Listings ──────────────────────────────────────────────────
 
 export const mockListings: MarketplaceListing[] = [
   {
     listingId: 'demo-listing-001',
     ticketId: 'demo-ticket-004',
     sellerId: 'demo-user-001',
-    sellerName: 'demo',
-    eventId: 'demo-event-001',
-    price: 199.99,
+    sellerName: 'user',
+    eventId: 'evt_005',
+    price: 220.00,
     status: 'active',
     createdAt: '2026-03-01T09:00:00Z',
-    event: { ...mockEvents[0], image: resolveEventImage({ eventId: 'demo-event-001', type: 'concert', context: 'marketplace' }) },
+    event: { ...mockEvents[4], image: resolveEventImage({ image: 'https://picsum.photos/seed/coldplay-spheres/800/450', eventId: 'evt_005', type: 'concert', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-002',
     ticketId: 'demo-ticket-005',
     sellerId: 'demo-seller-002',
     sellerName: 'seller2',
-    eventId: 'demo-event-002',
-    price: 349.99,
+    eventId: 'evt_001',
+    price: 280.00,
     status: 'active',
     createdAt: '2026-03-05T11:30:00Z',
-    soldAt: '2026-03-10T14:00:00Z',
-    event: { ...mockEvents[1], image: resolveEventImage({ eventId: 'demo-event-002', type: 'sports', context: 'marketplace' }) },
+    event: { ...mockEvents[0], image: resolveEventImage({ image: 'https://picsum.photos/seed/eras-tour/800/450', eventId: 'evt_001', type: 'concert', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-003',
     ticketId: 'demo-ticket-006',
     sellerId: 'demo-seller-003',
     sellerName: 'seller3',
-    eventId: 'demo-event-003',
+    eventId: 'evt_013',
     price: 120.00,
     status: 'active',
     createdAt: '2026-03-08T10:00:00Z',
-    event: { ...mockEvents[2], image: resolveEventImage({ eventId: 'demo-event-003', type: 'theater', context: 'marketplace' }) },
+    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-004',
     ticketId: 'demo-ticket-007',
     sellerId: 'demo-seller-004',
     sellerName: 'seller4',
-    eventId: 'demo-event-005',
-    price: 95.00,
+    eventId: 'evt_015',
+    price: 45.00,
     status: 'active',
     createdAt: '2026-02-01T08:00:00Z',
-    event: { ...mockEvents[4], image: resolveEventImage({ eventId: 'demo-event-005', type: 'festival', context: 'marketplace' }) },
+    event: { ...mockEvents[14], image: resolveEventImage({ image: 'https://picsum.photos/seed/sg-garden-fest-2026/800/450', eventId: 'evt_015', type: 'festival', context: 'marketplace' }) },
   },
 ]
 
@@ -335,7 +426,7 @@ export const mockTransfers: Transfer[] = [
     transferId: 'demo-transfer-001',
     ticketId: 'demo-ticket-001',
     fromUserId: 'demo-user-001',
-    toUserEmail: 'recipient@example.com',
+    toUserEmail: 'friend@example.com',
     status: 'pending',
     createdAt: '2026-03-10T16:00:00Z',
     expiresAt: '2026-03-17T16:00:00Z',
@@ -361,42 +452,21 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 export const mockServices = {
   async login(email: string, _password: string): Promise<{ user: AuthUser; token: string }> {
     await delay(defaultConfig.delay!)
-    if (email === 'demo@ticketremaster.com') {
+    if (email === 'user@ticketremaster.local' || email === 'demo@ticketremaster.com') {
       return {
-        user: {
-          userId: mockUser.userId,
-          email: mockUser.email,
-          phoneNumber: mockUser.phoneNumber,
-          role: mockUser.role as AuthUser['role'],
-          isFlagged: mockUser.isFlagged,
-          isAdmin: false,
-        },
+        user: { userId: mockUser.userId, email: mockUser.email, phoneNumber: mockUser.phoneNumber, role: mockUser.role as AuthUser['role'], isFlagged: mockUser.isFlagged, isAdmin: false },
         token: 'demo-jwt-token',
       }
     }
-    if (email === 'admin@ticketremaster.com') {
+    if (email === 'admin@ticketremaster.local' || email === 'admin@ticketremaster.com') {
       return {
-        user: {
-          userId: mockAdminUser.userId,
-          email: mockAdminUser.email,
-          phoneNumber: mockAdminUser.phoneNumber,
-          role: mockAdminUser.role as AuthUser['role'],
-          isFlagged: mockAdminUser.isFlagged,
-          isAdmin: true,
-        },
+        user: { userId: mockAdminUser.userId, email: mockAdminUser.email, phoneNumber: mockAdminUser.phoneNumber, role: mockAdminUser.role as AuthUser['role'], isFlagged: mockAdminUser.isFlagged, isAdmin: true },
         token: 'demo-jwt-token',
       }
     }
-    if (email === 'staff@ticketremaster.com') {
+    if (email === 'staff@ticketremaster.local' || email === 'staff@ticketremaster.com') {
       return {
-        user: {
-          userId: mockStaffUser.userId,
-          email: mockStaffUser.email,
-          phoneNumber: mockStaffUser.phoneNumber,
-          role: mockStaffUser.role as AuthUser['role'],
-          isFlagged: mockStaffUser.isFlagged,
-          isAdmin: false,
-        },
+        user: { userId: mockStaffUser.userId, email: mockStaffUser.email, phoneNumber: mockStaffUser.phoneNumber, role: mockStaffUser.role as AuthUser['role'], isFlagged: mockStaffUser.isFlagged, isAdmin: false },
         token: 'demo-jwt-token',
       }
     }
@@ -406,13 +476,7 @@ export const mockServices = {
   async register(data: { email: string; password: string; phoneNumber: string }): Promise<{ user: AuthUser; token: string }> {
     await delay(defaultConfig.delay!)
     return {
-      user: {
-        userId: 'demo-user-new',
-        email: data.email,
-        role: 'user',
-        isFlagged: false,
-        isAdmin: false,
-      },
+      user: { userId: 'demo-user-new', email: data.email, role: 'user', isFlagged: false, isAdmin: false },
       token: 'demo-jwt-token',
     }
   },
@@ -426,11 +490,7 @@ export const mockServices = {
     const page = params?.page || 1
     const limit = params?.limit || 10
     const start = (page - 1) * limit
-    const paginated = filtered.slice(start, start + limit)
-    return {
-      events: paginated,
-      pagination: { page, limit, total: filtered.length },
-    }
+    return { events: filtered.slice(start, start + limit), pagination: { page, limit, total: filtered.length } }
   },
 
   async getEvent(eventId: string): Promise<Event> {
@@ -439,11 +499,11 @@ export const mockServices = {
     if (!event) throw new Error('Event not found')
     return {
       ...event,
-      description: 'This is a demo event description. In a real application, this would come from the backend.',
-      createdAt: '2024-01-01T00:00:00Z',
+      description: 'This is a demo event. In a live environment this would show the full event description from the backend.',
+      createdAt: '2026-01-01T00:00:00Z',
       cancelledAt: undefined,
       updatedAt: undefined,
-      venue: event.venue ? { ...event.venue, createdAt: '2024-01-01T00:00:00Z' } : undefined,
+      venue: event.venue ? { ...event.venue, createdAt: '2026-01-01T00:00:00Z' } : undefined,
     } as Event
   },
 
@@ -454,28 +514,17 @@ export const mockServices = {
     const page = params?.page || 1
     const limit = params?.limit || 10
     const start = (page - 1) * limit
-    const paginated = upcoming.slice(start, start + limit)
-    return {
-      events: paginated,
-      pagination: { page, limit, total: upcoming.length },
-    }
+    return { events: upcoming.slice(start, start + limit), pagination: { page, limit, total: upcoming.length } }
   },
 
   async searchEvents(query: string, params?: { page?: number; limit?: number }): Promise<{ events: EventSummary[]; pagination: { page: number; limit: number; total: number } }> {
     await delay(defaultConfig.delay!)
     const q = query.toLowerCase()
-    const filtered = mockEvents.filter(e =>
-      e.name.toLowerCase().includes(q) ||
-      e.venue?.name.toLowerCase().includes(q)
-    )
+    const filtered = mockEvents.filter(e => e.name.toLowerCase().includes(q) || e.venue?.name.toLowerCase().includes(q))
     const page = params?.page || 1
     const limit = params?.limit || 10
     const start = (page - 1) * limit
-    const paginated = filtered.slice(start, start + limit)
-    return {
-      events: paginated,
-      pagination: { page, limit, total: filtered.length },
-    }
+    return { events: filtered.slice(start, start + limit), pagination: { page, limit, total: filtered.length } }
   },
 
   async getVenues(): Promise<{ venues: Venue[] }> {
@@ -497,10 +546,7 @@ export const mockServices = {
     await delay(defaultConfig.delay!)
     const page = params?.page || 1
     const limit = params?.limit || 10
-    return {
-      listings: mockListings.slice(0, limit),
-      pagination: { page, limit, total: mockListings.length },
-    }
+    return { listings: mockListings.slice(0, limit), pagination: { page, limit, total: mockListings.length } }
   },
 
   async getUserProfile(_userId: string): Promise<User> {
