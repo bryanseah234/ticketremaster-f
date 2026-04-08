@@ -13,9 +13,6 @@ const tickets = ref<Ticket[]>([])
 const loading = ref(false)
 const toast = useToast()
 const auth = useAuthStore()
-const listingTicketId = ref<string | null>(null)
-const listingPrice = ref<number>(0)
-const listingLoading = ref(false)
 const unlistingTicketId = ref<string | null>(null)
 const unlistingLoading = ref(false)
 
@@ -96,47 +93,7 @@ const ticketImage = (ticket: Ticket) =>
       ticket.event?.image ||
       resolveEventImage({ eventId: ticket.eventId, type: ticket.event?.type, context: 'ticket' })
     : ticket.event?.image || resolveEventImage({ eventId: ticket.eventId, type: ticket.event?.type, context: 'ticket' })
-const hasListingAction = (ticket: Ticket) => ticket.status === 'active'
-const hasTransferAction = (ticket: Ticket) => ticket.status === 'active'
 const hasUnlistAction = (ticket: Ticket) => ticket.status === 'listed'
-
-const startListing = (ticketId: string, price?: number) => {
-  listingTicketId.value = ticketId
-  listingPrice.value = price || 0
-}
-
-const cancelListing = () => {
-  listingTicketId.value = null
-  listingPrice.value = 0
-}
-
-const submitListing = async (ticketId: string) => {
-  if (!listingPrice.value || listingPrice.value <= 0) {
-    toast.push('Enter a valid price.', 'error', 3000)
-    return
-  }
-
-  listingLoading.value = true
-  try {
-    if (isDemoMode()) {
-      tickets.value = tickets.value.map((ticket) =>
-        ticket.ticketId === ticketId ? { ...ticket, status: 'listed', price: listingPrice.value } : ticket,
-      )
-      toast.push('Ticket listed on marketplace.', 'success', 3000)
-      listingTicketId.value = null
-      return
-    }
-
-    await api.post('/marketplace/list', { ticketId, price: listingPrice.value })
-    toast.push('Ticket listed on marketplace.', 'success', 3000)
-    listingTicketId.value = null
-    await load()
-  } catch (error: any) {
-    toast.push(error?.response?.data?.error?.message || 'Could not list ticket.', 'error', 3000)
-  } finally {
-    listingLoading.value = false
-  }
-}
 
 const startUnlisting = (ticketId: string) => {
   unlistingTicketId.value = ticketId
@@ -244,17 +201,7 @@ watch([loading, tickets], ([isLoading, items]) => {
                 </div>
 
                 <div class="ticket-link-actions">
-                  <RouterLink v-if="hasTransferAction(ticket)" :to="`/transfer/initiate?ticketId=${ticket.ticketId}`">Transfer</RouterLink>
                   <RouterLink v-if="ticket.status === 'listed'" :to="`/ticket-qr/${ticket.qrHash || ticket.ticketId}`">View QR</RouterLink>
-
-                  <button
-                    v-if="hasListingAction(ticket) && listingTicketId !== ticket.ticketId"
-                    class="ticket-link-button"
-                    type="button"
-                    @click="startListing(ticket.ticketId, ticket.price)"
-                  >
-                    List Ticket
-                  </button>
 
                   <button
                     v-if="hasUnlistAction(ticket) && unlistingTicketId !== ticket.ticketId"
@@ -265,14 +212,6 @@ watch([loading, tickets], ([isLoading, items]) => {
                     Unlist
                   </button>
                 </div>
-
-                <template v-if="listingTicketId === ticket.ticketId">
-                  <div class="action-inline">
-                    <input v-model.number="listingPrice" type="number" min="1" placeholder="Set price" />
-                    <button :disabled="listingLoading" @click="submitListing(ticket.ticketId)">{{ listingLoading ? 'Listing...' : 'Confirm' }}</button>
-                    <button class="secondary" @click="cancelListing">Cancel</button>
-                  </div>
-                </template>
 
                 <template v-if="unlistingTicketId === ticket.ticketId">
                   <div class="action-inline">

@@ -346,12 +346,12 @@ onUnmounted(() => {
               <ClockIcon class="timer-icon" aria-hidden="true" />
               <div>
                 <span class="meta-label">Time Remaining</span>
-                <strong>{{ holdSeconds > 0 ? holdDisplay : 'Expired' }}</strong>
+                <strong>{{ holdExpired ? 'Expired' : holdDisplay }}</strong>
               </div>
             </div>
             <div class="status-block">
               <span class="meta-label">Status</span>
-              <span class="status-pill">{{ holdSeconds > 0 ? 'Reserved' : 'Expired' }}</span>
+              <span class="status-pill">{{ holdExpired ? 'Expired' : 'Reserved' }}</span>
             </div>
           </article>
 
