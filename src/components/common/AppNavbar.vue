@@ -29,7 +29,6 @@ const adminEventId = computed(() => {
 })
 const profileRoute = computed(() => {
   if (!auth.isLoggedIn) return '/login'
-  if (auth.isStaff) return '/staff/scan'
   if (auth.isAdmin && adminEventId.value) return `/profile?eventId=${encodeURIComponent(adminEventId.value)}`
   return '/profile'
 })
@@ -40,26 +39,10 @@ const primaryNav = [
 ]
 
 const mobileNav = computed(() => {
-  if (auth.isStaff) {
-    return [
-      { to: '/profile', label: 'Profile' },
-      { to: '/staff/scan', label: 'Scanner' },
-    ]
-  }
-  if (auth.isAdmin) {
-    return [
-      { to: profileRoute.value, label: 'Profile' },
-      { to: '/help', label: 'Support' },
-    ]
-  }
   if (auth.isLoggedIn) {
     return [
       { to: '/events', label: 'Events' },
       { to: '/marketplace', label: 'Marketplace' },
-      { to: '/tickets', label: 'My Tickets' },
-      { to: '/credits/topup', label: 'Credits' },
-      ...(showNotifications.value ? [{ to: '/notifications', label: 'Notifications' }] : []),
-      { to: profileRoute.value, label: 'Profile' },
       { to: '/help', label: 'Support' },
     ]
   }
