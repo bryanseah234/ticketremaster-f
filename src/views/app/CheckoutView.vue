@@ -668,7 +668,8 @@ onUnmounted(() => {
 .status-block {
   display: grid;
   gap: 0.35rem;
-  justify-items: end;
+  justify-items: start;
+  text-align: left;
 }
 
 .status-pill {

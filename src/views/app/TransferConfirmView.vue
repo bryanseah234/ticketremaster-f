@@ -711,14 +711,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="authenticity-box">
-            <ShieldCheckIcon class="mini-icon" />
-            <div>
-              <strong>Authenticity Guaranteed</strong>
-              <p>This ticket has been digitally verified via the Remaster Ledger. Transfer is irreversible once accepted.</p>
-            </div>
-          </div>
-
           <template v-if="status === 'pending_seller_acceptance' && isSeller">
             <button class="accept-button" style="background: linear-gradient(135deg, #f97316 0%, #ff7a23 100%)" :disabled="loading" @click="acceptTransfer">
               <span>{{ loading ? 'Processing...' : 'Accept Transfer' }}</span>
@@ -1017,8 +1009,7 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.trust-icon,
-.authenticity-box .mini-icon {
+.trust-icon {
   color: var(--primary);
 }
 
@@ -1127,20 +1118,6 @@ onUnmounted(() => {
   font-size: 0.95rem;
 }
 
-.authenticity-box {
-  display: flex;
-  gap: 0.85rem;
-  padding: 0.95rem;
-  border-radius: 1rem;
-  background: rgba(0, 0, 0, 0.42);
-}
-
-.authenticity-box strong {
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.authenticity-box p,
 .accept-note,
 .completion-box p {
   margin: 0;

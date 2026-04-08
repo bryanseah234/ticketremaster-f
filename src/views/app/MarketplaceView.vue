@@ -687,13 +687,20 @@ onMounted(() => {
 }
 
 .seller-cta {
-  width: 100%;
+  display: inline-flex;
+  width: fit-content;
+  min-width: 10.5rem;
+  justify-self: start;
+  align-items: center;
+  justify-content: center;
   border-radius: 0.9rem;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text);
-  padding: 0.9rem 1.4rem;
-  min-height: 3rem;
+  padding: 0.72rem 1.15rem;
+  min-height: 2.7rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .listed-button {
@@ -723,6 +730,11 @@ onMounted(() => {
   .marketplace-page {
     width: min(100% - 1rem, 84rem);
     padding-top: 6.5rem;
+  }
+
+  .seller-cta {
+    width: 100%;
+    justify-self: stretch;
   }
 }
 </style>

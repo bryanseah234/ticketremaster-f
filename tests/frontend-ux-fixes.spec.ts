@@ -164,7 +164,8 @@ test.describe('Frontend UX Fixes Coverage', () => {
     await expect(page.getByText('Row')).toBeVisible()
     await expect(page.getByText('Seat')).toBeVisible()
     await expect(page.getByText('Gate')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Add to Apple Wallet' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Add to Apple Wallet' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Open Full QR' })).toHaveCount(0)
   })
 
   test('staff scanner enforces venue/event preselection before verify', async ({ page }) => {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import VueQrcode from '@chenfengyuan/vue-qrcode'
 import { CalendarDaysIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
@@ -9,7 +9,6 @@ import { isDemoMode, mockServices } from '@/services/mockData'
 import type { Ticket } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
 const ticketId = route.params.ticketId as string
 const origin = window.location.origin
 
@@ -29,6 +28,68 @@ const seatSection = computed(() => ticket.value?.seat?.section || 'GA')
 const seatRow = computed(() => ticket.value?.seat?.rowNumber || '--')
 const seatNumber = computed(() => ticket.value?.seat?.seatNumber || '--')
 const seatGate = computed(() => (ticket.value?.seat as any)?.gate || '--')
+
+const normalizeSeat = (payload: any) => {
+  const rawSeat = payload?.seat && typeof payload.seat === 'object' ? payload.seat : {}
+  const seat = {
+    ...(ticket.value?.seat || {}),
+    ...(rawSeat || {}),
+    seatId: rawSeat?.seatId || payload?.seatId || ticket.value?.seat?.seatId || '',
+    venueId: rawSeat?.venueId || payload?.venueId || ticket.value?.seat?.venueId || '',
+    section: rawSeat?.section || payload?.seatSection || payload?.seat_section || payload?.section || ticket.value?.seat?.section,
+    rowNumber: rawSeat?.rowNumber || rawSeat?.row || payload?.seatRow || payload?.seat_row || payload?.rowNumber || ticket.value?.seat?.rowNumber,
+    seatNumber: rawSeat?.seatNumber || rawSeat?.seat || payload?.seatNumber || payload?.seat_number || ticket.value?.seat?.seatNumber,
+  }
+  const gate = rawSeat?.gate || payload?.seatGate || payload?.seat_gate || payload?.gate || (ticket.value?.seat as any)?.gate
+
+  if (!seat.section && !seat.rowNumber && !seat.seatNumber && !gate) return ticket.value?.seat
+  return gate ? { ...seat, gate } : seat
+}
+
+const applyTicketContext = (payload: any) => {
+  if (!payload) return
+  const normalizedSeat = normalizeSeat(payload)
+  const rawEvent = payload?.event && typeof payload.event === 'object' ? payload.event : {}
+  const rawVenue = payload?.venue && typeof payload.venue === 'object' ? payload.venue : {}
+
+  ticket.value = {
+    ...(ticket.value || {}),
+    ...payload,
+    ticketId: payload?.ticketId || ticket.value?.ticketId || ticketId,
+    eventId: payload?.eventId || rawEvent?.eventId || ticket.value?.eventId || '',
+    seatId: payload?.seatId || normalizedSeat?.seatId || ticket.value?.seatId || '',
+    ownerId: payload?.ownerId || ticket.value?.ownerId || '',
+    status: (payload?.status || ticket.value?.status || 'active') as Ticket['status'],
+    price: payload?.price ?? ticket.value?.price,
+    qrHash: payload?.qrHash || ticket.value?.qrHash,
+    purchasedAt: payload?.createdAt || payload?.purchasedAt || ticket.value?.purchasedAt || '',
+    seat: normalizedSeat,
+    event: {
+      ...(ticket.value?.event || {}),
+      ...(rawEvent || {}),
+      eventId: rawEvent?.eventId || payload?.eventId || ticket.value?.event?.eventId || '',
+      name: rawEvent?.name || payload?.eventName || payload?.event_name || ticket.value?.event?.name || '',
+      date: rawEvent?.date || rawEvent?.eventDate || payload?.eventDate || payload?.date || ticket.value?.event?.date || '',
+      venueId: rawEvent?.venueId || rawVenue?.venueId || payload?.venueId || ticket.value?.event?.venueId || '',
+      price: Number(rawEvent?.price ?? payload?.price ?? ticket.value?.event?.price ?? ticket.value?.price ?? 0),
+      type: rawEvent?.type || ticket.value?.event?.type || 'other',
+      venue: rawVenue?.name
+        ? {
+            venueId: rawVenue?.venueId || payload?.venueId || ticket.value?.event?.venue?.venueId || '',
+            name: rawVenue.name,
+            address: rawVenue.address || payload?.venueAddress || ticket.value?.event?.venue?.address,
+          }
+        : ticket.value?.event?.venue,
+    },
+    venue: rawVenue?.name || payload?.venueName || payload?.venue_name || payload?.location
+      ? {
+          venueId: rawVenue?.venueId || payload?.venueId || ticket.value?.venue?.venueId || '',
+          name: rawVenue?.name || payload?.venueName || payload?.venue_name || payload?.location || ticket.value?.venue?.name || '',
+          address: rawVenue?.address || payload?.venueAddress || payload?.address || ticket.value?.venue?.address,
+        }
+      : ticket.value?.venue,
+  }
+}
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
@@ -94,6 +155,15 @@ const fetchQr = async (notify = false) => {
   try {
     const { data } = await api.get(`/tickets/${ticketId}/qr`)
     qrData.value = data?.data
+    applyTicketContext(data?.data)
+    if (qrData.value?.qrHash) {
+      try {
+        const contextResponse = await api.get(`/tickets/qr/${qrData.value.qrHash}`)
+        applyTicketContext(contextResponse?.data?.data)
+      } catch {
+        // Keep the base QR response if the context lookup fails.
+      }
+    }
     if (qrData.value?.expiresAt) {
       countdown.value = Math.max(0, Math.floor((new Date(qrData.value.expiresAt).getTime() - Date.now()) / 1000))
     } else {
@@ -204,11 +274,6 @@ onUnmounted(() => {
             <span class="meta-label">Location</span>
             <strong>{{ locationLabel }}</strong>
           </div>
-        </div>
-
-        <div class="action-row">
-          <button class="wallet-button secondary" type="button" disabled>Add to Apple Wallet</button>
-          <RouterLink v-if="isActive" :to="`/ticket-qr/${qrData?.qrHash || ticket?.ticketId || ticketId}`"><button>Open Full QR</button></RouterLink>
         </div>
       </div>
     </article>
@@ -322,19 +387,6 @@ onUnmounted(() => {
   width: 1rem;
   height: 1rem;
   color: var(--primary);
-}
-
-.action-row {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 0.45rem;
-}
-
-.wallet-button {
-  color: rgba(255, 255, 255, 0.72);
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .qr-shell,
