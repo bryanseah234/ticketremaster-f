@@ -298,14 +298,6 @@ onUnmounted(() => {
                   </div>
                 </div>
 
-                <label class="credit-toggle-label" aria-label="Credits enabled">
-                  <input type="checkbox" class="credit-toggle-peer" checked disabled />
-                  <span class="credit-toggle-track">
-                    <span class="credit-toggle-knob"></span>
-                  </span>
-                </label>
-              </div>
-
               <div class="wallet-balance-row">
                 <span class="meta-label">Remaining Balance</span>
                 <strong :class="{ warning: !hasEnoughCredits }">SGD {{ remainingBalance.toFixed(2) }}</strong>
@@ -548,39 +540,6 @@ onUnmounted(() => {
   color: var(--primary);
 }
 
-.credit-toggle-label {
-  flex-shrink: 0;
-  position: relative;
-  cursor: default;
-}
-
-.credit-toggle-peer {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.credit-toggle-track {
-  display: flex;
-  align-items: center;
-  width: 3.15rem;
-  height: 1.8rem;
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: var(--primary, #f97316);
-  transition: background 0.2s;
-}
-
-.credit-toggle-knob {
-  display: block;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 999px;
-  background: #fff;
-  transform: translateX(1.6rem);
-  transition: transform 0.2s;
-}
 
 .wallet-copy strong,
 .wallet-balance-row strong,
