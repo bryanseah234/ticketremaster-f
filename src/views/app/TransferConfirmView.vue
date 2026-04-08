@@ -10,7 +10,6 @@ import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
-import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
 const FALLBACK_TRANSFER_IMAGE =
   '/stitch-media/transfer/accept-card.jpg'
@@ -315,8 +314,6 @@ onUnmounted(() => {
     </header>
 
     <div v-if="isOtpStage" class="otp-layout">
-      <AccountSidebar active-key="tickets" />
-
       <div class="otp-main">
         <article class="glass otp-card">
           <div class="otp-glow" aria-hidden="true"></div>
@@ -514,15 +511,14 @@ onUnmounted(() => {
 
 .otp-layout {
   display: grid;
-  grid-template-columns: var(--account-sidebar-width) minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
+  justify-items: center;
 }
 
 .otp-main {
   display: grid;
   gap: 1.4rem;
   justify-items: center;
+  width: 100%;
 }
 
 .otp-card,
@@ -592,8 +588,15 @@ onUnmounted(() => {
 .otp-hidden-input {
   position: absolute;
   inset: 0;
-  opacity: 0;
+  color: transparent;
+  caret-color: var(--primary);
   cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1.5rem;
+  letter-spacing: 0.65rem;
+  padding-left: calc(0.65rem / 2);
 }
 
 .otp-box {
@@ -606,6 +609,13 @@ onUnmounted(() => {
   color: var(--primary);
   font-size: 1.5rem;
   font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.otp-box.active {
+  border-color: var(--primary);
+  background: rgba(249, 115, 22, 0.08);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
 }
 
 .otp-divider {
@@ -863,12 +873,6 @@ onUnmounted(() => {
   transform: none;
   filter: none;
   color: #fff;
-}
-
-@media (max-width: 980px) {
-  .otp-layout {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 720px) {

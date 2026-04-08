@@ -23,6 +23,7 @@ export interface AuthUser {
   email: string
   phoneNumber?: string
   phone?: string // legacy alias for backward compat
+  venueId?: string // for staff scanner venue context
   isFlagged?: boolean
   isAdmin?: boolean
   role?: UserRole
@@ -219,6 +220,25 @@ export interface ApiError {
   }
   error_code?: string
   message?: string
+}
+
+// ── Notification Types ──────────────────────────────────────────────
+
+export type NotificationItemType =
+  | 'seller_pending_acceptance'
+  | 'buyer_pending_otp'
+  | 'transfer_completed'
+  | 'ticket_update'
+
+export interface NotificationCenterItem {
+  id: string
+  type: NotificationItemType
+  title: string
+  body: string
+  createdAt: string
+  primaryTo: string
+  transferId?: string
+  ticketId?: string
 }
 
 // ── WebSocket Types ─────────────────────────────────────────────────
