@@ -269,6 +269,26 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.text()).not.toContain('Waiting for buyer verification')
   })
 
+  it('transfer treats pending buyer OTP as buyer-ready when blocking fields are missing instead of explicitly false', async () => {
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    const vm = wrapper.vm as any
+    vm.transfer = {
+      transferId: 'demo-transfer-001',
+      status: 'pending_buyer_otp',
+      sellerId: 'user-self-001',
+      buyerId: 'buyer-001',
+      eventName: 'Neon Nights',
+    }
+    await nextTick()
+
+    expect(wrapper.find('.otp-layout').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Waiting for buyer verification')
+    expect(wrapper.text()).not.toContain('Waiting for seller verification')
+  })
+
   it('transfer page uses cached initiated transfer context instead of placeholder copy when live fetch fails', async () => {
     vi.mocked(isDemoMode).mockReturnValue(false)
     vi.mocked(api.get).mockRejectedValueOnce({ response: { status: 404 } } as any)
@@ -298,6 +318,142 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.text()).not.toContain('Afterlife: Echoes of Eternity')
     expect(wrapper.text()).not.toContain('The Obsidian Dome')
     expect(wrapper.text()).not.toContain('Julian Vane')
+  })
+
+  it('transfer page hydrates incoming seller transfers from pending transfer collections when direct lookup is bare', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    seedAuthUser({ userId: 'seller-self-001' })
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/transfer/demo-transfer-001') {
+        return Promise.resolve({
+          data: {
+            data: {
+              transferId: 'demo-transfer-001',
+              status: 'pending_seller_acceptance',
+              buyerId: 'buyer-001',
+              sellerId: 'seller-self-001',
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/transfer/pending') {
+        return Promise.resolve({
+          data: {
+            data: {
+              transfers: [
+                {
+                  transferId: 'demo-transfer-001',
+                  status: 'pending_seller_acceptance',
+                  buyerId: 'buyer-001',
+                  sellerId: 'seller-self-001',
+                  sellerName: 'Mia Seller',
+                  eventName: 'Singapore Jazz Festival 2026',
+                  eventImage: '/jazz-festival.jpg',
+                  location: 'Singapore Indoor Stadium',
+                  seatSection: 'VIP',
+                  seatRow: 'B',
+                  seatNumber: '14',
+                },
+              ],
+            },
+          },
+        }) as any
+      }
+
+      return Promise.resolve({ data: { data: { transfers: [] } } }) as any
+    })
+
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Singapore Jazz Festival 2026')
+    expect(wrapper.text()).toContain('Singapore Indoor Stadium')
+    expect(wrapper.text()).toContain('VIP')
+    expect(wrapper.text()).not.toContain('Transfer request')
+    wrapper.unmount()
+  })
+
+  it('transfer page enriches buyer request details from listing and event resources when transfer lookup is incomplete', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/transfer/demo-transfer-001') {
+        return Promise.resolve({
+          data: {
+            data: {
+              transferId: 'demo-transfer-001',
+              status: 'pending_seller_acceptance',
+              buyerId: 'user-self-001',
+              sellerId: 'seller-001',
+              listingId: 'listing-001',
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/transfer/pending' || url === '/transfer/my-pending' || url === '/transfer/history') {
+        return Promise.resolve({ data: { data: { transfers: [] } } }) as any
+      }
+
+      if (url === '/marketplace/listing-001') {
+        return Promise.resolve({
+          data: {
+            data: {
+              listingId: 'listing-001',
+              ticketId: 'ticket-001',
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/tickets/ticket-001') {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'ticket-001',
+              eventId: 'evt-001',
+              venueId: 'ven-001',
+              seat: {
+                section: 'VIP',
+                rowNumber: 'B',
+                seatNumber: '14',
+              },
+            },
+          },
+        }) as any
+      }
+
+      if (url === '/events/evt-001') {
+        return Promise.resolve({
+          data: {
+            data: {
+              eventId: 'evt-001',
+              name: 'Singapore Jazz Festival 2026',
+              date: '2026-05-10T20:00:00Z',
+              image: '/jazz-festival.jpg',
+              type: 'festival',
+              venue: {
+                venueId: 'ven-001',
+                name: 'Singapore Indoor Stadium',
+              },
+            },
+          },
+        }) as any
+      }
+
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Singapore Jazz Festival 2026')
+    expect(wrapper.text()).toContain('Singapore Indoor Stadium')
+    expect(wrapper.text()).toContain('VIP')
+    expect(wrapper.text()).not.toContain('Location unavailable')
+    wrapper.unmount()
   })
 
   it('notification store merges sources and dedupes by id', () => {
@@ -356,6 +512,30 @@ describe('Frontend UX Fixes — targeted coverage', () => {
 
     expect(store.buyerPending).toEqual([])
     expect(consoleWarn).not.toHaveBeenCalled()
+  })
+
+  it('notification store keeps seller request copy in the correct accept-then-OTP order', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        data: {
+          transfers: [
+            {
+              transferId: 'transfer-seller-001',
+              buyerName: 'Avery Buyer',
+              eventName: 'Neon Nights',
+              status: 'pending_seller_acceptance',
+            },
+          ],
+        },
+      },
+    } as any)
+
+    const store = useNotificationStore()
+    await store.fetchSellerPending()
+
+    expect(store.sellerPending).toHaveLength(1)
+    expect(store.sellerPending[0].body).toContain('accept it to receive your seller OTP')
+    expect(store.sellerPending[0].body).not.toContain('enter your seller OTP')
   })
 
   it('checkout hydrates sparse pending orders with fallback event and seat pricing', async () => {

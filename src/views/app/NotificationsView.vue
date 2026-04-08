@@ -136,7 +136,7 @@ function dismissItem(id: string) {
 function primaryLabel(item: any): string {
   if (!item?.primaryTo) return ''
   if (item.type === 'buyer_pending_otp') return 'Enter buyer OTP'
-  if (item.type === 'seller_pending_acceptance') return 'Review & verify'
+  if (item.type === 'seller_pending_acceptance') return 'Review & accept'
   if (item.type === 'transfer_completed') {
     return item.primaryTo === '/marketplace' ? 'Open marketplace' : 'View tickets'
   }
