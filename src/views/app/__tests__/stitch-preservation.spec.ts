@@ -136,7 +136,7 @@ describe('TransferConfirmView — preservation (clauses 3.1–3.3)', () => {
   beforeEach(() => {
     createTestPinia()
     seedAuthStore()
-    mockApiPost.mockResolvedValue({ data: { data: { status: 'pending_buyer_otp' } } })
+    mockApiPost.mockResolvedValue({ data: { data: { status: 'pending_seller_otp' } } })
   })
 
   afterEach(() => {
@@ -165,7 +165,7 @@ describe('TransferConfirmView — preservation (clauses 3.1–3.3)', () => {
       await wrapper.vm.$nextTick()
 
       mockApiPost.mockClear()
-      mockApiPost.mockResolvedValueOnce({ data: { data: { status: 'pending_buyer_otp' } } })
+      mockApiPost.mockResolvedValueOnce({ data: { data: { status: 'pending_seller_otp' } } })
 
       // Trigger acceptTransfer
       await vm.acceptTransfer()
@@ -242,7 +242,7 @@ describe('TransferConfirmView — preservation (clauses 3.1–3.3)', () => {
       await wrapper.vm.$nextTick()
 
       mockApiPost.mockClear()
-      mockApiPost.mockResolvedValueOnce({ data: { data: { status: 'pending_seller_otp' } } })
+      mockApiPost.mockResolvedValueOnce({ data: { data: { status: 'completed' } } })
 
       await vm.verifyOtp()
 

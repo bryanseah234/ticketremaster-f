@@ -12,6 +12,8 @@ interface InternalAxiosRequestConfigWithMetadata extends InternalAxiosRequestCon
     cachedKey?: string
     idempotencyKey?: string
   }
+  suppressErrorToast?: boolean
+  suppressErrorLog?: boolean
 }
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -115,6 +117,7 @@ interface ApiErrorDetails {
 
 const logApiError = (error: AxiosError<ApiError>) => {
   const config = error?.config || {} as InternalAxiosRequestConfig
+  if ((config as InternalAxiosRequestConfigWithMetadata).suppressErrorLog) return
   const configHeaders = (config as InternalAxiosRequestConfig)?.headers || {}
   const headers = { ...(configHeaders as Record<string, string> || {}) }
   if (headers.Authorization) delete headers.Authorization
@@ -388,7 +391,7 @@ api.interceptors.response.use(
           : status === 410
           ? 'This action has expired.'
           : 'Something went wrong. Please try again.')
-      if (message) toast.push(message, 'error')
+      if (message && !original.suppressErrorToast) toast.push(message, 'error')
     }
     return Promise.reject(error)
   }

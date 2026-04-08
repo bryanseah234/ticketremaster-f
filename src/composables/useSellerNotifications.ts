@@ -3,6 +3,8 @@ import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode, mockTransfers } from '@/services/mockData'
 
+const SILENT_BACKGROUND_REQUEST = { suppressErrorToast: true, suppressErrorLog: true } as any
+
 interface NotificationItem {
   transferId: string
   creditAmount: number
@@ -45,7 +47,7 @@ export function useSellerNotifications() {
       }
 
       // Check for pending transfers
-      const response = await api.get('/transfer/pending')
+      const response = await api.get('/transfer/pending', SILENT_BACKGROUND_REQUEST)
       const pendingTransfers = response.data?.data?.transfers ?? response.data?.data ?? []
 
       if (pendingTransfers.length > 0) {
@@ -66,9 +68,13 @@ export function useSellerNotifications() {
       }
 
       state.value.lastChecked = new Date()
-    } catch (error) {
-      state.value.error =
-        error instanceof Error ? error.message : 'Failed to check notifications'
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        state.value.error =
+          error instanceof Error ? error.message : 'Failed to check notifications'
+      } else {
+        state.value.error = null
+      }
     } finally {
       state.value.loading = false
     }

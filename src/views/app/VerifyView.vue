@@ -234,7 +234,11 @@ const submit = async () => {
   position: relative;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.7rem;
+  width: 100%;
+  max-width: 27rem;
+  margin-inline: auto;
+  isolation: isolate;
 }
 
 .otp-hidden-input {
@@ -249,25 +253,40 @@ const submit = async () => {
   font-size: 1.5rem;
   letter-spacing: 0.65rem;
   padding-left: calc(0.65rem / 2);
+  z-index: 2;
 }
 
 .otp-box {
   display: grid;
   place-items: center;
-  height: 4.5rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--primary);
-  font-size: 1.5rem;
+  min-height: 4.35rem;
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(19, 16, 15, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 20px rgba(0, 0, 0, 0.18);
+  color: #f59a52;
+  font-size: 1.55rem;
   font-weight: 800;
-  transition: all 0.2s ease;
+  line-height: 1;
+  text-shadow: none;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .otp-box.active {
-  border-color: var(--primary);
-  background: rgba(249, 115, 22, 0.08);
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.68);
+  background:
+    linear-gradient(180deg, rgba(249, 115, 22, 0.14), rgba(249, 115, 22, 0.05)),
+    rgba(24, 18, 16, 0.98);
+  box-shadow:
+    inset 0 0 0 1px rgba(249, 115, 22, 0.22),
+    0 0 0 2px rgba(249, 115, 22, 0.12);
+  transform: translateY(-1px);
 }
 
 .field-stack {

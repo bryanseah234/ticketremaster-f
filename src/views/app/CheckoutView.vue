@@ -64,8 +64,16 @@ const orderPoster = computed(() => {
 
 const hydratePendingOrder = (rawOrder: any) => {
   const fallbackEvent = mockEvents.find((event) => event.eventId === rawOrder?.eventId)
+  const fallbackSeatPrice = Number(rawOrder?.seat?.price ?? rawOrder?.event?.price ?? fallbackEvent?.price ?? 0)
   return {
     ...rawOrder,
+    seat: {
+      ...rawOrder?.seat,
+      price: fallbackSeatPrice,
+      section: rawOrder?.seat?.section || 'Selected section',
+      rowNumber: rawOrder?.seat?.rowNumber || 'Seat',
+      seatNumber: rawOrder?.seat?.seatNumber || 'pending',
+    },
     event: {
       ...rawOrder?.event,
       name: rawOrder?.event?.name || fallbackEvent?.name || 'Selected Event',
@@ -77,6 +85,7 @@ const hydratePendingOrder = (rawOrder: any) => {
       }),
       eventDate: rawOrder?.event?.eventDate || fallbackEvent?.date,
       venueName: rawOrder?.event?.venueName || fallbackEvent?.venue?.name,
+      price: rawOrder?.event?.price ?? fallbackEvent?.price ?? 0,
     },
   }
 }

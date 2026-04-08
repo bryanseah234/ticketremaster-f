@@ -31,7 +31,7 @@ vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
   return {
     ...actual,
-    useRoute: vi.fn().mockReturnValue({ params: { transferId: 'demo-transfer-001' }, query: {} }),
+    useRoute: vi.fn().mockReturnValue({ params: { transferId: 'demo-transfer-001', orderId: 'demo-order-001' }, query: {} }),
     useRouter: vi.fn().mockReturnValue({ push: vi.fn() }),
     RouterLink: { template: '<a><slot /></a>' },
     onBeforeRouteLeave: vi.fn(),
@@ -168,7 +168,7 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.find('.account-sidebar-stub').exists()).toBe(false)
   })
 
-  it('transfer OTP stage is sidebar-free and shows account mismatch guard for wrong seller', async () => {
+  it('transfer stays sidebar-free and shows a waiting state to the buyer during seller OTP', async () => {
     const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
     const wrapper = shallowMount(TransferConfirmView)
     await flushAsync()
@@ -178,15 +178,16 @@ describe('Frontend UX Fixes — targeted coverage', () => {
       transferId: 'demo-transfer-001',
       status: 'pending_seller_otp',
       sellerId: 'different-seller-id',
+      buyerId: 'user-self-001',
       eventName: 'Neon Nights',
       seatRow: '12',
       seatNumber: '08',
     }
     await nextTick()
 
-    expect(wrapper.find('.otp-layout').exists()).toBe(true)
+    expect(wrapper.find('.otp-layout').exists()).toBe(false)
     expect(wrapper.find('.account-sidebar-stub').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Account Mismatch')
+    expect(wrapper.text()).toContain('Waiting for seller verification')
     expect(wrapper.find('.otp-grid').exists()).toBe(false)
   })
 
@@ -235,6 +236,47 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     })
 
     expect(store.ephemeral.length).toBe(1)
+  })
+
+  it('notification store treats buyer pending 404 as empty without warning noise', async () => {
+    const { default: api } = await import('@/api/client')
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.mocked(api.get).mockRejectedValueOnce({ response: { status: 404 } } as any)
+
+    const store = useNotificationStore()
+    await store.fetchBuyerPending()
+
+    expect(store.buyerPending).toEqual([])
+    expect(consoleWarn).not.toHaveBeenCalled()
+  })
+
+  it('checkout hydrates sparse pending orders with fallback event and seat pricing', async () => {
+    localStorage.setItem(
+      'pendingOrder',
+      JSON.stringify({
+        orderId: 'demo-order-001',
+        inventoryId: 'demo-order-001',
+        holdToken: 'hold-123',
+        heldUntil: new Date(Date.now() + 300_000).toISOString(),
+        eventId: 'evt_001',
+        seat: {},
+        event: {
+          name: 'Recovered Event',
+          price: 248,
+          venueName: 'Esplanade Concert Hall',
+          eventDate: '2026-06-15T19:30:00',
+        },
+      }),
+    )
+
+    const { default: CheckoutView } = await import('../CheckoutView.vue')
+    const wrapper = shallowMount(CheckoutView)
+    await flushAsync()
+
+    const vm = wrapper.vm as any
+    expect(vm.order?.event?.name).toBe('Recovered Event')
+    expect(vm.order?.seat?.price).toBeGreaterThan(0)
+    expect(vm.seatPrice).toBeGreaterThan(0)
   })
 
   it('scanner keeps verify controls locked until venue/event are confirmed', async () => {
