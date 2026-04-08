@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer.vue'
 import ToastStack from '@/components/common/ToastStack.vue'
 import ConnectionStatus from '@/components/common/ConnectionStatus.vue'
 import DebugPanel from '@/components/DebugPanel.vue'
+import PendingOrderBanner from '@/components/common/PendingOrderBanner.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 
@@ -48,6 +49,7 @@ onUnmounted(() => {
   <RouterView />
   <Footer />
   <ToastStack />
+  <PendingOrderBanner />
   <DebugPanel v-if="showDebugPanel" />
 </template>
 
