@@ -384,7 +384,7 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.find('.otp-grid').exists()).toBe(false)
   })
 
-  it('transfer keeps buyer out of OTP stage until seller verification is actually complete', async () => {
+  it('transfer keeps buyer out of OTP stage until buyer verification is actually ready', async () => {
     const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
     const wrapper = shallowMount(TransferConfirmView)
     await flushAsync()
@@ -402,7 +402,7 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     await nextTick()
 
     expect(wrapper.find('.otp-layout').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Waiting for seller verification')
+    expect(wrapper.text()).toContain('Preparing buyer verification.')
     expect(wrapper.text()).not.toContain('Waiting for buyer verification')
   })
 
@@ -728,7 +728,7 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(consoleWarn).not.toHaveBeenCalled()
   })
 
-  it('notification store keeps seller request copy in the correct accept-then-OTP order', async () => {
+  it('notification store shows seller OTP-ready copy after buyer verification', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
         data: {
@@ -737,7 +737,7 @@ describe('Frontend UX Fixes — targeted coverage', () => {
               transferId: 'transfer-seller-001',
               buyerName: 'Avery Buyer',
               eventName: 'Neon Nights',
-              status: 'pending_seller_acceptance',
+              status: 'pending_seller_otp',
             },
           ],
         },
@@ -748,8 +748,8 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     await store.fetchSellerPending()
 
     expect(store.sellerPending).toHaveLength(1)
-    expect(store.sellerPending[0].body).toContain('accept it to receive your seller OTP')
-    expect(store.sellerPending[0].body).not.toContain('enter your seller OTP')
+    expect(store.sellerPending[0].body).toContain('Enter your seller OTP to complete the transfer')
+    expect(store.sellerPending[0].body).not.toContain('accept it to receive your seller OTP')
   })
 
   it('checkout hydrates sparse pending orders with fallback event and seat pricing', async () => {

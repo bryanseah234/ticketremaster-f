@@ -228,6 +228,7 @@ export interface ApiError {
 
 export type NotificationItemType =
   | 'seller_pending_acceptance'
+  | 'seller_pending_otp'
   | 'buyer_pending_otp'
   | 'transfer_completed'
   | 'ticket_update'

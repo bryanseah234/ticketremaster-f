@@ -89,6 +89,19 @@ function mapSellerPendingTransfer(transfer: any): NotificationCenterItem {
   const eventName = eventNameOf(transfer)
   const seatLabel = seatLabelOf(transfer)
   const buyerName = transfer?.buyerName || transfer?.buyer?.name || 'A buyer'
+  const status = transfer?.status
+
+  if (status === 'pending_seller_otp') {
+    return {
+      id: `seller-pending:${transferId || transfer?.listingId || Date.now()}`,
+      type: 'seller_pending_otp' as NotificationItemType,
+      title: 'Seller OTP Ready',
+      body: `${buyerName} has verified ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Enter your seller OTP to complete the transfer.`,
+      createdAt: toIsoDate(transfer?.createdAt || transfer?.created_at),
+      primaryTo: transferId ? `/transfer/${transferId}` : '/notifications',
+      transferId: transferId || undefined,
+    }
+  }
 
   return {
     id: `seller-pending:${transferId || transfer?.listingId || Date.now()}`,
@@ -110,7 +123,7 @@ function mapBuyerPendingTransfer(transfer: any): NotificationCenterItem {
     id: `buyer-pending:${transferId || transfer?.listingId || Date.now()}`,
     type: 'buyer_pending_otp' as NotificationItemType,
     title: 'Buyer OTP Ready',
-    body: `The seller has verified ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Enter your buyer OTP to complete the transfer.`,
+    body: `Enter your buyer OTP for ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. The seller will be notified after you verify.`,
     createdAt: toIsoDate(transfer?.createdAt || transfer?.created_at),
     primaryTo: transferId ? `/transfer/${transferId}` : '/notifications',
     transferId: transferId || undefined,
