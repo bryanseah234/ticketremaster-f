@@ -160,23 +160,6 @@ src/
     └── app/          # All application views
 ```
 
-## Testing
-
-See [TESTING.md](./TESTING.md) for detailed testing instructions.
-
-### Quick Start
-
-```bash
-# Type check
-npm run typecheck
-
-# Run E2E tests
-npm run test
-
-# Run tests with UI
-npm run test:ui
-```
-
 ## Deployment
 
 ### Vercel
