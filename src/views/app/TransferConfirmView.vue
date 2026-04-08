@@ -198,8 +198,10 @@ const normalizeTransfer = (raw: any) => {
       typeof raw?.sellerOtpVerified === 'boolean' ? raw.sellerOtpVerified : existing.sellerOtpVerified,
     buyerOtpVerified:
       typeof raw?.buyerOtpVerified === 'boolean' ? raw.buyerOtpVerified : existing.buyerOtpVerified,
-    buyerVerificationSid: raw?.buyerVerificationSid || existing.buyerVerificationSid,
-    sellerVerificationSid: raw?.sellerVerificationSid || existing.sellerVerificationSid,
+    buyerVerificationSid:
+      raw?.buyerVerificationSid !== undefined ? raw.buyerVerificationSid : existing.buyerVerificationSid,
+    sellerVerificationSid:
+      raw?.sellerVerificationSid !== undefined ? raw.sellerVerificationSid : existing.sellerVerificationSid,
     completedAt: raw?.completedAt || raw?.completed_at || existing.completedAt,
     eventId: raw?.event?.eventId || raw?.event?.id || raw?.eventId || raw?.event_id || existing.eventId,
     eventType: raw?.event?.type || raw?.eventType || raw?.event_type || existing.eventType,
@@ -565,17 +567,6 @@ let countdownTimer: number | undefined
 
 onMounted(async () => {
   await loadTransfer()
-
-  // Auto-call resend OTP when correct seller lands on pending_seller_otp page
-  if (isSellerOtpTurn.value) {
-    try {
-      if (!isDemoMode()) {
-        await api.post(`/transfer/${route.params.transferId}/resend-otp`)
-      }
-    } catch {
-      // Non-blocking: manual resend button is still available
-    }
-  }
 
   pollTimer = window.setInterval(async () => {
     if (['completed', 'failed', 'cancelled', 'expired'].includes(status.value)) {
