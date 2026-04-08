@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, isRef, computed, ref } from 'vue'
+import { onMounted, computed, ref, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   BellIcon,
@@ -7,20 +7,40 @@ import {
   TagIcon,
   ClockIcon,
 } from '@heroicons/vue/24/outline'
-import { useSellerNotifications } from '@/composables/useSellerNotifications'
+import { useWebSocket } from '@/composables/useWebSocket'
+import { useAuthStore } from '@/stores/auth'
+import api from '@/api/client'
 import { isDemoMode } from '@/services/mockData'
 
-const { notifications, checkNotifications, dismiss } = useSellerNotifications()
+const auth = useAuthStore()
+const { subscribe } = useWebSocket()
 const dismissedIds = ref<string[]>([])
+const sellerPending = ref<any[]>([])
+const buyerPending = ref<any[]>([])
+const ephemeralNotifications = ref<any[]>([])
 
-// Normalize notifications: handle both real Vue computed refs and plain mock objects
-const liveNotifications = computed<any[]>(() => {
-  if (isRef(notifications)) return (notifications as any).value
-  const n = notifications as any
-  if (Array.isArray(n?.value)) return n.value
-  if (Array.isArray(n)) return n
-  return []
-})
+// Load ephemeral notifications from sessionStorage
+const loadEphemeralNotifications = () => {
+  try {
+    const stored = sessionStorage.getItem('ephemeral_notifications')
+    if (!stored) return []
+    const items = JSON.parse(stored)
+    const now = Date.now()
+    const ttl = 24 * 60 * 60 * 1000 // 24 hours
+    return items.filter((item: any) => now - new Date(item.createdAt).getTime() < ttl)
+  } catch {
+    return []
+  }
+}
+
+// Save ephemeral notifications to sessionStorage
+const saveEphemeralNotifications = (items: any[]) => {
+  try {
+    sessionStorage.setItem('ephemeral_notifications', JSON.stringify(items))
+  } catch {
+    // Non-critical
+  }
+}
 
 const seededNotifications = [
   {
@@ -69,27 +89,74 @@ const seededNotifications = [
   },
 ]
 
+const checkNotifications = async () => {
+  if (!auth.isLoggedIn) return
+
+  try {
+    if (isDemoMode()) {
+      sellerPending.value = auth.isStaff ? [] : [
+        {
+          transferId: 'demo-transfer-001',
+          creditAmount: 180,
+          createdAt: new Date(Date.now() - 2 * 60_000).toISOString(),
+          type: 'seller_pending_acceptance',
+          eventName: 'Neon Nights',
+          sellerName: 'Alex',
+        }
+      ]
+      buyerPending.value = []
+      return
+    }
+
+    // Fetch seller pending transfers
+    const sellerResponse = await api.get('/transfer/pending')
+    sellerPending.value = (sellerResponse.data?.data?.transfers ?? sellerResponse.data?.data ?? []).map((t: any) => ({
+      ...t,
+      type: 'seller_pending_acceptance',
+    }))
+
+    // Fetch buyer pending OTP transfers
+    const buyerResponse = await api.get('/transfer/my-pending')
+    buyerPending.value = (buyerResponse.data?.data?.transfers ?? buyerResponse.data?.data ?? []).map((t: any) => ({
+      ...t,
+      type: 'buyer_pending_otp',
+    }))
+  } catch {
+    // Non-critical
+  }
+}
+
 const notifList = computed<any[]>(() => {
-  const base = isDemoMode()
-    ? seededNotifications
-    : liveNotifications.value.map((item) => ({
-    ...item,
-    type: (item as any).type || 'transfer_request',
-    title: 'Transfer Request',
-    body: `A transfer request is waiting for review. Credits involved: $${Number(item.creditAmount || 0).toFixed(2)}.`,
-    primaryLabel: 'Open transfer',
-    primaryTo: `/transfer/${item.transferId}`,
-    secondaryLabel: 'Dismiss',
-  }))
+  if (isDemoMode()) {
+    return seededNotifications.filter((item) => !dismissedIds.value.includes(item.transferId))
+  }
 
-  return base.filter((item) => !dismissedIds.value.includes(item.transferId))
+  const merged = [
+    ...sellerPending.value.map((item) => ({
+      ...item,
+      type: 'seller_pending_acceptance',
+      title: 'Transfer Request',
+      body: `${item.sellerName || 'A seller'} wants to transfer ${item.eventName || 'a ticket'} to you.`,
+      primaryLabel: 'Open transfer',
+      primaryTo: `/transfer/${item.transferId}`,
+      secondaryLabel: 'Dismiss',
+    })),
+    ...buyerPending.value.map((item) => ({
+      ...item,
+      type: 'buyer_pending_otp',
+      title: 'OTP Required',
+      body: `Enter your verification code to complete the transfer for ${item.eventName || 'your ticket'}.`,
+      primaryLabel: 'Enter OTP',
+      primaryTo: `/transfer/${item.transferId}`,
+      secondaryLabel: 'Dismiss',
+    })),
+    ...ephemeralNotifications.value,
+  ]
+
+  return merged.filter((item) => !dismissedIds.value.includes(item.transferId || item.id))
 })
 
-onMounted(() => {
-  checkNotifications()
-})
-
-type NotificationType = 'transfer_request' | 'topup_success' | 'ticket_sold' | 'hold_expiring'
+type NotificationType = 'transfer_request' | 'buyer_pending_otp' | 'seller_pending_acceptance' | 'transfer_completed' | 'topup_success' | 'ticket_sold' | 'hold_expiring'
 
 interface NotificationMeta {
   icon: typeof BellIcon
@@ -105,6 +172,11 @@ function getNotificationMeta(type: NotificationType | string): NotificationMeta 
       return { icon: TagIcon, colorClass: 'color-primary', label: 'Ticket Sold' }
     case 'hold_expiring':
       return { icon: ClockIcon, colorClass: 'color-amber', label: 'Hold Expiring' }
+    case 'buyer_pending_otp':
+      return { icon: BellIcon, colorClass: 'color-primary', label: 'OTP Required' }
+    case 'transfer_completed':
+      return { icon: CheckCircleIcon, colorClass: 'color-green', label: 'Transfer Complete' }
+    case 'seller_pending_acceptance':
     case 'transfer_request':
     default:
       return { icon: BellIcon, colorClass: 'color-primary', label: 'Transfer Request' }
@@ -122,10 +194,51 @@ function formatRelativeTime(isoString: string): string {
   return `${days}d ago`
 }
 
-function dismissItem(transferId: string) {
-  dismissedIds.value = [...dismissedIds.value, transferId]
-  if (!isDemoMode()) dismiss(transferId)
+function dismissItem(id: string) {
+  dismissedIds.value = [...dismissedIds.value, id]
 }
+
+// WebSocket subscriptions
+let unsubscribeTransfer: (() => void) | undefined
+let unsubscribeTicket: (() => void) | undefined
+
+onMounted(() => {
+  ephemeralNotifications.value = loadEphemeralNotifications()
+  checkNotifications()
+
+  // Subscribe to real-time updates
+  unsubscribeTransfer = subscribe('transfer_update', (message: any) => {
+    const payload = message.payload
+    if (payload?.status === 'completed' && payload?.buyerId === auth.state.user?.userId) {
+      const newNotif = {
+        id: `transfer-complete-${payload.transferId}`,
+        transferId: payload.transferId,
+        type: 'transfer_completed',
+        title: 'Transfer Complete',
+        body: `Your transfer for ${payload.eventName || 'a ticket'} is now complete.`,
+        primaryLabel: 'View Tickets',
+        primaryTo: '/tickets',
+        secondaryLabel: 'Dismiss',
+        createdAt: new Date().toISOString(),
+      }
+      ephemeralNotifications.value = [newNotif, ...ephemeralNotifications.value]
+      saveEphemeralNotifications(ephemeralNotifications.value)
+    }
+    checkNotifications()
+  })
+
+  unsubscribeTicket = subscribe('ticket_update', (message: any) => {
+    const payload = message.payload
+    if (payload?.ownerId === auth.state.user?.userId) {
+      checkNotifications()
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeTransfer) unsubscribeTransfer()
+  if (unsubscribeTicket) unsubscribeTicket()
+})
 </script>
 
 <template>
@@ -137,13 +250,13 @@ function dismissItem(transferId: string) {
 
     <article v-if="notifList.length === 0" class="glass empty-state">
       <h2>No pending notifications</h2>
-      <p class="small muted">You’ll see transfer requests and account activity appear here.</p>
+      <p class="small muted">You'll see transfer requests and account activity appear here.</p>
     </article>
 
     <div v-else class="notification-list">
       <article
         v-for="item in notifList"
-        :key="item.transferId"
+        :key="item.transferId || item.id"
         class="glass notification-card"
       >
         <!-- Clause 1.16: left-edge accent bar -->
@@ -173,7 +286,7 @@ function dismissItem(transferId: string) {
 
           <div class="notification-actions">
             <RouterLink v-if="item.primaryLabel && item.primaryTo" :to="item.primaryTo"><button>{{ item.primaryLabel }}</button></RouterLink>
-            <button v-if="item.secondaryLabel" class="secondary" @click="dismissItem(item.transferId)">{{ item.secondaryLabel }}</button>
+            <button v-if="item.secondaryLabel" class="secondary" @click="dismissItem(item.transferId || item.id)">{{ item.secondaryLabel }}</button>
           </div>
         </div>
       </article>

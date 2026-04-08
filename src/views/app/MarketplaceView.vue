@@ -322,8 +322,8 @@ onMounted(() => {
 
               <button
                 v-if="listing.sellerId === auth.state.user?.userId"
+                class="listed-button"
                 disabled
-                style="opacity: 0.45; cursor: not-allowed; background: rgba(255,255,255,0.06);"
               >
                 Listed
               </button>
@@ -666,6 +666,19 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text);
+  padding: 0.9rem 1.4rem;
+  min-height: 3rem;
+}
+
+.listed-button {
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.listed-button:disabled {
+  opacity: 1;
 }
 
 .skeleton-card {

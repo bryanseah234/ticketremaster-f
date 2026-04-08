@@ -352,6 +352,12 @@ onMounted(load)
 .event-card-feature {
   grid-column: span 2;
   min-height: 24rem;
+  max-height: 24rem;
+}
+
+.event-card-feature img {
+  max-height: 24rem;
+  object-fit: cover;
 }
 
 .event-card img {
@@ -518,6 +524,11 @@ onMounted(load)
   .event-card-feature {
     grid-column: span 1;
     min-height: 26rem;
+    max-height: 26rem;
+  }
+
+  .event-card-feature img {
+    max-height: 26rem;
   }
 
   .pagination {

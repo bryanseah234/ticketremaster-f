@@ -184,7 +184,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.ticket-detail-page { display: grid; gap: 1rem; max-width: 70rem; margin: 0 auto; }
+.ticket-detail-page { 
+  display: grid; 
+  gap: 1rem; 
+  max-width: 70rem; 
+  margin: 0 auto; 
+  padding-top: 7.5rem;
+  padding-inline: 1.5rem;
+}
 .crumb a { color: var(--text-muted); }
 .detail-shell { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(20rem,.8fr); gap: 1.25rem; }
 .detail-copy, .qr-column { display: grid; gap: 1rem; }

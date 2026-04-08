@@ -31,6 +31,7 @@ const status = computed(() => transfer.value?.status || 'pending_seller_acceptan
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
 const isOtpStage = computed(() => status.value === 'pending_buyer_otp' || status.value === 'pending_seller_otp')
 const verifyMode = computed<'buyer' | 'seller'>(() => (status.value === 'pending_seller_otp' ? 'seller' : 'buyer'))
+const isWrongSellerAccount = computed(() => status.value === 'pending_seller_otp' && !isSeller.value && auth.isLoggedIn)
 const countdownFormatted = computed(
   () =>
     `${String(Math.floor(rateLimitCountdown.value / 60)).padStart(2, '0')}:${String(rateLimitCountdown.value % 60).padStart(2, '0')}`,
@@ -88,6 +89,7 @@ const loadTransfer = async () => {
     const raw = data?.data || data || null
     if (!raw) return
 
+    // Use enriched transfer data from backend
     transfer.value = {
       ...raw,
       sellerId: raw.sellerId || raw.seller_id,
@@ -95,25 +97,18 @@ const loadTransfer = async () => {
       sellerName: raw.sellerName || raw.seller_name || 'Seller',
       creditAmount: raw.creditAmount || raw.credit_amount,
       completedAt: raw.completedAt || raw.completed_at,
-      eventName: raw.eventName || raw.event_name,
-      eventDate: raw.eventDate || raw.event_date,
-      venueName: raw.venueName || raw.venue_name,
-      seatRow: raw.seatRow || raw.seat_row,
-      seatNumber: raw.seatNumber || raw.seat_number,
-      location: raw.location || raw.venueName || raw.venue_name,
-      eventImage: raw.eventImage || raw.event_image || raw.image,
-    }
-
-    // Fetch event image if not included in transfer response
-    const eventId = raw.eventId || raw.event_id
-    if (eventId && !transfer.value.eventImage) {
-      try {
-        const { data: eventData } = await api.get(`/events/${eventId}`)
-        const ev = eventData?.data || eventData
-        if (ev?.image) transfer.value = { ...transfer.value, eventImage: ev.image }
-        if (ev?.name && !transfer.value.eventName) transfer.value = { ...transfer.value, eventName: ev.name }
-        if (ev?.date && !transfer.value.eventDate) transfer.value = { ...transfer.value, eventDate: ev.date }
-      } catch { /* non-critical */ }
+      // Event data from enriched response
+      eventName: raw.event?.name || raw.eventName || raw.event_name,
+      eventDate: raw.event?.date || raw.eventDate || raw.event_date,
+      eventImage: raw.event?.image || raw.eventImage || raw.event_image || raw.image,
+      // Venue data from enriched response
+      venueName: raw.event?.venue?.name || raw.venue?.name || raw.venueName || raw.venue_name,
+      location: raw.event?.venue?.name || raw.venue?.name || raw.location || raw.venueName || raw.venue_name,
+      // Seat data from enriched response
+      seatRow: raw.seat?.rowNumber || raw.seat?.row_number || raw.seatRow || raw.seat_row,
+      seatNumber: raw.seat?.seatNumber || raw.seat?.seat_number || raw.seatNumber || raw.seat_number,
+      seatSection: raw.seat?.section || raw.seatSection || raw.seat_section,
+      seatGate: raw.seat?.gate || raw.seatGate || raw.seat_gate,
     }
   } catch {
     if (!transfer.value) {
@@ -281,6 +276,17 @@ let countdownTimer: number | undefined
 onMounted(async () => {
   await loadTransfer()
 
+  // Auto-call resend OTP when correct seller lands on pending_seller_otp page
+  if (status.value === 'pending_seller_otp' && isSeller.value) {
+    try {
+      if (!isDemoMode()) {
+        await api.post(`/transfer/${route.params.transferId}/resend-otp`)
+      }
+    } catch {
+      // Non-blocking: manual resend button is still available
+    }
+  }
+
   pollTimer = window.setInterval(async () => {
     if (['completed', 'failed', 'cancelled', 'expired'].includes(status.value)) {
       clearInterval(pollTimer)
@@ -315,7 +321,31 @@ onUnmounted(() => {
 
     <div v-if="isOtpStage" class="otp-layout">
       <div class="otp-main">
-        <article class="glass otp-card">
+        <!-- Account mismatch state for wrong seller -->
+        <article v-if="isWrongSellerAccount" class="glass otp-card">
+          <div class="otp-glow" aria-hidden="true"></div>
+
+          <div v-if="transfer?.eventName" class="otp-event-context">
+            <span class="otp-event-name">{{ transfer.eventName }}</span>
+            <span v-if="transfer.seatRow || transfer.seatNumber" class="otp-seat">
+              Row {{ transfer.seatRow }} · Seat {{ transfer.seatNumber }}
+            </span>
+          </div>
+
+          <div class="warning-box" style="background: rgba(255, 176, 32, 0.08); border-color: rgba(255, 176, 32, 0.18); color: #f6b15d;">
+            <strong style="display: block; margin-bottom: 0.5rem;">Account Mismatch</strong>
+            <p style="margin: 0; color: rgba(255, 255, 255, 0.75);">
+              You are not logged in as the seller for this transfer. Please log in with the correct account to complete verification.
+            </p>
+          </div>
+
+          <RouterLink to="/login" style="width: 100%;">
+            <button class="otp-submit" type="button">Log In with Seller Account</button>
+          </RouterLink>
+        </article>
+
+        <!-- Normal OTP form for correct user -->
+        <article v-else class="glass otp-card">
           <div class="otp-glow" aria-hidden="true"></div>
 
           <!-- Event context for OTP stage -->
