@@ -88,6 +88,7 @@ const submit = async () => {
       user: {
         userId: d.user.userId,
         email: d.user.email,
+        fullName: d.user.fullName || d.user.name,
         phoneNumber: d.user.phoneNumber,
         role: d.user.role,
       },
@@ -244,15 +245,23 @@ const submit = async () => {
 .otp-hidden-input {
   position: absolute;
   inset: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   color: transparent;
   caret-color: var(--primary);
   cursor: pointer;
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  opacity: 0;
   outline: none;
   font-size: 1.5rem;
   letter-spacing: 0.65rem;
-  padding-left: calc(0.65rem / 2);
   z-index: 2;
 }
 

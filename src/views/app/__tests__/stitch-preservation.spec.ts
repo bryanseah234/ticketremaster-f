@@ -453,6 +453,26 @@ describe('CreditTopupView — preservation (clauses 3.6–3.8)', () => {
     expect(vm.balance).toBe(750)
   })
 
+  it('3.6d — defaults cardholder name to the logged-in user full name', async () => {
+    const auth = useAuthStore()
+    auth.state.user = {
+      userId: 'demo-seller-001',
+      email: 'alex@ticketremaster.com',
+      phoneNumber: '+1',
+      role: 'user',
+      isFlagged: false,
+      isAdmin: false,
+    }
+
+    const { default: CreditTopupView } = await import('../CreditTopupView.vue')
+    const wrapper = shallowMount(CreditTopupView)
+    await wrapper.vm.$nextTick()
+    await new Promise((r) => setTimeout(r, 50))
+
+    const vm = wrapper.vm as any
+    expect(vm.cardholderName).toBe('Alex')
+  })
+
   it('3.8 — demo simulateTopUp updates sessionStorage without calling real API', async () => {
     sessionStorage.setItem('demo_balance', '500')
 

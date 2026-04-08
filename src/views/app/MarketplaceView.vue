@@ -29,6 +29,7 @@ const showListForm = ref(false)
 const myTickets = ref<{ ticketId: string; label: string; price: number }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
 const isAuthenticated = computed(() => Boolean(auth.state.accessToken))
+const TRANSFER_CONTEXT_KEY_PREFIX = 'transfer_context:'
 
 const totalPages = computed(() => Math.max(1, Math.ceil(totalListings.value / pageSize)))
 const averagePrice = computed(() =>
@@ -231,8 +232,32 @@ const listTicket = async () => {
 const buyListing = async (listingId: string) => {
   buyLoadingIds.value = { ...buyLoadingIds.value, [listingId]: true }
   try {
+    const listing = listings.value.find((item) => item.listingId === listingId)
     const { data } = await api.post('/transfer/initiate', { listingId })
-    const transferId = data?.data?.transferId || data?.data?.transfer_id || data?.transferId
+    const payload = data?.data || data || {}
+    const transferId = payload?.transferId || payload?.transfer_id
+    if (transferId) {
+      const transferContext = {
+        ...payload,
+        transferId,
+        listingId: payload?.listingId || listingId,
+        creditAmount: payload?.creditAmount ?? payload?.credit_amount ?? listing?.price,
+        eventName: payload?.eventName || payload?.event?.name || listing?.event?.name,
+        eventDate: payload?.eventDate || payload?.event?.date || listing?.event?.date,
+        eventImage: payload?.eventImage || payload?.event?.image || listing?.event?.image,
+        venueName:
+          payload?.venueName ||
+          payload?.event?.venue?.name ||
+          payload?.venue?.name ||
+          listing?.event?.venue?.name,
+        location:
+          payload?.location ||
+          payload?.event?.venue?.name ||
+          payload?.venue?.name ||
+          listing?.event?.venue?.name,
+      }
+      sessionStorage.setItem(`${TRANSFER_CONTEXT_KEY_PREFIX}${transferId}`, JSON.stringify(transferContext))
+    }
     toast.push('Transfer initiated.', 'success', 3200)
     if (transferId) router.push(`/transfer/${transferId}`)
   } catch (e: any) {

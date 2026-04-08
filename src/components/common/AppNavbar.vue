@@ -99,6 +99,11 @@ const scheduleBalance = () => {
   balanceTimer = window.setTimeout(fetchBalance, 250)
 }
 
+const showBalanceChip = computed(() => {
+  if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return false
+  return balanceLoading.value || balance.value !== null
+})
+
 const balanceLabel = computed(() => {
   if (!auth.isLoggedIn || auth.isStaff || auth.isAdmin) return null
   if (balanceLoading.value) return '$ ...'
@@ -148,7 +153,7 @@ onMounted(() => {
       </nav>
 
       <div class="action-cluster">
-        <RouterLink v-if="balanceLabel" to="/credits/topup" class="balance-chip">
+        <RouterLink v-if="showBalanceChip" to="/credits/topup" class="balance-chip">
           {{ balanceLabel }}
         </RouterLink>
         <span v-if="isDemoMode()" class="demo-chip">Demo</span>

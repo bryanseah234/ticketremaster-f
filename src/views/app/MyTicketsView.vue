@@ -10,6 +10,7 @@ import { resolveEventImage } from '@/utils/eventMedia'
 import type { Ticket } from '@/types'
 
 const tickets = ref<Ticket[]>([])
+const transferHistory = ref<Ticket[]>([])
 const loading = ref(false)
 const toast = useToast()
 const auth = useAuthStore()
@@ -45,24 +46,82 @@ const mapTicket = (ticket: any): Ticket => ({
   venue: ticket.venue ? { venueId: ticket.venue.venueId, name: ticket.venue.name } : undefined,
 })
 
+const mapTransferredTicket = (transfer: any): Ticket => ({
+  ticketId: transfer.ticketId || transfer.transferId,
+  eventId: transfer.event?.eventId || transfer.eventId || '',
+  seatId: transfer.seat?.seatId || transfer.seatId || '',
+  ownerId: transfer.sellerId || '',
+  status: 'transferred',
+  price: transfer.creditAmount || transfer.price || 0,
+  purchasedAt: transfer.createdAt || '',
+  transferredAt: transfer.completedAt || transfer.createdAt || '',
+  event: transfer.event
+    ? {
+        eventId: transfer.event.eventId || transfer.event.id || '',
+        name: transfer.event.name || '',
+        date: transfer.event.date || '',
+        venueId: transfer.event.venue?.venueId || transfer.venue?.venueId || '',
+        price: transfer.creditAmount || transfer.price || 0,
+        type: transfer.event.type || 'other',
+        image: resolveEventImage({
+          image: transfer.event.image || transfer.eventImage,
+          eventId: transfer.event.eventId || transfer.event.id,
+          type: transfer.event.type || 'other',
+          context: 'ticket',
+        }),
+        venue: transfer.event.venue
+          ? { venueId: transfer.event.venue.venueId, name: transfer.event.venue.name }
+          : undefined,
+      }
+    : undefined,
+  seat: transfer.seat
+    ? {
+        seatId: transfer.seat.seatId || '',
+        rowNumber: transfer.seat.rowNumber || transfer.seat.row || '',
+        seatNumber: transfer.seat.seatNumber || transfer.seat.seat || '',
+        venueId: transfer.venue?.venueId || transfer.event?.venue?.venueId || '',
+        section: transfer.seat.section,
+      }
+    : undefined,
+  venue: transfer.venue ? { venueId: transfer.venue.venueId, name: transfer.venue.name, address: transfer.venue.address } : undefined,
+})
+
 const load = async () => {
   loading.value = true
   try {
     if (isDemoMode()) {
-      const result = await mockServices.getMyTickets()
-      tickets.value = result.tickets
+      const [ticketResult, transferResult] = await Promise.all([
+        mockServices.getMyTickets(),
+        mockServices.getTransfers(),
+      ])
+      tickets.value = ticketResult.tickets
+      transferHistory.value = (transferResult.transfers || [])
+        .filter((transfer: any) => transfer.status === 'completed' && transfer.fromUserId === auth.state.user?.userId)
+        .map(mapTransferredTicket)
     } else {
-      const { data } = await api.get('/tickets')
-      const raw = data?.data?.tickets || data?.data || []
+      const [{ data: ticketsData }, { data: historyData }] = await Promise.all([
+        api.get('/tickets'),
+        api.get('/transfer/history'),
+      ])
+      const raw = ticketsData?.data?.tickets || ticketsData?.data || []
+      const transferRaw = historyData?.data?.transfers || historyData?.data || []
       tickets.value = raw.map(mapTicket)
+      transferHistory.value = transferRaw.map(mapTransferredTicket)
     }
   } catch {
     try {
-      const result = await mockServices.getMyTickets()
-      tickets.value = result.tickets
+      const [ticketResult, transferResult] = await Promise.all([
+        mockServices.getMyTickets(),
+        mockServices.getTransfers(),
+      ])
+      tickets.value = ticketResult.tickets
+      transferHistory.value = (transferResult.transfers || [])
+        .filter((transfer: any) => transfer.status === 'completed' && transfer.fromUserId === auth.state.user?.userId)
+        .map(mapTransferredTicket)
       toast.push('Backend unavailable. Showing demo data.', 'info', 3200)
     } catch {
       tickets.value = []
+      transferHistory.value = []
     }
   } finally {
     loading.value = false
@@ -70,7 +129,11 @@ const load = async () => {
 }
 
 const activeTickets = computed(() => tickets.value.filter((ticket) => ticket.status === 'active' || ticket.status === 'listed'))
-const archiveTickets = computed(() => tickets.value.filter((ticket) => ticket.status !== 'active' && ticket.status !== 'listed'))
+const archiveTickets = computed(() => {
+  const ownedArchive = tickets.value.filter((ticket) => ticket.status !== 'active' && ticket.status !== 'listed')
+  const merged = [...transferHistory.value, ...ownedArchive]
+  return Array.from(new Map(merged.map((ticket) => [ticket.ticketId, ticket])).values())
+})
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
@@ -82,7 +145,7 @@ const formatDate = (value?: string) => {
   })
 }
 
-const archiveActionLabel = (ticket: Ticket) => (ticket.transferredAt ? 'Transferred' : 'Purchased')
+const archiveActionLabel = (ticket: Ticket) => (ticket.transferredAt || ticket.status === 'transferred' ? 'Transferred' : 'Purchased')
 const ticketImage = (ticket: Ticket) =>
   ticket.status === 'listed'
     ? resolveEventImage({
@@ -526,6 +589,10 @@ watch([loading, tickets], ([isLoading, items]) => {
 
 .archive-pill.cancelled {
   color: #ff8f84;
+}
+
+.archive-pill.transferred {
+  color: var(--primary);
 }
 
 .empty-state,

@@ -21,6 +21,8 @@ export interface User {
 export interface AuthUser {
   userId: string
   email: string
+  fullName?: string
+  name?: string // legacy alias for backend/display payloads
   phoneNumber?: string
   phone?: string // legacy alias for backward compat
   venueId?: string // for staff scanner venue context
@@ -104,7 +106,7 @@ export interface SeatWithInventory extends Seat {
 
 // ── Ticket Types ────────────────────────────────────────────────────
 
-export type TicketStatus = 'active' | 'used' | 'cancelled' | 'listed'
+export type TicketStatus = 'active' | 'used' | 'cancelled' | 'listed' | 'transferred'
 
 export interface Ticket {
   ticketId: string
