@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
@@ -16,16 +16,17 @@ const loading = ref(false)
 const listings = ref<MarketplaceListing[]>([])
 const search = ref('')
 const priceSort = ref<'asc' | 'desc' | null>(null)
+const nameSort = ref<'asc' | 'desc' | null>(null)
 const eventFilter = ref('')
 const currentPage = ref(1)
 const pageSize = 10
 const totalListings = ref(0)
 
 const listTicketId = ref('')
-const listPrice = ref(120)
+const listPrice = ref(0)
 const listLoading = ref(false)
 const showListForm = ref(false)
-const myTickets = ref<{ ticketId: string; label: string }[]>([])
+const myTickets = ref<{ ticketId: string; label: string; price: number }[]>([])
 const buyLoadingIds = ref<Record<string, boolean>>({})
 const isAuthenticated = computed(() => Boolean(auth.state.accessToken))
 
@@ -41,12 +42,12 @@ const demandIndex = computed(() => {
   return 'Emerging'
 })
 
-const eventNames = computed(() => {
-  const names = new Set<string>()
+const eventTypes = computed(() => {
+  const types = new Set<string>()
   listings.value.forEach((listing) => {
-    if (listing.event?.name) names.add(listing.event.name)
+    if (listing.event?.type) types.add(listing.event.type)
   })
-  return Array.from(names).sort()
+  return Array.from(types).sort()
 })
 
 const filteredListings = computed(() => {
@@ -54,18 +55,28 @@ const filteredListings = computed(() => {
   let result = listings.value.filter((listing) => {
     const text = `${listing.event?.name ?? ''} ${listing.listingId}`.toLowerCase()
     const matched = !needle || text.includes(needle)
-    const eventMatched = !eventFilter.value || listing.event?.name === eventFilter.value
-    return matched && eventMatched
+    const typeMatched = !eventFilter.value || listing.event?.type === eventFilter.value
+    return matched && typeMatched
   })
   if (priceSort.value === 'asc') result = [...result].sort((a, b) => a.price - b.price)
-  if (priceSort.value === 'desc') result = [...result].sort((a, b) => b.price - a.price)
+  else if (priceSort.value === 'desc') result = [...result].sort((a, b) => b.price - a.price)
+  if (nameSort.value === 'asc') result = [...result].sort((a, b) => (a.event?.name ?? '').localeCompare(b.event?.name ?? ''))
+  else if (nameSort.value === 'desc') result = [...result].sort((a, b) => (b.event?.name ?? '').localeCompare(a.event?.name ?? ''))
   return result
 })
 
 const togglePriceSort = () => {
+  nameSort.value = null
   if (!priceSort.value) priceSort.value = 'asc'
   else if (priceSort.value === 'asc') priceSort.value = 'desc'
   else priceSort.value = null
+}
+
+const toggleNameSort = () => {
+  priceSort.value = null
+  if (!nameSort.value) nameSort.value = 'asc'
+  else if (nameSort.value === 'asc') nameSort.value = 'desc'
+  else nameSort.value = null
 }
 
 const loadListings = async (page = currentPage.value) => {
@@ -134,8 +145,12 @@ const loadMyTickets = async () => {
         .map((ticket) => ({
           ticketId: ticket.ticketId,
           label: `${ticket.event?.name || 'Ticket'} — ${ticket.ticketId.slice(0, 8)}`,
+          price: Number(ticket.price || 0),
         }))
-      if (myTickets.value.length) listTicketId.value = myTickets.value[0].ticketId
+      if (myTickets.value.length) {
+        listTicketId.value = myTickets.value[0].ticketId
+        listPrice.value = myTickets.value[0].price
+      }
       return
     }
 
@@ -145,12 +160,22 @@ const loadMyTickets = async () => {
       .map((ticket: any) => ({
         ticketId: ticket.ticketId,
         label: `${ticket.event?.name || 'Ticket'} — ${ticket.ticketId.slice(0, 8)}`,
+        price: Number(ticket.price || 0),
       }))
-    if (myTickets.value.length) listTicketId.value = myTickets.value[0].ticketId
+    if (myTickets.value.length) {
+      listTicketId.value = myTickets.value[0].ticketId
+      listPrice.value = myTickets.value[0].price
+    }
   } catch {
     myTickets.value = []
   }
 }
+
+// Auto-update price when ticket selection changes
+watch(listTicketId, (id) => {
+  const ticket = myTickets.value.find((t) => t.ticketId === id)
+  if (ticket) listPrice.value = ticket.price
+})
 
 const openListingFlow = async () => {
   if (!isAuthenticated.value) {
@@ -242,18 +267,23 @@ onMounted(() => {
         <div class="chip-row">
           <button class="filter-chip" :class="{ active: !eventFilter }" @click="eventFilter = ''">All Categories</button>
           <button
-            v-for="name in eventNames.slice(0, 3)"
-            :key="name"
+            v-for="type in eventTypes.slice(0, 4)"
+            :key="type"
             class="filter-chip"
-            :class="{ active: eventFilter === name }"
-            @click="eventFilter = eventFilter === name ? '' : name"
+            :class="{ active: eventFilter === type }"
+            @click="eventFilter = eventFilter === type ? '' : type"
           >
-            {{ name }}
+            {{ type.charAt(0).toUpperCase() + type.slice(1) }}
           </button>
           <button class="filter-chip" :class="{ active: priceSort !== null }" @click="togglePriceSort">
             Price
             <span v-if="priceSort === 'asc'">↑</span>
             <span v-else-if="priceSort === 'desc'">↓</span>
+          </button>
+          <button class="filter-chip" :class="{ active: nameSort !== null }" @click="toggleNameSort">
+            A–Z
+            <span v-if="nameSort === 'asc'">↑</span>
+            <span v-else-if="nameSort === 'desc'">↓</span>
           </button>
         </div>
       </div>
@@ -291,6 +321,14 @@ onMounted(() => {
               <p class="seat-line">{{ listingSeatLabel(listing) }}</p>
 
               <button
+                v-if="listing.sellerId === auth.state.user?.userId"
+                disabled
+                style="opacity: 0.45; cursor: not-allowed; background: rgba(255,255,255,0.06);"
+              >
+                Listed
+              </button>
+              <button
+                v-else
                 :disabled="listing.status !== 'active' || buyLoadingIds[listing.listingId]"
                 @click="buyListing(listing.listingId)"
               >
@@ -336,7 +374,8 @@ onMounted(() => {
 
           <div>
             <label>Asking Price</label>
-            <input v-model.number="listPrice" type="number" min="1" />
+            <input :value="`SGD ${listPrice.toFixed(2)}`" type="text" disabled style="opacity: 0.6; cursor: not-allowed;" />
+            <small style="color: var(--text-muted, rgba(255,255,255,0.45)); font-size: 0.75rem;">Fixed at original ticket price</small>
           </div>
 
           <button :disabled="listLoading" @click="listTicket">{{ listLoading ? 'Creating...' : 'Create Listing' }}</button>
