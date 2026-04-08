@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import VueQrcode from '@chenfengyuan/vue-qrcode'
+import { CalendarDaysIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { isDemoMode, mockServices } from '@/services/mockData'
@@ -22,6 +23,12 @@ let secondTimer: number | undefined
 
 const ticketStatus = computed(() => ticket.value?.status || (route.query.status as string) || '')
 const isActive = computed(() => ticketStatus.value === 'active')
+const locationLabel = computed(() => ticket.value?.venue?.name || ticket.value?.event?.venue?.name || 'Venue TBA')
+const confirmedLabel = computed(() => (isActive.value ? 'CONFIRMED' : (ticketStatus.value || 'STATUS').toUpperCase()))
+const seatSection = computed(() => ticket.value?.seat?.section || 'GA')
+const seatRow = computed(() => ticket.value?.seat?.rowNumber || '--')
+const seatNumber = computed(() => ticket.value?.seat?.seatNumber || '--')
+const seatGate = computed(() => (ticket.value?.seat as any)?.gate || '--')
 
 const formatDate = (value?: string) => {
   if (!value) return 'Date TBA'
@@ -144,30 +151,9 @@ onUnmounted(() => {
   <section class="ticket-detail-page">
     <div class="crumb"><RouterLink to="/tickets">Back to My Tickets</RouterLink></div>
 
-    <article class="detail-shell panel">
-      <div class="detail-copy">
-        <span class="eyebrow">Electronic Ticket</span>
-        <div class="headline-row">
-          <h1>{{ ticket?.event?.name || 'Ticket Details' }}</h1>
-          <span class="status-pill">{{ ticketStatus || 'active' }}</span>
-        </div>
-        <p class="muted">{{ ticket?.venue?.name || ticket?.event?.venue?.name || 'Venue TBA' }}</p>
-
-        <div class="info-grid">
-          <div><span class="meta-label">Date</span><strong>{{ formatDate(ticket?.event?.date) }}</strong></div>
-          <div><span class="meta-label">Section</span><strong>{{ ticket?.seat?.section || 'GA' }}</strong></div>
-          <div><span class="meta-label">Row</span><strong>{{ ticket?.seat?.rowNumber || '--' }}</strong></div>
-          <div><span class="meta-label">Seat</span><strong>{{ ticket?.seat?.seatNumber || '--' }}</strong></div>
-          <div><span class="meta-label">Price Paid</span><strong>SGD {{ Number(ticket?.price || 0).toFixed(2) }}</strong></div>
-          <div><span class="meta-label">Ticket ID</span><strong>{{ ticket?.ticketId || ticketId }}</strong></div>
-        </div>
-
-        <div class="action-row" v-if="isActive">
-          <RouterLink :to="`/ticket-qr/${qrData?.qrHash || ticket?.ticketId || ticketId}`"><button>Open Full QR</button></RouterLink>
-        </div>
-      </div>
-
-      <div class="qr-column">
+    <article class="ticket-shell panel">
+      <aside class="ticket-left">
+        <span class="status-pill">{{ confirmedLabel }}</span>
         <div v-if="qrData" class="qr-shell">
           <VueQrcode :value="`${origin}/ticket-qr/${qrData.qrHash}`" :options="{ width: 220 }" />
           <p class="countdown" :class="{ urgent: countdown < 10 }">Refreshes in {{ countdown }}s</p>
@@ -176,7 +162,53 @@ onUnmounted(() => {
           <p>{{ blockMessage }}</p>
         </div>
         <div v-else class="blocked-shell">
-          <p>Loading QR…</p>
+          <p>Loading QR...</p>
+        </div>
+      </aside>
+
+      <div class="ticket-right">
+        <span class="eyebrow">Electronic Ticket</span>
+        <h1 class="ticket-title">{{ ticket?.event?.name || 'Ticket Details' }}</h1>
+        <p class="series-name">{{ locationLabel }}</p>
+
+        <div class="seat-grid">
+          <div>
+            <span class="meta-label">Section</span>
+            <strong>{{ seatSection }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Row</span>
+            <strong>{{ seatRow }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Seat</span>
+            <strong>{{ seatNumber }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">Gate</span>
+            <strong>{{ seatGate }}</strong>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <CalendarDaysIcon class="meta-icon" />
+          <div>
+            <span class="meta-label">Date</span>
+            <strong>{{ formatDate(ticket?.event?.date) }}</strong>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <MapPinIcon class="meta-icon" />
+          <div>
+            <span class="meta-label">Location</span>
+            <strong>{{ locationLabel }}</strong>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="wallet-button secondary" type="button" disabled>Add to Apple Wallet</button>
+          <RouterLink v-if="isActive" :to="`/ticket-qr/${qrData?.qrHash || ticket?.ticketId || ticketId}`"><button>Open Full QR</button></RouterLink>
         </div>
       </div>
     </article>
@@ -187,39 +219,147 @@ onUnmounted(() => {
 .ticket-detail-page { 
   display: grid; 
   gap: 1rem; 
-  max-width: 70rem; 
+  max-width: 74rem; 
   margin: 0 auto; 
-  padding-top: 7.5rem;
-  padding-inline: 1.5rem;
+  padding-top: 8.25rem;
+  padding-inline: 1.25rem;
 }
-.crumb a { color: var(--text-muted); }
-.detail-shell { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(20rem,.8fr); gap: 1.25rem; }
-.detail-copy, .qr-column { display: grid; gap: 1rem; }
-.eyebrow, .meta-label {
-  font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+.crumb a { color: var(--textMuted); }
+
+.ticket-shell {
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+  gap: 1.4rem;
+  padding: 1.2rem;
+  border-radius: 1.4rem;
+  background: rgba(17, 16, 16, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ticket-left {
+  position: relative;
+  border-radius: 1.1rem;
+  padding: 1.2rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 24rem;
+  display: grid;
+  place-items: center;
+}
+
+.ticket-right {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.eyebrow,
+.meta-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .eyebrow { color: var(--primary); }
-.meta-label { color: var(--text-dim); display: block; margin-bottom: .35rem; }
-.headline-row { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
-.headline-row h1 {
-  margin: 0; font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4rem); line-height: .95; letter-spacing: -.05em;
+.meta-label { color: rgba(255, 255, 255, 0.5); display: block; margin-bottom: 0.35rem; }
+
+.ticket-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.2vw, 3.1rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
 }
+
+.series-name {
+  margin: 0;
+  color: var(--textMuted);
+  font-size: 0.94rem;
+}
+
 .status-pill {
-  width: fit-content; padding: .45rem .75rem; border-radius: 999px; background: rgba(249,115,22,.14);
-  color: var(--primary); font-size: .68rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: fit-content;
+  padding: 0.38rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(61, 186, 124, 0.16);
+  border: 1px solid rgba(61, 186, 124, 0.36);
+  color: #7de3ab;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
-.muted { margin: 0; color: var(--text-muted); }
-.info-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; padding: 1rem 0; border-block: 1px solid rgba(255,255,255,.06); }
-.info-grid strong { display: block; }
-.action-row { display: flex; gap: .75rem; flex-wrap: wrap; }
-.qr-shell, .blocked-shell {
-  min-height: 22rem; display: grid; place-items: center; align-content: center; gap: 1rem; padding: 1.25rem;
-  border-radius: 1.25rem; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.05);
+
+.seat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding: 0.95rem 0;
+  border-block: 1px solid rgba(255, 255, 255, 0.07);
 }
-.countdown { margin: 0; color: var(--text-muted); }
+
+.seat-grid strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.meta-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.45rem 0;
+}
+
+.meta-row strong {
+  display: block;
+}
+
+.meta-icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--primary);
+}
+
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+}
+
+.wallet-button {
+  color: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.qr-shell,
+.blocked-shell {
+  width: 100%;
+  min-height: 19rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+.countdown { margin: 0; color: var(--textMuted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.68rem; }
 .countdown.urgent { color: #f6a94d; }
-.blocked-shell p { margin: 0; text-align: center; color: var(--text-muted); }
+.blocked-shell p { margin: 0; text-align: center; color: var(--textMuted); }
+
 @media (max-width: 900px) {
-  .detail-shell, .info-grid { grid-template-columns: 1fr; }
+  .ticket-shell,
+  .seat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-detail-page {
+    padding-top: 7.2rem;
+  }
 }
 </style>
