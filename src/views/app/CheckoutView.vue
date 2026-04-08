@@ -20,6 +20,8 @@ const ticket = ref<any>(null)
 const eventName = ref('')
 const trustRowRef = ref<HTMLElement | null>(null)
 let holdTimer: number | undefined
+let successRedirectTimer: number | undefined
+const PURCHASE_REDIRECT_DELAY_MS = 1400
 
 const seatPrice = computed(() => Number(order.value?.seat?.price || 0))
 const serviceFee = computed(() => Number((seatPrice.value * 0.098).toFixed(2)))
@@ -177,6 +179,13 @@ const cancel = async () => {
   router.push(order.value?.eventId ? `/events/${order.value.eventId}` : '/events')
 }
 
+const scheduleSuccessRedirect = () => {
+  if (successRedirectTimer) window.clearTimeout(successRedirectTimer)
+  successRedirectTimer = window.setTimeout(() => {
+    router.push('/tickets')
+  }, PURCHASE_REDIRECT_DELAY_MS)
+}
+
 const pay = async () => {
   if (holdExpired.value) {
     toast.push('Your seat hold has expired. Please select a seat again.', 'error', 4000)
@@ -199,6 +208,7 @@ const pay = async () => {
         status: 'active',
         createdAt: new Date().toISOString(),
       }
+      scheduleSuccessRedirect()
       return
     }
 
@@ -211,6 +221,7 @@ const pay = async () => {
     localStorage.removeItem('pendingOrder')
     if (holdTimer) clearInterval(holdTimer)
     ticket.value = data?.data
+    scheduleSuccessRedirect()
   } catch (error: any) {
     const errorCode = error?.response?.data?.error?.code || error?.response?.data?.error_code
     const status = error?.response?.status
@@ -239,6 +250,7 @@ onBeforeRouteLeave(async (to, _from, next) => {
   const isTopUp = to.path === '/credits/topup'
   if (!ticket.value && !isTopUp) await releaseHold()
   if (holdTimer) clearInterval(holdTimer)
+  if (successRedirectTimer) window.clearTimeout(successRedirectTimer)
   next()
 })
 
@@ -254,6 +266,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (holdTimer) clearInterval(holdTimer)
+  if (successRedirectTimer) window.clearTimeout(successRedirectTimer)
 })
 </script>
 
