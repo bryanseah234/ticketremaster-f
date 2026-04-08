@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
 import { useToast } from '@/composables/useToast'
 import AccountSidebar from '@/components/account/AccountSidebar.vue'
+import { getUserFullName } from '@/utils/userDisplay'
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -15,17 +16,7 @@ const profile = ref<Record<string, unknown> | null>(null)
 
 const displayUser = computed(() => (profile.value || auth.state.user || null) as Record<string, unknown> | null)
 
-const fullName = computed(() => {
-  const explicitName = (displayUser.value?.fullName as string) || (displayUser.value?.name as string)
-  if (explicitName) return explicitName
-  const email = (displayUser.value?.email as string) || 'TicketRemaster Guest'
-  return email
-    .split('@')[0]
-    .split(/[._-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-})
+const fullName = computed(() => getUserFullName(displayUser.value))
 
 const phoneValue = computed(
   () =>

@@ -7,6 +7,7 @@ import api from '@/api/client'
 import { isDemoMode } from '@/services/mockData'
 import { useAuthStore } from '@/stores/auth'
 import AccountSidebar from '@/components/account/AccountSidebar.vue'
+import { getUserFullName } from '@/utils/userDisplay'
 
 const router = useRouter()
 const balance = ref(0)
@@ -41,7 +42,7 @@ const stripeReady = ref(false)
 const demoMode = computed(() => isDemoMode())
 const auth = useAuthStore()
 
-const cardholderName = ref('ALEX VANCE')
+const cardholderName = ref(getUserFullName(auth.state.user))
 
 const quickAmounts = [25, 50, 100]
 
@@ -425,11 +426,15 @@ onUnmounted(() => {
 }
 
 .balance-value {
+  display: inline-block;
   margin-top: 0.45rem;
   font-family: "Plus Jakarta Sans", Inter, sans-serif;
   font-size: clamp(2.6rem, 6vw, 4.3rem);
   font-weight: 800;
+  line-height: 1.05;
   letter-spacing: -0.08em;
+  padding-block-end: 0.08em;
+  white-space: nowrap;
   background: linear-gradient(135deg, #f97316, #ff7a23);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

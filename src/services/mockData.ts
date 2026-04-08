@@ -464,7 +464,7 @@ export const mockServices = {
   async register(data: { email: string; password: string; phoneNumber: string }): Promise<{ user: AuthUser; token: string }> {
     await delay(defaultConfig.delay!)
     return {
-      user: { userId: 'demo-user-new', email: data.email, role: 'user', isFlagged: false, isAdmin: false },
+      user: { userId: 'demo-user-new', email: data.email, fullName: data.email.split('@')[0], role: 'user', isFlagged: false, isAdmin: false },
       token: 'demo-jwt-token',
     }
   },

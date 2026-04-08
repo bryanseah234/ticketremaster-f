@@ -13,6 +13,7 @@ import { isDemoMode } from '@/services/mockData'
 
 const FALLBACK_TRANSFER_IMAGE =
   '/stitch-media/transfer/accept-card.jpg'
+const TRANSFER_CONTEXT_KEY_PREFIX = 'transfer_context:'
 
 const route = useRoute()
 const toast = useToast()
@@ -31,7 +32,13 @@ const status = computed(() => transfer.value?.status || 'pending_seller_acceptan
 const isBuyer = computed(() => (auth.state.user ? transfer.value?.buyerId === auth.state.user.userId : false))
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
 const isSellerOtpTurn = computed(() => status.value === 'pending_seller_otp' && isSeller.value)
-const isBuyerOtpTurn = computed(() => status.value === 'pending_buyer_otp' && isBuyer.value)
+const isBuyerOtpReady = computed(
+  () =>
+    status.value === 'pending_buyer_otp' &&
+    transfer.value?.sellerOtpVerified === true &&
+    Boolean(transfer.value?.buyerVerificationSid),
+)
+const isBuyerOtpTurn = computed(() => isBuyerOtpReady.value && isBuyer.value)
 const isOtpStage = computed(() => isSellerOtpTurn.value || isBuyerOtpTurn.value)
 const verifyMode = computed<'buyer' | 'seller'>(() => (isSellerOtpTurn.value ? 'seller' : 'buyer'))
 const isWaitingForCounterparty = computed(
@@ -46,6 +53,19 @@ const countdownFormatted = computed(
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
 const activeDigitIndex = computed(() => Math.min(otp.value.length, 5))
 const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?.image || FALLBACK_TRANSFER_IMAGE)
+const displayEventName = computed(() => transfer.value?.eventName || 'Transfer request')
+const displaySellerName = computed(() => transfer.value?.sellerName || 'Pending seller')
+const displayLocation = computed(() => transfer.value?.location || transfer.value?.venueName || 'Location unavailable')
+const displaySeatLabel = computed(() => {
+  if (transfer.value?.seatSection && transfer.value?.seatRow && transfer.value?.seatNumber) {
+    return `${transfer.value.seatSection} • Row ${transfer.value.seatRow} • Seat ${transfer.value.seatNumber}`
+  }
+  if (transfer.value?.seatRow && transfer.value?.seatNumber) {
+    return `Seat ${transfer.value.seatNumber} • Row ${transfer.value.seatRow}`
+  }
+  if (transfer.value?.seatSection) return transfer.value.seatSection
+  return 'Seat unavailable'
+})
 
 const verifyCopy = computed(() =>
   verifyMode.value === 'buyer'
@@ -60,6 +80,12 @@ const waitingState = computed(() => {
     }
   }
   if (status.value === 'pending_buyer_otp') {
+    if (!isBuyerOtpReady.value) {
+      return {
+        title: 'Waiting for seller verification.',
+        body: 'The seller has not completed OTP verification yet. Buyer confirmation will unlock after that step finishes.',
+      }
+    }
     return {
       title: 'Waiting for buyer verification.',
       body: 'The seller is verified. The buyer now needs to enter their OTP to complete the transfer.',
@@ -85,10 +111,81 @@ const transferHeading = computed(() => {
   return { lead: 'Transfer', accent: 'Status' }
 })
 
+const currentTransferId = () => String(route.params.transferId || '')
+const transferContextKey = (transferId: string) => `${TRANSFER_CONTEXT_KEY_PREFIX}${transferId}`
+
+const readCachedTransferContext = (transferId: string) => {
+  try {
+    const raw = sessionStorage.getItem(transferContextKey(transferId))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const writeCachedTransferContext = (payload: any) => {
+  const transferId = String(payload?.transferId || payload?.transfer_id || currentTransferId())
+  if (!transferId) return
+  try {
+    sessionStorage.setItem(transferContextKey(transferId), JSON.stringify(payload))
+  } catch {
+    // ignore storage quota/session errors
+  }
+}
+
+const normalizeTransfer = (raw: any) => {
+  const existing = transfer.value || {}
+  return {
+    ...existing,
+    ...raw,
+    transferId: raw?.transferId || raw?.transfer_id || existing.transferId || currentTransferId(),
+    status: raw?.status || existing.status || 'pending_seller_acceptance',
+    sellerId: raw?.sellerId || raw?.seller_id || existing.sellerId,
+    buyerId: raw?.buyerId || raw?.buyer_id || existing.buyerId,
+    sellerName: raw?.sellerName || raw?.seller_name || existing.sellerName,
+    creditAmount: raw?.creditAmount ?? raw?.credit_amount ?? existing.creditAmount,
+    sellerOtpVerified:
+      typeof raw?.sellerOtpVerified === 'boolean' ? raw.sellerOtpVerified : existing.sellerOtpVerified,
+    buyerOtpVerified:
+      typeof raw?.buyerOtpVerified === 'boolean' ? raw.buyerOtpVerified : existing.buyerOtpVerified,
+    buyerVerificationSid: raw?.buyerVerificationSid || existing.buyerVerificationSid,
+    sellerVerificationSid: raw?.sellerVerificationSid || existing.sellerVerificationSid,
+    completedAt: raw?.completedAt || raw?.completed_at || existing.completedAt,
+    eventName: raw?.event?.name || raw?.eventName || raw?.event_name || existing.eventName,
+    eventDate: raw?.event?.date || raw?.eventDate || raw?.event_date || existing.eventDate,
+    eventImage: raw?.event?.image || raw?.eventImage || raw?.event_image || raw?.image || existing.eventImage,
+    venueName:
+      raw?.event?.venue?.name || raw?.venue?.name || raw?.venueName || raw?.venue_name || existing.venueName,
+    location:
+      raw?.event?.venue?.name ||
+      raw?.venue?.name ||
+      raw?.location ||
+      raw?.venueName ||
+      raw?.venue_name ||
+      existing.location,
+    seatRow:
+      raw?.seat?.rowNumber || raw?.seat?.row || raw?.seat_row || raw?.seatRow || existing.seatRow,
+    seatNumber:
+      raw?.seat?.seatNumber || raw?.seat?.seat || raw?.seat_number || raw?.seatNumber || existing.seatNumber,
+    seatSection:
+      raw?.seat?.section || raw?.seatSection || raw?.seat_section || existing.seatSection,
+    seatGate:
+      raw?.seat?.gate || raw?.seatGate || raw?.seat_gate || existing.seatGate,
+  }
+}
+
+const applyTransferData = (raw: any) => {
+  if (!raw) return
+  const normalized = normalizeTransfer(raw)
+  transfer.value = normalized
+  writeCachedTransferContext(normalized)
+}
+
 const loadTransfer = async () => {
+  const transferId = currentTransferId()
   if (isDemoMode()) {
     const baseTransfer = {
-      transferId: route.params.transferId,
+      transferId,
       status: 'pending_seller_acceptance',
       creditAmount: 180,
       sellerId: 'demo-seller-001',
@@ -102,58 +199,31 @@ const loadTransfer = async () => {
       location: 'The Obsidian Dome',
       eventImage: FALLBACK_TRANSFER_IMAGE,
     }
-    transfer.value = {
+    applyTransferData({
       ...baseTransfer,
       ...(transfer.value || {}),
       status: transfer.value?.status || baseTransfer.status,
       completedAt: transfer.value?.completedAt,
-    }
+    })
     return
   }
 
+  const cachedTransfer = readCachedTransferContext(transferId)
+  if (cachedTransfer) applyTransferData(cachedTransfer)
+
   try {
-    const { data } = await api.get(`/transfer/${route.params.transferId}`)
+    const { data } = await api.get(`/transfer/${transferId}`)
     const raw = data?.data || data || null
     if (!raw) return
 
-    // Use enriched transfer data from backend
-    transfer.value = {
-      ...raw,
-      sellerId: raw.sellerId || raw.seller_id,
-      buyerId: raw.buyerId || raw.buyer_id,
-      sellerName: raw.sellerName || raw.seller_name || 'Seller',
-      creditAmount: raw.creditAmount || raw.credit_amount,
-      completedAt: raw.completedAt || raw.completed_at,
-      // Event data from enriched response
-      eventName: raw.event?.name || raw.eventName || raw.event_name,
-      eventDate: raw.event?.date || raw.eventDate || raw.event_date,
-      eventImage: raw.event?.image || raw.eventImage || raw.event_image || raw.image,
-      // Venue data from enriched response
-      venueName: raw.event?.venue?.name || raw.venue?.name || raw.venueName || raw.venue_name,
-      location: raw.event?.venue?.name || raw.venue?.name || raw.location || raw.venueName || raw.venue_name,
-      // Seat data from enriched response
-      seatRow: raw.seat?.rowNumber || raw.seat?.row_number || raw.seatRow || raw.seat_row,
-      seatNumber: raw.seat?.seatNumber || raw.seat?.seat_number || raw.seatNumber || raw.seat_number,
-      seatSection: raw.seat?.section || raw.seatSection || raw.seat_section,
-      seatGate: raw.seat?.gate || raw.seatGate || raw.seat_gate,
-    }
+    applyTransferData(raw)
   } catch {
     if (!transfer.value) {
-      transfer.value = {
-        transferId: route.params.transferId,
+      applyTransferData({
+        transferId,
         status: 'pending_seller_acceptance',
-        creditAmount: 180,
-        sellerId: 'demo-seller-001',
-        sellerName: 'Julian Vane',
-        buyerId: auth.state.user?.userId ?? 'demo-user-001',
-        eventName: 'Afterlife: Echoes of Eternity',
-        eventDate: '2026-10-24T22:00:00Z',
-        venueName: 'The Obsidian Dome',
-        seatRow: '12',
-        seatNumber: 'GA Floor',
-        location: 'The Obsidian Dome',
-        eventImage: FALLBACK_TRANSFER_IMAGE,
-      }
+        buyerId: auth.state.user?.userId ?? null,
+      })
     }
   }
 }
@@ -169,7 +239,7 @@ const acceptTransfer = async () => {
     }
 
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
+    applyTransferData({ ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' })
     toast.push('Request accepted. OTP sent to seller.', 'success', 3200)
   } catch (error: any) {
     toast.push(error?.response?.data?.error?.message || 'Could not accept transfer.', 'error', 3200)
@@ -183,13 +253,13 @@ const rejectTransfer = async () => {
   try {
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 500))
-      transfer.value = { ...transfer.value, status: 'cancelled' }
+      applyTransferData({ status: 'cancelled' })
       toast.push('Transfer rejected.', 'info', 3200)
       return
     }
 
     await api.post(`/transfer/${route.params.transferId}/seller-reject`)
-    transfer.value = { ...transfer.value, status: 'cancelled' }
+    applyTransferData({ status: 'cancelled' })
     toast.push('Transfer rejected.', 'info', 3200)
   } catch (error: any) {
     toast.push(error?.response?.data?.error?.message || 'Could not reject transfer.', 'error', 3200)
@@ -225,10 +295,11 @@ const verifyOtp = async () => {
 
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 900))
-      transfer.value =
+      applyTransferData(
         verifyMode.value === 'seller'
           ? { ...transfer.value, status: 'pending_buyer_otp' }
-          : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
+          : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() },
+      )
       otp.value = ''
       toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
       return
@@ -236,10 +307,11 @@ const verifyOtp = async () => {
 
     const endpoint = verifyMode.value === 'seller' ? 'seller-verify' : 'buyer-verify'
     const { data } = await api.post(`/transfer/${route.params.transferId}/${endpoint}`, { otp: otp.value })
-    transfer.value =
+    applyTransferData(
       verifyMode.value === 'seller'
         ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
-        : { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
+        : { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() },
+    )
     otp.value = ''
     toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
   } catch (error: any) {
@@ -281,13 +353,13 @@ const cancelTransfer = async () => {
   try {
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 500))
-      transfer.value = { ...transfer.value, status: 'cancelled' }
+      applyTransferData({ status: 'cancelled' })
       toast.push('Transfer cancelled.', 'info', 3200)
       return
     }
 
     await api.post(`/transfer/${route.params.transferId}/cancel`)
-    transfer.value = { ...transfer.value, status: 'cancelled' }
+    applyTransferData({ status: 'cancelled' })
     toast.push('Transfer cancelled.', 'info', 3200)
   } catch (error: any) {
     otpError.value = error?.response?.data?.error?.message || 'Could not cancel transfer.'
@@ -433,7 +505,7 @@ onUnmounted(() => {
         <div class="accept-media" :style="{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.65)), url(${eventPoster})` }">
           <div class="accept-overlay">
             <span class="accept-badge">VIP Access</span>
-            <h2>{{ transfer?.eventName || 'Afterlife: Echoes of Eternity' }}</h2>
+            <h2>{{ displayEventName }}</h2>
           </div>
         </div>
 
@@ -441,7 +513,7 @@ onUnmounted(() => {
           <div class="info-grid">
             <div>
               <span>Sender</span>
-              <strong>{{ transfer?.sellerName || 'Julian Vane' }}</strong>
+              <strong>{{ displaySellerName }}</strong>
             </div>
             <div>
               <span>Date &amp; Time</span>
@@ -449,11 +521,11 @@ onUnmounted(() => {
             </div>
             <div>
               <span>Location</span>
-              <strong>{{ transfer?.location || transfer?.venueName || 'The Obsidian Dome' }}</strong>
+              <strong>{{ displayLocation }}</strong>
             </div>
             <div>
               <span>Section / Row</span>
-              <strong>{{ transfer?.seatNumber && transfer?.seatRow ? `${transfer.seatNumber} • Row ${transfer.seatRow}` : 'Assigned' }}</strong>
+              <strong>{{ displaySeatLabel }}</strong>
             </div>
           </div>
 
@@ -635,15 +707,23 @@ onUnmounted(() => {
 .otp-hidden-input {
   position: absolute;
   inset: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   color: transparent;
   caret-color: var(--primary);
   cursor: pointer;
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  opacity: 0;
   outline: none;
   font-size: 1.5rem;
   letter-spacing: 0.65rem;
-  padding-left: calc(0.65rem / 2);
   z-index: 2;
 }
 

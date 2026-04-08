@@ -69,6 +69,7 @@ const submit = async () => {
       user: {
         userId: d.user.userId,
         email: d.user.email,
+        fullName: d.user.fullName || d.user.name,
         role: d.user.role,
       },
     })

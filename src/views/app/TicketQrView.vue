@@ -9,6 +9,7 @@ import { isDemoMode, mockTickets } from '@/services/mockData'
 
 const route = useRoute()
 const qrHash = computed(() => route.params.qrHash as string)
+const isQrHashToken = computed(() => /^[a-f0-9]{64}$/i.test(qrHash.value))
 
 const ticket = ref<Ticket | null>(null)
 const event = ref<Event | null>(null)
@@ -48,6 +49,24 @@ const formattedTime = computed(() => {
   })
 })
 const ticketStatusLabel = computed(() => (ticket.value?.status === 'active' ? 'confirmed' : ticket.value?.status || 'confirmed'))
+const displayEventName = computed(() => event.value?.name || (loading.value ? 'Loading ticket...' : 'Ticket details unavailable'))
+const displayVenueName = computed(() => venue.value?.name || 'Venue unavailable')
+const displaySection = computed(() => ticket.value?.seat?.section || '--')
+const displayRow = computed(() => ticket.value?.seat?.rowNumber || '--')
+const displaySeat = computed(() => ticket.value?.seat?.seatNumber || '--')
+const displayGate = computed(() => (ticket.value?.seat as any)?.gate || '--')
+
+const applyTicketContext = (payload: any) => {
+  if (!payload) return
+  ticket.value = {
+    ...(ticket.value || {}),
+    ...payload,
+    qrHash: payload.qrHash || ticket.value?.qrHash || qrHash.value,
+    seat: payload.seat || ticket.value?.seat,
+  } as Ticket
+  event.value = payload.event || event.value
+  venue.value = payload.venue || venue.value
+}
 
 onMounted(async () => {
   countdownInterval = window.setInterval(() => {
@@ -65,19 +84,20 @@ onMounted(async () => {
       }
       return
     }
-    const { data } = await api.get(`/tickets/${qrHash.value}/qr`)
+    const endpoint = isQrHashToken.value ? `/tickets/qr/${qrHash.value}` : `/tickets/${qrHash.value}/qr`
+    const { data } = await api.get(endpoint)
     const ticketData = data?.data
     if (ticketData) {
-      ticket.value = ticketData
-      event.value = ticketData.event || null
-      venue.value = ticketData.venue || null
+      applyTicketContext(ticketData)
     }
   } catch (error) {
     const fallback = mockTickets.find((item) => item.qrHash === qrHash.value || item.ticketId === qrHash.value) || null
     if (fallback) {
-      ticket.value = fallback
-      event.value = fallback.event as Event
-      venue.value = fallback.venue as Venue
+      applyTicketContext({
+        ...fallback,
+        event: fallback.event as Event,
+        venue: fallback.venue as Venue,
+      })
     } else {
       console.error('Failed to load ticket:', error)
     }
@@ -121,8 +141,8 @@ onUnmounted(() => {
         <div class="details-head">
           <div>
             <p class="eyebrow">Electronic Ticket</p>
-            <h1>{{ event?.name || (loading ? 'Loading ticket...' : 'Ticket unavailable') }}</h1>
-            <p class="subhead">{{ venue?.name || 'The Obsidian Hearth Series' }}</p>
+            <h1>{{ displayEventName }}</h1>
+            <p class="subhead">{{ displayVenueName }}</p>
           </div>
           <span class="status-pill">{{ ticketStatusLabel }}</span>
         </div>
@@ -130,19 +150,19 @@ onUnmounted(() => {
         <div class="detail-grid">
           <div>
             <label>Section</label>
-            <p>{{ ticket?.seat?.section || 'ORCH-A' }}</p>
+            <p>{{ displaySection }}</p>
           </div>
           <div>
             <label>Row</label>
-            <p>{{ ticket?.seat?.rowNumber || '12' }}</p>
+            <p>{{ displayRow }}</p>
           </div>
           <div>
             <label>Seat</label>
-            <p>{{ ticket?.seat?.seatNumber || '42' }}</p>
+            <p>{{ displaySeat }}</p>
           </div>
           <div>
             <label>Gate</label>
-            <p>{{ venue?.name ? 'North' : '--' }}</p>
+            <p>{{ displayGate }}</p>
           </div>
         </div>
 

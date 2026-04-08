@@ -7,6 +7,7 @@ import {
   readPendingRegistration,
   clearPendingRegistration,
 } from '@/utils/registrationState'
+import api from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { isDemoMode } from '@/services/mockData'
@@ -27,11 +28,22 @@ vi.mock('@/utils/eventMedia', () => ({
   resolveEventImage: vi.fn().mockReturnValue('/mock-image.jpg'),
 }))
 
+vi.mock('qrcode', () => ({
+  default: {
+    toCanvas: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
 vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
   return {
     ...actual,
-    useRoute: vi.fn().mockReturnValue({ params: { transferId: 'demo-transfer-001', orderId: 'demo-order-001' }, query: {} }),
+    useRoute: vi.fn().mockReturnValue({
+      path: '/events',
+      fullPath: '/events',
+      params: { transferId: 'demo-transfer-001', orderId: 'demo-order-001' },
+      query: {},
+    }),
     useRouter: vi.fn().mockReturnValue({ push: vi.fn() }),
     RouterLink: { template: '<a><slot /></a>' },
     onBeforeRouteLeave: vi.fn(),
@@ -116,6 +128,11 @@ async function flushAsync() {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+async function flushNavbarBalance() {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  await flushAsync()
+}
+
 describe('Frontend UX Fixes — targeted coverage', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -159,6 +176,45 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     wrapper.unmount()
   })
 
+  it('ticket QR view resolves event details from qrHash without showing obsidian fallback copy', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    const { useRoute } = await import('vue-router')
+    vi.mocked(useRoute).mockReturnValueOnce({
+      path: '/ticket-qr/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      fullPath: '/ticket-qr/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      params: { qrHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+      query: {},
+    } as any)
+
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url.includes('/tickets/qr/')) {
+        return Promise.resolve({
+          data: {
+            data: {
+              ticketId: 'tkt-qr-001',
+              qrHash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              status: 'active',
+              seat: { section: 'VIP', rowNumber: 'A', seatNumber: '12', gate: 'North' },
+              event: { name: 'Singapore Jazz Festival 2026', date: '2026-05-10T20:00:00Z' },
+              venue: { name: 'Singapore Indoor Stadium', address: '2 Stadium Walk' },
+            },
+          },
+        }) as any
+      }
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    const { default: TicketQrView } = await import('../TicketQrView.vue')
+    const wrapper = shallowMount(TicketQrView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Singapore Jazz Festival 2026')
+    expect(wrapper.text()).toContain('Singapore Indoor Stadium')
+    expect(wrapper.text()).toContain('VIP')
+    expect(wrapper.text()).not.toContain('The Obsidian Hearth Series')
+    wrapper.unmount()
+  })
+
   it('verification success stays sidebar-free and keeps primary card layout', async () => {
     const { default: VerificationSuccessView } = await import('../VerificationSuccessView.vue')
     const wrapper = mount(VerificationSuccessView)
@@ -189,6 +245,59 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.find('.account-sidebar-stub').exists()).toBe(false)
     expect(wrapper.text()).toContain('Waiting for seller verification')
     expect(wrapper.find('.otp-grid').exists()).toBe(false)
+  })
+
+  it('transfer keeps buyer out of OTP stage until seller verification is actually complete', async () => {
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    const vm = wrapper.vm as any
+    vm.transfer = {
+      transferId: 'demo-transfer-001',
+      status: 'pending_buyer_otp',
+      sellerOtpVerified: false,
+      buyerVerificationSid: null,
+      sellerId: 'seller-001',
+      buyerId: 'user-self-001',
+      eventName: 'Neon Nights',
+    }
+    await nextTick()
+
+    expect(wrapper.find('.otp-layout').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Waiting for seller verification')
+    expect(wrapper.text()).not.toContain('Waiting for buyer verification')
+  })
+
+  it('transfer page uses cached initiated transfer context instead of placeholder copy when live fetch fails', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    vi.mocked(api.get).mockRejectedValueOnce({ response: { status: 404 } } as any)
+    sessionStorage.setItem(
+      'transfer_context:demo-transfer-001',
+      JSON.stringify({
+        transferId: 'demo-transfer-001',
+        status: 'pending_seller_acceptance',
+        sellerName: 'Casey Seller',
+        eventName: 'Singapore Jazz Festival 2026',
+        eventDate: '2026-05-10T20:00:00Z',
+        location: 'Singapore Indoor Stadium',
+        seatSection: 'VIP',
+        seatRow: 'B',
+        seatNumber: '14',
+      }),
+    )
+
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Singapore Jazz Festival 2026')
+    expect(wrapper.text()).toContain('Casey Seller')
+    expect(wrapper.text()).toContain('Singapore Indoor Stadium')
+    expect(wrapper.text()).toContain('VIP')
+    expect(wrapper.text()).not.toContain('Afterlife: Echoes of Eternity')
+    expect(wrapper.text()).not.toContain('The Obsidian Dome')
+    expect(wrapper.text()).not.toContain('Julian Vane')
   })
 
   it('notification store merges sources and dedupes by id', () => {
@@ -239,7 +348,6 @@ describe('Frontend UX Fixes — targeted coverage', () => {
   })
 
   it('notification store treats buyer pending 404 as empty without warning noise', async () => {
-    const { default: api } = await import('@/api/client')
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(api.get).mockRejectedValueOnce({ response: { status: 404 } } as any)
 
@@ -314,5 +422,125 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(listedButton.exists()).toBe(true)
     expect(listedButton.attributes('disabled')).toBeDefined()
     expect((listedButton.attributes('style') || '').includes('opacity: 0.45')).toBe(false)
+  })
+
+  it('navbar keeps the credit chip visible for zero balances but hides unresolved, staff, and admin states', async () => {
+    const mockApiGet = vi.mocked(api.get)
+    vi.mocked(isDemoMode).mockReturnValue(false)
+
+    const { default: AppNavbar } = await import('@/components/common/AppNavbar.vue')
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.includes('/credits/balance')) {
+        return Promise.resolve({ data: { data: { creditBalance: 125 } } }) as any
+      }
+      if (url.includes('/transfer/')) {
+        return Promise.resolve({ data: { transfers: [] } }) as any
+      }
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    seedAuthUser({ role: 'user', isAdmin: false })
+    const userWrapper = mount(AppNavbar)
+    await flushNavbarBalance()
+    expect(userWrapper.find('.balance-chip').exists()).toBe(true)
+    expect(userWrapper.find('.balance-chip').text()).toContain('$125.00')
+    userWrapper.unmount()
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.includes('/credits/balance')) {
+        return Promise.resolve({ data: { data: { creditBalance: 0 } } }) as any
+      }
+      if (url.includes('/transfer/')) {
+        return Promise.resolve({ data: { transfers: [] } }) as any
+      }
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    seedAuthUser({ role: 'user', isAdmin: false })
+    const zeroWrapper = mount(AppNavbar)
+    await flushNavbarBalance()
+    expect(zeroWrapper.find('.balance-chip').exists()).toBe(true)
+    expect(zeroWrapper.find('.balance-chip').text()).toContain('$0.00')
+    zeroWrapper.unmount()
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.includes('/credits/balance')) {
+        return Promise.resolve({ data: { data: {} } }) as any
+      }
+      if (url.includes('/transfer/')) {
+        return Promise.resolve({ data: { transfers: [] } }) as any
+      }
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    seedAuthUser({ role: 'user', isAdmin: false })
+    const unresolvedWrapper = mount(AppNavbar)
+    await flushNavbarBalance()
+    expect(unresolvedWrapper.find('.balance-chip').exists()).toBe(false)
+    unresolvedWrapper.unmount()
+
+    seedAuthUser({ role: 'staff', isAdmin: false })
+    const staffWrapper = mount(AppNavbar)
+    await flushNavbarBalance()
+    expect(staffWrapper.find('.balance-chip').exists()).toBe(false)
+    staffWrapper.unmount()
+
+    seedAuthUser({ role: 'admin', isAdmin: true })
+    const adminWrapper = mount(AppNavbar)
+    await flushNavbarBalance()
+    expect(adminWrapper.find('.balance-chip').exists()).toBe(false)
+    adminWrapper.unmount()
+  })
+
+  it('my tickets archive shows seller-completed transfers in Past & Transferred', async () => {
+    const mockApiGet = vi.mocked(api.get)
+    vi.mocked(isDemoMode).mockReturnValue(false)
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url.includes('/tickets')) {
+        return Promise.resolve({ data: { data: { tickets: [] } } }) as any
+      }
+      if (url.includes('/transfer/history')) {
+        return Promise.resolve({
+          data: {
+            data: {
+              transfers: [
+                {
+                  transferId: 'trf-archive-001',
+                  ticketId: 'tkt-archive-001',
+                  sellerId: 'user-self-001',
+                  status: 'completed',
+                  creditAmount: 180,
+                  createdAt: '2026-03-10T10:00:00Z',
+                  completedAt: '2026-03-10T11:00:00Z',
+                  event: {
+                    eventId: 'evt-001',
+                    name: 'Neon Nights',
+                    date: '2026-08-01T20:00:00Z',
+                    type: 'concert',
+                    image: '/mock-image.jpg',
+                    venue: { venueId: 'ven-001', name: 'Esplanade Concert Hall' },
+                  },
+                  venue: { venueId: 'ven-001', name: 'Esplanade Concert Hall' },
+                  seat: { seatId: 'seat-001', rowNumber: 'A', seatNumber: '12', section: 'VIP' },
+                },
+              ],
+            },
+          },
+        }) as any
+      }
+      return Promise.resolve({ data: {} }) as any
+    })
+
+    seedAuthUser({ role: 'user', isAdmin: false })
+    const { default: MyTicketsView } = await import('../MyTicketsView.vue')
+    const wrapper = mount(MyTicketsView)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Past & Transferred')
+    expect(wrapper.text()).toContain('Neon Nights')
+    expect(wrapper.text()).toContain('Transferred')
+    expect(wrapper.find('.archive-pill.transferred').exists()).toBe(true)
   })
 })
