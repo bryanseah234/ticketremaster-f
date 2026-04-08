@@ -64,8 +64,8 @@ const mediaByContext: Record<EventMediaContext, Record<string, string>> = {
 const fallbackByType: Record<EventType, string> = {
   concert: '/stitch-media/events/curated-featured.jpg',
   sports: '/stitch-media/events/curated-sports.jpg',
-  theater: '/stitch-media/marketplace/listing-hamlet.jpg',
-  conference: '/stitch-media/events/curated-conference.jpg',
+  theatre: '/stitch-media/marketplace/listing-hamlet.jpg',
+  classical: '/stitch-media/events/curated-jazz.jpg',
   festival: '/stitch-media/marketplace/listing-neon-horizon.jpg',
   other: '/stitch-media/events/curated-jazz.jpg',
 }

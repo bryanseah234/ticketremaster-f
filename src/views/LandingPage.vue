@@ -15,12 +15,12 @@ const search = ref('')
 const categoryCards = [
   { label: 'Concerts', blurb: 'Big-room shows, club nights, and stadium moments.', query: 'concert' },
   { label: 'Sports', blurb: 'Verified inventory for rivalry fixtures and finals.', query: 'sports' },
-  { label: 'Theater', blurb: 'Premieres, matinees, and evenings worth dressing for.', query: 'theater' },
+  { label: 'Theatre', blurb: 'Premieres, matinees, and evenings worth dressing for.', query: 'theatre' },
 ]
 const categoryGalleryCards = [
   { image: '/stitch-media/home/home-gallery-violin.jpg', query: 'concert', alt: 'Violin under spotlight' },
   { image: '/stitch-media/home/home-gallery-basketball.jpg', query: 'sports', alt: 'Basketball in motion' },
-  { image: '/stitch-media/home/home-gallery-museum.jpg', query: 'theater', alt: 'Editorial museum interior' },
+  { image: '/stitch-media/home/home-gallery-museum.jpg', query: 'theatre', alt: 'Editorial museum interior' },
   { image: '/stitch-media/home/home-gallery-synth.jpg', query: 'concert', alt: 'Synthesizer control surface' },
 ]
 const landingFallbackImages = [
