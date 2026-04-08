@@ -5,6 +5,7 @@ import type { InternalAxiosRequestConfig, AxiosResponseHeaders } from 'axios'
 const toastPush = vi.fn()
 const clearSession = vi.fn()
 const consoleError = vi.fn()
+const setDemoMode = vi.fn()
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
@@ -27,7 +28,7 @@ vi.mock('@/composables/useToast', () => ({
 }))
 
 vi.mock('@/services/mockData', () => ({
-  setDemoMode: vi.fn(),
+  setDemoMode,
   isDemoMode: vi.fn(() => false),
 }))
 
@@ -54,11 +55,33 @@ function createTransferNotFoundError(config: InternalAxiosRequestConfig) {
   )
 }
 
+function createRateLimitError(config: InternalAxiosRequestConfig) {
+  return new AxiosError(
+    'Request failed with status code 429',
+    'ERR_BAD_REQUEST',
+    config,
+    {},
+    {
+      status: 429,
+      statusText: 'Too Many Requests',
+      config,
+      headers: {} as AxiosResponseHeaders,
+      data: {
+        error: {
+          code: 'OTP_RATE_LIMIT_EXCEEDED',
+          message: 'Account locked. Try again in 900 seconds.',
+        },
+      },
+    },
+  )
+}
+
 describe('api client silent background requests', () => {
   beforeEach(() => {
     toastPush.mockReset()
     clearSession.mockReset()
     consoleError.mockReset()
+    setDemoMode.mockReset()
     vi.spyOn(console, 'error').mockImplementation(consoleError)
     api.defaults.adapter = async (config) => {
       throw createTransferNotFoundError(config)
@@ -88,5 +111,26 @@ describe('api client silent background requests', () => {
     ).rejects.toBeInstanceOf(AxiosError)
 
     expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  it('does not retry 429 responses', async () => {
+    const adapter = vi.fn(async (config) => {
+      throw createRateLimitError(config)
+    })
+    api.defaults.adapter = adapter
+
+    await expect(api.post('/transfer/demo-transfer-001/seller-verify', { otp: '123456' })).rejects.toBeInstanceOf(AxiosError)
+
+    expect(adapter).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not switch transfer detail requests into demo mode on network errors', async () => {
+    api.defaults.adapter = async () => {
+      throw new AxiosError('Network Error', 'ERR_NETWORK')
+    }
+
+    await expect(api.get('/transfer/demo-transfer-001')).rejects.toBeInstanceOf(AxiosError)
+
+    expect(setDemoMode).not.toHaveBeenCalled()
   })
 })

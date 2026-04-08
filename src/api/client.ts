@@ -31,7 +31,7 @@ let demoModeEnabled = false
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_BACKOFF_MS = import.meta.env.PROD ? 2000 : 500
 const MAX_BACKOFF_MS = import.meta.env.PROD ? 15000 : 3000
-const RETRYABLE_STATUS_CODES = [429, 503, 408, 504]
+const RETRYABLE_STATUS_CODES = [503, 408, 504]
 
 const calculateBackoff = (attempt: number): number => {
   const exponentialDelay = INITIAL_BACKOFF_MS * Math.pow(2, attempt)
@@ -151,8 +151,6 @@ const canUseMockData = (url: string, method: string): boolean => {
     '/venues',
     '/marketplace',
     '/tickets',
-    '/transfer/',
-    '/transfer/pending',
     '/users',
     '/auth/me',
     '/credits/balance',

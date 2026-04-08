@@ -269,6 +269,29 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.text()).not.toContain('Waiting for buyer verification')
   })
 
+  it('transfer page does not auto-resend seller OTP on mount', async () => {
+    vi.mocked(isDemoMode).mockReturnValue(false)
+    seedAuthUser({ userId: 'seller-001' })
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        data: {
+          transferId: 'demo-transfer-001',
+          status: 'pending_seller_otp',
+          sellerId: 'seller-001',
+          buyerId: 'buyer-001',
+          sellerVerificationSid: 'VE_seller',
+          eventName: 'Neon Nights',
+        },
+      },
+    } as any)
+
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    expect(vi.mocked(api.post)).not.toHaveBeenCalledWith(expect.stringContaining('/resend-otp'))
+  })
+
   it('transfer treats pending buyer OTP as buyer-ready when blocking fields are missing instead of explicitly false', async () => {
     const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
     const wrapper = shallowMount(TransferConfirmView)
