@@ -511,35 +511,42 @@ onUnmounted(() => {
 
 .custom-card {
   display: grid;
-  place-items: center;
-  gap: 0.35rem;
+  align-content: center;
+  justify-items: center;
+  gap: 0.2rem;
+  padding-inline: 0.9rem;
 }
 
 .custom-label {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.64rem;
+  font-size: 0.54rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .custom-input {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 7rem;
 }
 
 .custom-input strong {
   color: var(--primary);
+  font-size: 1rem;
 }
 
 .custom-input input {
-  width: 4.5rem;
+  width: 100%;
+  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
-  text-align: center;
-  font-size: 1.05rem;
+  text-align: left;
+  font-size: 1.2rem;
   font-weight: 800;
 }
 

@@ -100,10 +100,11 @@ function getNotificationMeta(type: NotificationType | string): NotificationMeta 
     case 'hold_expiring':
       return { icon: ClockIcon, colorClass: 'color-amber', label: 'Hold Expiring' }
     case 'buyer_pending_otp':
-      return { icon: BellIcon, colorClass: 'color-primary', label: 'OTP Required' }
+      return { icon: BellIcon, colorClass: 'color-primary', label: 'Buyer OTP Ready' }
     case 'transfer_completed':
       return { icon: CheckCircleIcon, colorClass: 'color-green', label: 'Transfer Complete' }
     case 'seller_pending_acceptance':
+      return { icon: BellIcon, colorClass: 'color-primary', label: 'Seller Action Required' }
     case 'transfer_request':
     default:
       return { icon: BellIcon, colorClass: 'color-primary', label: 'Transfer Request' }
@@ -134,8 +135,8 @@ function dismissItem(id: string) {
 
 function primaryLabel(item: any): string {
   if (!item?.primaryTo) return ''
-  if (item.type === 'buyer_pending_otp') return 'Enter OTP'
-  if (item.type === 'seller_pending_acceptance') return 'Open transfer'
+  if (item.type === 'buyer_pending_otp') return 'Enter buyer OTP'
+  if (item.type === 'seller_pending_acceptance') return 'Review & verify'
   if (item.type === 'transfer_completed') {
     return item.primaryTo === '/marketplace' ? 'Open marketplace' : 'View tickets'
   }

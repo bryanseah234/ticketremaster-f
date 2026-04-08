@@ -28,10 +28,17 @@ const rateLimitCountdown = ref(0)
 const otpInput = ref<HTMLInputElement | null>(null)
 
 const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
+const isBuyer = computed(() => (auth.state.user ? transfer.value?.buyerId === auth.state.user.userId : false))
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
-const isOtpStage = computed(() => status.value === 'pending_buyer_otp' || status.value === 'pending_seller_otp')
-const verifyMode = computed<'buyer' | 'seller'>(() => (status.value === 'pending_seller_otp' ? 'seller' : 'buyer'))
-const isWrongSellerAccount = computed(() => status.value === 'pending_seller_otp' && !isSeller.value && auth.isLoggedIn)
+const isSellerOtpTurn = computed(() => status.value === 'pending_seller_otp' && isSeller.value)
+const isBuyerOtpTurn = computed(() => status.value === 'pending_buyer_otp' && isBuyer.value)
+const isOtpStage = computed(() => isSellerOtpTurn.value || isBuyerOtpTurn.value)
+const verifyMode = computed<'buyer' | 'seller'>(() => (isSellerOtpTurn.value ? 'seller' : 'buyer'))
+const isWaitingForCounterparty = computed(
+  () =>
+    (status.value === 'pending_seller_otp' && !isSellerOtpTurn.value) ||
+    (status.value === 'pending_buyer_otp' && !isBuyerOtpTurn.value),
+)
 const countdownFormatted = computed(
   () =>
     `${String(Math.floor(rateLimitCountdown.value / 60)).padStart(2, '0')}:${String(rateLimitCountdown.value % 60).padStart(2, '0')}`,
@@ -42,9 +49,28 @@ const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?
 
 const verifyCopy = computed(() =>
   verifyMode.value === 'buyer'
-    ? 'To protect your assets, please enter the 6-digit security code sent to your registered mobile device.'
-    : 'The buyer has confirmed. Enter your 6-digit seller code to finalize the transfer and settle the ledger.',
+    ? 'The seller has finished their verification. Enter the 6-digit buyer code sent to your phone to complete the transfer.'
+    : 'Review accepted. Enter your 6-digit seller code to unlock buyer confirmation for this transfer.',
 )
+const waitingState = computed(() => {
+  if (status.value === 'pending_seller_otp') {
+    return {
+      title: 'Waiting for seller verification.',
+      body: 'The seller still needs to enter their OTP before buyer confirmation becomes available.',
+    }
+  }
+  if (status.value === 'pending_buyer_otp') {
+    return {
+      title: 'Waiting for buyer verification.',
+      body: 'The seller is verified. The buyer now needs to enter their OTP to complete the transfer.',
+    }
+  }
+  return {
+    title: 'Transfer in progress.',
+    body: 'We are waiting for the next verification step.',
+  }
+})
+const verifyButtonLabel = computed(() => (verifyMode.value === 'seller' ? 'Verify & Continue' : 'Verify & Complete'))
 const canCancelTransfer = computed(() => {
   if (!auth.isLoggedIn) return false
   if (status.value === 'pending_seller_acceptance') return !isSeller.value
@@ -52,7 +78,7 @@ const canCancelTransfer = computed(() => {
 })
 
 const transferHeading = computed(() => {
-  if (isOtpStage.value) return { lead: 'Ticket', accent: 'Transfer' }
+  if (isOtpStage.value || isWaitingForCounterparty.value) return { lead: 'Ticket', accent: 'Transfer' }
   if (status.value === 'pending_seller_acceptance' && isSeller.value) return { lead: 'Incoming Transfer', accent: '' }
   if (status.value === 'pending_seller_acceptance') return { lead: 'Transfer', accent: 'Request' }
   if (status.value === 'completed') return { lead: 'Transfer', accent: 'Complete' }
@@ -137,14 +163,14 @@ const acceptTransfer = async () => {
   try {
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 900))
-      transfer.value = { ...transfer.value, status: 'pending_buyer_otp' }
-      toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
+      transfer.value = { ...transfer.value, status: 'pending_seller_otp' }
+      toast.push('Request accepted. OTP sent to seller.', 'success', 3200)
       return
     }
 
     const { data } = await api.post(`/transfer/${route.params.transferId}/seller-accept`)
-    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
-    toast.push('Request accepted. OTP sent to buyer.', 'success', 3200)
+    transfer.value = { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
+    toast.push('Request accepted. OTP sent to seller.', 'success', 3200)
   } catch (error: any) {
     toast.push(error?.response?.data?.error?.message || 'Could not accept transfer.', 'error', 3200)
   } finally {
@@ -200,22 +226,22 @@ const verifyOtp = async () => {
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 900))
       transfer.value =
-        verifyMode.value === 'buyer'
-          ? { ...transfer.value, status: 'pending_seller_otp' }
+        verifyMode.value === 'seller'
+          ? { ...transfer.value, status: 'pending_buyer_otp' }
           : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() }
       otp.value = ''
-      toast.push(verifyMode.value === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
+      toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
       return
     }
 
-    const endpoint = verifyMode.value === 'buyer' ? 'buyer-verify' : 'seller-verify'
+    const endpoint = verifyMode.value === 'seller' ? 'seller-verify' : 'buyer-verify'
     const { data } = await api.post(`/transfer/${route.params.transferId}/${endpoint}`, { otp: otp.value })
     transfer.value =
-      verifyMode.value === 'buyer'
-        ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
+      verifyMode.value === 'seller'
+        ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
         : { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() }
     otp.value = ''
-    toast.push(verifyMode.value === 'buyer' ? 'OTP verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
+    toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
   } catch (error: any) {
     if (error?.response?.status === 429) {
       handleRateLimit()
@@ -278,7 +304,7 @@ onMounted(async () => {
   await loadTransfer()
 
   // Auto-call resend OTP when correct seller lands on pending_seller_otp page
-  if (status.value === 'pending_seller_otp' && isSeller.value) {
+  if (isSellerOtpTurn.value) {
     try {
       if (!isDemoMode()) {
         await api.post(`/transfer/${route.params.transferId}/resend-otp`)
@@ -322,31 +348,7 @@ onUnmounted(() => {
 
     <div v-if="isOtpStage" class="otp-layout">
       <div class="otp-main">
-        <!-- Account mismatch state for wrong seller -->
-        <article v-if="isWrongSellerAccount" class="glass otp-card">
-          <div class="otp-glow" aria-hidden="true"></div>
-
-          <div v-if="transfer?.eventName" class="otp-event-context">
-            <span class="otp-event-name">{{ transfer.eventName }}</span>
-            <span v-if="transfer.seatRow || transfer.seatNumber" class="otp-seat">
-              Row {{ transfer.seatRow }} · Seat {{ transfer.seatNumber }}
-            </span>
-          </div>
-
-          <div class="warning-box" style="background: rgba(255, 176, 32, 0.08); border-color: rgba(255, 176, 32, 0.18); color: #f6b15d;">
-            <strong style="display: block; margin-bottom: 0.5rem;">Account Mismatch</strong>
-            <p style="margin: 0; color: rgba(255, 255, 255, 0.75);">
-              You are not logged in as the seller for this transfer. Please log in with the correct account to complete verification.
-            </p>
-          </div>
-
-          <RouterLink to="/login" style="width: 100%;">
-            <button class="otp-submit" type="button">Log In with Seller Account</button>
-          </RouterLink>
-        </article>
-
-        <!-- Normal OTP form for correct user -->
-        <article v-else class="glass otp-card">
+        <article class="glass otp-card">
           <div class="otp-glow" aria-hidden="true"></div>
 
           <!-- Event context for OTP stage -->
@@ -381,7 +383,7 @@ onUnmounted(() => {
           </div>
 
           <button class="otp-submit" :disabled="loading || otp.length < 6 || rateLimited" @click="verifyOtp">
-            {{ loading ? 'Verifying...' : 'Verify & Complete' }}
+            {{ loading ? 'Verifying...' : verifyButtonLabel }}
           </button>
 
           <p v-if="otpError" class="error-text">{{ otpError }}</p>
@@ -474,10 +476,20 @@ onUnmounted(() => {
           <template v-else-if="status === 'pending_seller_acceptance'">
             <div class="completion-box pending-box">
               <strong>Request submitted.</strong>
-              <p>The seller still needs to accept this transfer before we can send the buyer verification code.</p>
+              <p>The seller still needs to accept this transfer before the seller verification step can begin.</p>
             </div>
             <button v-if="canCancelTransfer" class="secondary accept-secondary-button" :disabled="loading" type="button" @click="cancelTransfer">
               {{ loading ? 'Cancelling...' : 'Cancel Request' }}
+            </button>
+          </template>
+
+          <template v-else-if="isWaitingForCounterparty">
+            <div class="completion-box pending-box">
+              <strong>{{ waitingState.title }}</strong>
+              <p>{{ waitingState.body }}</p>
+            </div>
+            <button v-if="canCancelTransfer" class="secondary accept-secondary-button" :disabled="loading" type="button" @click="cancelTransfer">
+              {{ loading ? 'Cancelling...' : 'Cancel Transfer' }}
             </button>
           </template>
 
@@ -612,8 +624,12 @@ onUnmounted(() => {
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto repeat(3, minmax(0, 1fr));
-  gap: 0.65rem;
+  gap: 0.7rem;
   align-items: center;
+  width: 100%;
+  max-width: 27rem;
+  margin-inline: auto;
+  isolation: isolate;
 }
 
 .otp-hidden-input {
@@ -628,25 +644,40 @@ onUnmounted(() => {
   font-size: 1.5rem;
   letter-spacing: 0.65rem;
   padding-left: calc(0.65rem / 2);
+  z-index: 2;
 }
 
 .otp-box {
   display: grid;
   place-items: center;
-  height: 4.5rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--primary);
-  font-size: 1.5rem;
+  min-height: 4.35rem;
+  border-radius: 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(19, 16, 15, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 20px rgba(0, 0, 0, 0.18);
+  color: #f59a52;
+  font-size: 1.55rem;
   font-weight: 800;
-  transition: all 0.2s ease;
+  line-height: 1;
+  text-shadow: none;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .otp-box.active {
-  border-color: var(--primary);
-  background: rgba(249, 115, 22, 0.08);
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.68);
+  background:
+    linear-gradient(180deg, rgba(249, 115, 22, 0.14), rgba(249, 115, 22, 0.05)),
+    rgba(24, 18, 16, 0.98);
+  box-shadow:
+    inset 0 0 0 1px rgba(249, 115, 22, 0.22),
+    0 0 0 2px rgba(249, 115, 22, 0.12);
+  transform: translateY(-1px);
 }
 
 .otp-divider {

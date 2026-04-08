@@ -14,6 +14,7 @@ import { isDemoMode } from '@/services/mockData'
 const SESSION_CACHE_KEY = 'notification_ephemeral_cache'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 const POLL_INTERVAL_MS = 30 * 1000
+const SILENT_BACKGROUND_REQUEST = { suppressErrorToast: true, suppressErrorLog: true } as any
 
 interface CachedNotification extends NotificationCenterItem {
   expiresAt: string
@@ -92,8 +93,8 @@ function mapSellerPendingTransfer(transfer: any): NotificationCenterItem {
   return {
     id: `seller-pending:${transferId || transfer?.listingId || Date.now()}`,
     type: 'seller_pending_acceptance' as NotificationItemType,
-    title: 'Transfer Request',
-    body: `${buyerName} requested ${eventName}${seatLabel ? ` (${seatLabel})` : ''}.`,
+    title: 'Seller Action Required',
+    body: `${buyerName} wants ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Open the transfer to review it and enter your seller OTP.`,
     createdAt: toIsoDate(transfer?.createdAt || transfer?.created_at),
     primaryTo: transferId ? `/transfer/${transferId}` : '/notifications',
     transferId: transferId || undefined,
@@ -108,8 +109,8 @@ function mapBuyerPendingTransfer(transfer: any): NotificationCenterItem {
   return {
     id: `buyer-pending:${transferId || transfer?.listingId || Date.now()}`,
     type: 'buyer_pending_otp' as NotificationItemType,
-    title: 'OTP Required',
-    body: `Complete OTP verification for ${eventName}${seatLabel ? ` (${seatLabel})` : ''}.`,
+    title: 'Buyer OTP Ready',
+    body: `The seller has verified ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Enter your buyer OTP to complete the transfer.`,
     createdAt: toIsoDate(transfer?.createdAt || transfer?.created_at),
     primaryTo: transferId ? `/transfer/${transferId}` : '/notifications',
     transferId: transferId || undefined,
@@ -175,10 +176,12 @@ export const useNotificationStore = defineStore('notifications', () => {
     }
 
     try {
-      const response = await api.get('/transfer/pending')
+      const response = await api.get('/transfer/pending', SILENT_BACKGROUND_REQUEST)
       sellerPending.value = readTransfers(response.data).map(mapSellerPendingTransfer)
-    } catch (error) {
-      console.error('[Notifications] Failed to fetch seller pending:', error)
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.error('[Notifications] Failed to fetch seller pending:', error)
+      }
       sellerPending.value = []
     }
   }
@@ -190,10 +193,12 @@ export const useNotificationStore = defineStore('notifications', () => {
     }
 
     try {
-      const response = await api.get('/transfer/my-pending')
+      const response = await api.get('/transfer/my-pending', SILENT_BACKGROUND_REQUEST)
       buyerPending.value = readTransfers(response.data).map(mapBuyerPendingTransfer)
-    } catch (error) {
-      console.warn('[Notifications] Buyer pending endpoint not available:', error)
+    } catch (error: any) {
+      if (error?.response?.status !== 404) {
+        console.warn('[Notifications] Buyer pending endpoint not available:', error)
+      }
       buyerPending.value = []
     }
   }
@@ -253,7 +258,7 @@ export const useNotificationStore = defineStore('notifications', () => {
         addEphemeral({
           type: 'transfer_completed',
           title: 'Transfer Complete',
-          body: `Your transfer for ${eventName} is complete.`,
+          body: `Your purchase of ${eventName} is complete. The ticket is now in your account.`,
           createdAt: toIsoDate(transfer?.completedAt),
           primaryTo: '/tickets',
           transferId: transferId || undefined,
@@ -262,8 +267,8 @@ export const useNotificationStore = defineStore('notifications', () => {
       if (isSeller) {
         addEphemeral({
           type: 'transfer_completed',
-          title: 'Transfer Complete',
-          body: `Your transfer of ${eventName} is complete.`,
+          title: 'Sale Complete',
+          body: `Your transfer of ${eventName} is complete and the buyer now owns the ticket.`,
           createdAt: toIsoDate(transfer?.completedAt),
           primaryTo: '/marketplace',
           transferId: transferId || undefined,

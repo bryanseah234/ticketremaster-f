@@ -91,7 +91,7 @@ test.describe('Frontend UX Fixes Coverage', () => {
 
     await page.goto('/notifications')
 
-    await expect(page.getByRole('heading', { name: 'OTP Required' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Buyer OTP Ready' })).toBeVisible()
     await expect(page.getByText('Neon Nights', { exact: false })).toBeVisible()
     await expect(page.locator('a[href="/transfer/trf-buyer-001"]')).toBeVisible()
   })
@@ -224,7 +224,7 @@ test.describe('Frontend UX Fixes Coverage', () => {
     emitPending = true
     await page.getByRole('button', { name: 'Refresh' }).click()
 
-    await expect(page.getByRole('heading', { name: 'OTP Required' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Buyer OTP Ready' })).toBeVisible()
     await expect(page.locator('.icon-count')).toContainText('1')
   })
 })

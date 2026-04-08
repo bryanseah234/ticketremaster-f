@@ -134,6 +134,10 @@ const visibleEvents = computed(() => {
 const featuredEvent = computed(() => visibleEvents.value[0] || null)
 const secondaryEvents = computed(() => visibleEvents.value.slice(featuredEvent.value ? 1 : 0, 5))
 
+const openEventDetails = (eventId: string) => {
+  router.push(`/events/${eventId}`)
+}
+
 const toggleFavorite = (eventId: string) => {
   favoriteIds.value = favoriteIds.value.includes(eventId)
     ? favoriteIds.value.filter((id) => id !== eventId)
@@ -207,7 +211,15 @@ onMounted(load)
       </div>
 
       <div v-else class="listing-grid">
-        <article v-if="featuredEvent" class="event-card event-card-feature">
+        <article
+          v-if="featuredEvent"
+          class="event-card event-card-feature"
+          role="link"
+          tabindex="0"
+          @click="openEventDetails(featuredEvent.eventId)"
+          @keyup.enter="openEventDetails(featuredEvent.eventId)"
+          @keyup.space.prevent="openEventDetails(featuredEvent.eventId)"
+        >
           <img v-if="featuredEvent.image" :src="featuredEvent.image" :alt="featuredEvent.name" />
           <div class="card-overlay"></div>
           <div class="card-copy featured-copy">
@@ -218,12 +230,21 @@ onMounted(load)
             <h2>{{ featuredEvent.name }}</h2>
             <p>{{ featuredEvent.venue?.name || 'Featured venue' }}</p>
             <div class="feature-actions">
-              <button type="button" @click="router.push(`/events/${featuredEvent.eventId}`)">Get Tickets</button>
+              <button type="button" @click.stop="openEventDetails(featuredEvent.eventId)">Get Tickets</button>
             </div>
           </div>
         </article>
 
-        <article v-for="event in secondaryEvents" :key="event.eventId" class="event-card">
+        <article
+          v-for="event in secondaryEvents"
+          :key="event.eventId"
+          class="event-card"
+          role="link"
+          tabindex="0"
+          @click="openEventDetails(event.eventId)"
+          @keyup.enter="openEventDetails(event.eventId)"
+          @keyup.space.prevent="openEventDetails(event.eventId)"
+        >
           <div class="square-media">
             <img v-if="event.image" :src="event.image" :alt="event.name" />
             <div class="card-overlay"></div>
@@ -236,7 +257,9 @@ onMounted(load)
             <span class="tag">{{ event.type }}</span>
             <h3>{{ event.name }}</h3>
             <p>{{ formatDate(event.date) }} • {{ event.venue?.name || 'Venue TBA' }}</p>
-            <button class="secondary full-button" type="button" @click="router.push(`/events/${event.eventId}`)">Get Tickets</button>
+            <button class="secondary full-button" type="button" @click.stop="openEventDetails(event.eventId)">
+              Get Tickets
+            </button>
           </div>
         </article>
       </div>
@@ -347,17 +370,22 @@ onMounted(load)
   background: rgba(19, 19, 19, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.05);
   min-height: 17rem;
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .event-card-feature {
   grid-column: span 2;
-  min-height: 24rem;
-  max-height: 24rem;
+  min-height: 17rem;
+  height: 100%;
 }
 
 .event-card-feature img {
-  max-height: 24rem;
-  object-fit: cover;
+  position: absolute;
+  inset: 0;
 }
 
 .event-card img {
@@ -369,6 +397,18 @@ onMounted(load)
 
 .event-card:hover img {
   transform: scale(1.04);
+}
+
+.event-card:hover,
+.event-card:focus-visible {
+  border-color: rgba(249, 115, 22, 0.32);
+  box-shadow: 0 1.1rem 2.5rem rgba(0, 0, 0, 0.28);
+  transform: translateY(-0.2rem);
+}
+
+.event-card:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.82);
+  outline-offset: 0.18rem;
 }
 
 .square-media {
@@ -524,11 +564,11 @@ onMounted(load)
   .event-card-feature {
     grid-column: span 1;
     min-height: 26rem;
-    max-height: 26rem;
   }
 
   .event-card-feature img {
-    max-height: 26rem;
+    position: absolute;
+    inset: 0;
   }
 
   .pagination {

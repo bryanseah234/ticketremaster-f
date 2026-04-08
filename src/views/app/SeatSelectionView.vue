@@ -41,6 +41,7 @@ const orderId = ref('')
 const loading = ref(false)
 const eventData = ref<Event | null>(null)
 let timer: number | undefined
+const SILENT_HOLD_RESUME_REQUEST = { suppressErrorToast: true, suppressErrorLog: true } as any
 
 const holdDisplay = computed(() => {
   const m = Math.floor(holdSeconds.value / 60)
@@ -154,6 +155,31 @@ const loadSeats = async () => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const readResumablePendingOrder = () => {
+  try {
+    const raw = localStorage.getItem('pendingOrder')
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    const heldUntil = parsed?.heldUntil
+    const storedEventId = String(parsed?.eventId || '')
+    const currentEventId = String(route.params.eventId)
+
+    if (!heldUntil || storedEventId !== currentEventId) return null
+
+    const secondsLeft = Math.max(0, Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000))
+    if (secondsLeft <= 0) {
+      localStorage.removeItem('pendingOrder')
+      return null
+    }
+
+    return parsed
+  } catch {
+    localStorage.removeItem('pendingOrder')
+    return null
   }
 }
 
@@ -277,33 +303,34 @@ onMounted(async () => {
   await loadSeats()
 
   // Check if user already has an active hold for this event (e.g. returning from top-up)
-  if (!isDemoMode() && auth.state.user) {
+  const existingPendingOrder = readResumablePendingOrder()
+  if (!isDemoMode() && auth.state.user && existingPendingOrder) {
     try {
       const eventId = String(route.params.eventId)
-      const { data } = await api.get(`/purchase/hold/resume/${eventId}`)
+      const { data } = await api.get(`/purchase/hold/resume/${eventId}`, SILENT_HOLD_RESUME_REQUEST)
       const hold = data?.data
       if (hold?.inventoryId && hold?.heldUntil) {
         const secondsLeft = Math.max(0, Math.floor((new Date(hold.heldUntil).getTime() - Date.now()) / 1000))
         if (secondsLeft > 0) {
           // Restore the hold into localStorage and redirect straight to checkout
           localStorage.setItem('pendingOrder', JSON.stringify({
-            orderId: hold.inventoryId,
-            inventoryId: hold.inventoryId,
-            holdToken: hold.holdToken || '',
-            heldUntil: hold.heldUntil,
+            orderId: hold.inventoryId || existingPendingOrder?.orderId,
+            inventoryId: hold.inventoryId || existingPendingOrder?.inventoryId,
+            holdToken: hold.holdToken || existingPendingOrder?.holdToken || '',
+            heldUntil: hold.heldUntil || existingPendingOrder?.heldUntil,
             eventId,
             seat: {
-              seatId: hold.seat?.seatId,
-              rowNumber: hold.seat?.rowNumber,
-              seatNumber: hold.seat?.seatNumber,
-              price: hold.seat?.price ?? eventData.value?.price ?? 0,
-              section: hold.seat?.section,
+              seatId: hold.seat?.seatId || existingPendingOrder?.seat?.seatId,
+              rowNumber: hold.seat?.rowNumber || existingPendingOrder?.seat?.rowNumber,
+              seatNumber: hold.seat?.seatNumber || existingPendingOrder?.seat?.seatNumber,
+              price: hold.seat?.price ?? existingPendingOrder?.seat?.price ?? eventData.value?.price ?? 0,
+              section: hold.seat?.section || existingPendingOrder?.seat?.section,
             },
             event: {
-              name: hold.event?.name ?? eventData.value?.name,
-              image: hold.event?.image ?? eventData.value?.image,
-              eventDate: hold.event?.date ?? eventData.value?.date,
-              venueName: hold.event?.venueName ?? eventData.value?.venue?.name,
+              name: hold.event?.name ?? existingPendingOrder?.event?.name ?? eventData.value?.name,
+              image: hold.event?.image ?? existingPendingOrder?.event?.image ?? eventData.value?.image,
+              eventDate: hold.event?.date ?? existingPendingOrder?.event?.eventDate ?? eventData.value?.date,
+              venueName: hold.event?.venueName ?? existingPendingOrder?.event?.venueName ?? eventData.value?.venue?.name,
             },
           }))
           toast.push('Resuming your existing seat hold.', 'info', 3000)
@@ -313,7 +340,9 @@ onMounted(async () => {
       }
     } catch (e: any) {
       // 404 = no active hold, that's fine - continue normally
-      if (e?.response?.status !== 404) {
+      if (e?.response?.status === 404) {
+        localStorage.removeItem('pendingOrder')
+      } else {
         console.warn('Could not check for existing hold:', e?.message)
       }
     }

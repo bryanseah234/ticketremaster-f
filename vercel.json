@@ -2,15 +2,10 @@
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "routes": [
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/stitch-media/(.*)", "dest": "/stitch-media/$1" },
-    { "src": "/favicon\\.ico", "dest": "/favicon.ico" },
-    { "src": "/(.*)\\.js", "dest": "/$1.js" },
-    { "src": "/(.*)\\.css", "dest": "/$1.css" },
-    { "src": "/(.*)\\.png", "dest": "/$1.png" },
-    { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
-    { "src": "/(.*)\\.woff2?", "dest": "/$1.woff2" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    {
+      "source": "/((?!assets/|stitch-media/|favicon.ico|robots.txt|manifest.webmanifest|.*\\.(?:js|css|png|svg|jpg|jpeg|gif|webp|woff|woff2|ttf|map)$).*)",
+      "destination": "/index.html"
+    }
   ]
 }

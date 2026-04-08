@@ -478,6 +478,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1.4fr 0.9fr;
   gap: 1rem;
+  align-items: start;
 }
 
 .setup-card,
@@ -486,6 +487,10 @@ onMounted(() => {
   padding: 1rem;
   display: grid;
   gap: 1rem;
+}
+
+.history-card {
+  align-content: start;
 }
 
 .setup-head {
