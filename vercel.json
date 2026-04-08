@@ -1,11 +1,16 @@
 {
-  "cleanUrls": true,
-  "trailingSlash": false,
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/stitch-media/(.*)", "dest": "/stitch-media/$1" },
+    { "src": "/favicon\\.ico", "dest": "/favicon.ico" },
+    { "src": "/(.*)\\.js", "dest": "/$1.js" },
+    { "src": "/(.*)\\.css", "dest": "/$1.css" },
+    { "src": "/(.*)\\.png", "dest": "/$1.png" },
+    { "src": "/(.*)\\.svg", "dest": "/$1.svg" },
+    { "src": "/(.*)\\.woff2?", "dest": "/$1.woff2" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
-
