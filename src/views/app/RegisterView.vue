@@ -11,6 +11,12 @@ import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useApiOffline } from '@/composables/useApiOffline'
 import { isDemoMode } from '@/services/mockData'
+import {
+  savePendingRegistration,
+  readPendingRegistration,
+  clearPendingRegistration,
+  saveVerificationSuccessMeta,
+} from '@/utils/registrationState'
 
 const router = useRouter()
 const toast = useToast()
@@ -20,12 +26,16 @@ const demoOnly = computed(() => isDemoMode())
 const formDisabled = computed(() => demoOnly.value || apiOffline.value || loading.value)
 const demoPanelOffline = computed(() => demoOnly.value || apiOffline.value)
 
-const countryCodes = ['+65', '+1', '+44', '+61']
+// Clear stale pending registration on mount
+const stalePending = readPendingRegistration()
+if (stalePending === null) {
+  // Either expired or doesn't exist - clear any legacy keys
+  clearPendingRegistration()
+}
 
 const form = ref({
   fullName: '',
   email: '',
-  countryCode: '+65',
   phoneLocal: '',
   password: '',
 })
@@ -64,8 +74,8 @@ const validate = () => {
   if (!phone) {
     errors.phone = 'Phone is required'
     valid = false
-  } else if (phone.length < 7 || phone.length > 15) {
-    errors.phone = 'Invalid phone number'
+  } else if (phone.length !== 8) {
+    errors.phone = 'Must be exactly 8 digits'
     valid = false
   }
 
@@ -103,22 +113,30 @@ const submit = async () => {
 
   loading.value = true
   try {
-    const phoneNumber = `${form.value.countryCode}${normalizePhone()}`
+    const phoneNumber = `+65${normalizePhone()}`
     const response = await api.post('/auth/register', {
       email: form.value.email.trim(),
       phoneNumber,
       password: form.value.password,
     })
     const userId = response.data?.data?.userId
-    if (userId) localStorage.setItem('pendingUserId', userId)
-    sessionStorage.setItem(
-      'verification_success_meta',
-      JSON.stringify({
+    if (userId) {
+      // Save pending registration with TTL
+      savePendingRegistration({
+        userId,
         fullName: form.value.fullName.trim(),
         email: form.value.email.trim(),
         phoneNumber,
-      }),
-    )
+      })
+      
+      // Save verification success metadata for later use
+      saveVerificationSuccessMeta({
+        userId,
+        fullName: form.value.fullName.trim(),
+        email: form.value.email.trim(),
+        phoneNumber,
+      })
+    }
     toast.push('Account created. Verify your phone number to continue.', 'success', 3200)
     router.push('/verify')
   } catch (e: any) {
@@ -172,12 +190,10 @@ const submit = async () => {
           </div>
 
           <div class="field-group">
-            <label for="register-phone">Phone Number</label>
+            <label for="register-phone">Phone Number (Singapore)</label>
             <div class="phone-row">
-              <div class="select-shell">
-                <select v-model="form.countryCode" aria-label="Country code" :disabled="formDisabled">
-                  <option v-for="code in countryCodes" :key="code" :value="code">{{ code }}</option>
-                </select>
+              <div class="prefix-shell">
+                <span class="country-prefix">+65</span>
               </div>
 
               <div class="field-shell phone-shell" :class="{ invalid: errors.phone }">
@@ -186,8 +202,9 @@ const submit = async () => {
                   id="register-phone"
                   v-model="form.phoneLocal"
                   type="tel"
-                  placeholder="Phone number"
+                  placeholder="8 digits"
                   autocomplete="tel-national"
+                  maxlength="8"
                   :disabled="formDisabled"
                 />
               </div>
@@ -314,8 +331,23 @@ const submit = async () => {
 
 .phone-row {
   display: grid;
-  grid-template-columns: 6.25rem minmax(0, 1fr);
+  grid-template-columns: 4.5rem minmax(0, 1fr);
   gap: 0.55rem;
+}
+
+.prefix-shell {
+  display: grid;
+  place-items: center;
+  border-radius: 0.82rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding-block: 0.96rem;
+}
+
+.country-prefix {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.92rem;
 }
 
 .select-shell select {

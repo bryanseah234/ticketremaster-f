@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { BoltIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
@@ -7,18 +7,40 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { useApiOffline } from '@/composables/useApiOffline'
 import { isDemoMode } from '@/services/mockData'
+import {
+  readPendingRegistration,
+  clearPendingRegistration,
+  saveVerificationSuccessMeta,
+} from '@/utils/registrationState'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 const apiOffline = useApiOffline()
 
-const userId = ref(localStorage.getItem('pendingUserId') || '')
+const userId = ref('')
 const otp = ref('')
 const loading = ref(false)
 const otpInput = ref<HTMLInputElement | null>(null)
 const demoOnly = computed(() => isDemoMode() || apiOffline.value)
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
+const activeDigitIndex = computed(() => Math.min(otp.value.length, 5))
+
+// Check for pending registration on mount
+onMounted(() => {
+  const pending = readPendingRegistration()
+  if (pending) {
+    userId.value = pending.userId
+  } else {
+    // No valid pending registration
+    const hasLegacyUserId = localStorage.getItem('pendingUserId')
+    if (hasLegacyUserId) {
+      // Clear legacy and show message
+      clearPendingRegistration()
+      toast.push('Your registration session has expired. Please register again.', 'warning', 4000)
+    }
+  }
+})
 
 const focusOtpInput = () => {
   otpInput.value?.focus()
@@ -51,15 +73,15 @@ const submit = async () => {
       otpCode: otp.value,
     })
     const d = data.data
-    sessionStorage.setItem(
-      'verification_success_meta',
-      JSON.stringify({
-        userId: d.user.userId,
-        email: d.user.email,
-        phoneNumber: d.user.phoneNumber || '',
-        verifiedAt: new Date().toISOString(),
-      }),
-    )
+    
+    // Save verification success metadata
+    saveVerificationSuccessMeta({
+      userId: d.user.userId,
+      email: d.user.email,
+      phoneNumber: d.user.phoneNumber || '',
+      verifiedAt: new Date().toISOString(),
+    })
+    
     auth.setSession({
       access_token: d.token,
       refresh_token: d.token,
@@ -70,7 +92,10 @@ const submit = async () => {
         role: d.user.role,
       },
     })
-    localStorage.removeItem('pendingUserId')
+    
+    // Clear pending registration
+    clearPendingRegistration()
+    
     router.push('/verify/success')
   } catch (e: any) {
     const code = e?.response?.data?.error?.code || e?.response?.data?.error_code
@@ -107,7 +132,12 @@ const submit = async () => {
             @input="handleOtpInput"
             @keyup.enter="submit"
           />
-          <span v-for="(digit, index) in otpDigits" :key="index" class="otp-box">{{ digit }}</span>
+          <span
+            v-for="(digit, index) in otpDigits"
+            :key="index"
+            class="otp-box"
+            :class="{ active: index === activeDigitIndex }"
+          >{{ digit }}</span>
         </div>
 
         <div class="field-stack">
@@ -210,8 +240,15 @@ const submit = async () => {
 .otp-hidden-input {
   position: absolute;
   inset: 0;
-  opacity: 0;
+  color: transparent;
+  caret-color: var(--primary);
   cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1.5rem;
+  letter-spacing: 0.65rem;
+  padding-left: calc(0.65rem / 2);
 }
 
 .otp-box {
@@ -224,6 +261,13 @@ const submit = async () => {
   color: var(--primary);
   font-size: 1.5rem;
   font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.otp-box.active {
+  border-color: var(--primary);
+  background: rgba(249, 115, 22, 0.08);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
 }
 
 .field-stack {
