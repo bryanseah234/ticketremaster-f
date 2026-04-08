@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { loadStripe, type Stripe, type StripeCardElement, type StripeElements } from '@stripe/stripe-js'
 import { CreditCardIcon } from '@heroicons/vue/24/outline'
 import api from '@/api/client'
@@ -7,6 +8,7 @@ import { isDemoMode } from '@/services/mockData'
 import { useAuthStore } from '@/stores/auth'
 import AccountSidebar from '@/components/account/AccountSidebar.vue'
 
+const router = useRouter()
 const balance = ref(0)
 const amount = ref(100)
 const loading = ref(false)
@@ -14,6 +16,23 @@ const result = ref('')
 const resultIsError = ref(false)
 const transactions = ref<any[]>([])
 
+const pendingCheckoutId = (() => {
+  try {
+    const raw = localStorage.getItem('pendingOrder')
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    const heldUntil = parsed?.heldUntil
+    if (!heldUntil) return null
+    const secsLeft = Math.floor((new Date(heldUntil).getTime() - Date.now()) / 1000)
+    return secsLeft > 0 ? (parsed?.orderId || null) : null
+  } catch { return null }
+})()
+
+const redirectBackToCheckout = () => {
+  if (pendingCheckoutId) {
+    router.push(`/checkout/${pendingCheckoutId}`)
+  }
+}
 const stripe = ref<Stripe | null>(null)
 const elements = ref<StripeElements | null>(null)
 const card = ref<StripeCardElement | null>(null)
@@ -201,6 +220,7 @@ const createTopUp = async () => {
       await api.post('/credits/topup/confirm', { paymentIntentId })
       result.value = `Top-up of $${amount.value.toFixed(2)} succeeded.`
       await Promise.all([loadBalance(), loadTransactions()])
+      redirectBackToCheckout()
     } else {
       result.value = `Payment status: ${confirmation.paymentIntent?.status || 'unknown'}`
       resultIsError.value = true
@@ -761,3 +781,5 @@ onUnmounted(() => {
   }
 }
 </style>
+
+

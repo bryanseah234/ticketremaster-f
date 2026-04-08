@@ -225,8 +225,10 @@ const pay = async () => {
   }
 }
 
-onBeforeRouteLeave(async (_to, _from, next) => {
-  if (!ticket.value) await releaseHold()
+onBeforeRouteLeave(async (to, _from, next) => {
+  // Don't release the hold if user is going to top up credits - they'll return to checkout
+  const isTopUp = to.path === '/credits/topup'
+  if (!ticket.value && !isTopUp) await releaseHold()
   if (holdTimer) clearInterval(holdTimer)
   next()
 })
