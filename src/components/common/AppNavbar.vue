@@ -3,14 +3,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Bars3Icon, BellIcon, UserCircleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
 import api from '@/api/client'
-import { useSellerNotifications } from '@/composables/useSellerNotifications'
 import { useLogout } from '@/composables/useLogout'
 import { isDemoMode } from '@/services/mockData'
 
 const auth = useAuthStore()
+const notificationStore = useNotificationStore()
 const route = useRoute()
-const { notifications, checkNotifications } = useSellerNotifications()
 const { logout } = useLogout()
 
 const balance = ref<number | null>(null)
@@ -105,13 +105,14 @@ const balanceLabel = computed(() => {
   if (balance.value === null) return null
   return `$${balance.value.toFixed(2)}`
 })
+const notificationCount = computed(() => notificationStore.unreadCount)
 
 const isActive = (target: string) => route.path === target || route.path.startsWith(`${target}/`)
 
 watch(() => auth.isLoggedIn, () => {
   if (auth.isLoggedIn) {
     scheduleBalance()
-    if (showNotifications.value) checkNotifications()
+    if (showNotifications.value) void notificationStore.fetchAll()
   }
 })
 
@@ -123,7 +124,7 @@ watch(() => route.fullPath, () => {
 onMounted(() => {
   if (auth.isLoggedIn) {
     scheduleBalance()
-    if (showNotifications.value) checkNotifications()
+    if (showNotifications.value) void notificationStore.fetchAll()
   }
 })
 
@@ -156,7 +157,7 @@ onMounted(() => {
         </RouterLink>
         <RouterLink v-if="showNotifications" to="/notifications" class="icon-button" aria-label="Notifications">
           <BellIcon class="icon" />
-          <span v-if="notifications.length" class="icon-count">{{ notifications.length }}</span>
+          <span v-if="notificationCount" class="icon-count">{{ notificationCount }}</span>
         </RouterLink>
         <RouterLink :to="profileRoute" class="icon-button profile-button" :aria-label="auth.isLoggedIn ? 'Profile' : 'Login'">
           <UserCircleIcon class="icon" />

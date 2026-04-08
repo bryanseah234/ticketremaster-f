@@ -39,6 +39,9 @@ export function useWebSocket() {
       state.value.connected = true
       state.value.error = null
       reconnectAttempts.value = 0
+      handlers.forEach((_handlerSet, eventType) => {
+        socket.value?.emit('subscribe', { channel: eventType })
+      })
       console.log('[WebSocket] Connected')
     })
 
@@ -132,10 +135,11 @@ export function useWebSocket() {
   })
 
   return {
-    state: state.value,
+    state,
     subscribe,
     unsubscribe,
+    connect,
     disconnect,
-    socket: socket.value,
+    socket,
   }
 }

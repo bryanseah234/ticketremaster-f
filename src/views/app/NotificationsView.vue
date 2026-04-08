@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, onUnmounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   BellIcon,
@@ -7,40 +7,11 @@ import {
   TagIcon,
   ClockIcon,
 } from '@heroicons/vue/24/outline'
-import { useWebSocket } from '@/composables/useWebSocket'
-import { useAuthStore } from '@/stores/auth'
-import api from '@/api/client'
+import { useNotificationStore } from '@/stores/notifications'
 import { isDemoMode } from '@/services/mockData'
 
-const auth = useAuthStore()
-const { subscribe } = useWebSocket()
+const notificationStore = useNotificationStore()
 const dismissedIds = ref<string[]>([])
-const sellerPending = ref<any[]>([])
-const buyerPending = ref<any[]>([])
-const ephemeralNotifications = ref<any[]>([])
-
-// Load ephemeral notifications from sessionStorage
-const loadEphemeralNotifications = () => {
-  try {
-    const stored = sessionStorage.getItem('ephemeral_notifications')
-    if (!stored) return []
-    const items = JSON.parse(stored)
-    const now = Date.now()
-    const ttl = 24 * 60 * 60 * 1000 // 24 hours
-    return items.filter((item: any) => now - new Date(item.createdAt).getTime() < ttl)
-  } catch {
-    return []
-  }
-}
-
-// Save ephemeral notifications to sessionStorage
-const saveEphemeralNotifications = (items: any[]) => {
-  try {
-    sessionStorage.setItem('ephemeral_notifications', JSON.stringify(items))
-  } catch {
-    // Non-critical
-  }
-}
 
 const seededNotifications = [
   {
@@ -90,40 +61,8 @@ const seededNotifications = [
 ]
 
 const checkNotifications = async () => {
-  if (!auth.isLoggedIn) return
-
-  try {
-    if (isDemoMode()) {
-      sellerPending.value = auth.isStaff ? [] : [
-        {
-          transferId: 'demo-transfer-001',
-          creditAmount: 180,
-          createdAt: new Date(Date.now() - 2 * 60_000).toISOString(),
-          type: 'seller_pending_acceptance',
-          eventName: 'Neon Nights',
-          sellerName: 'Alex',
-        }
-      ]
-      buyerPending.value = []
-      return
-    }
-
-    // Fetch seller pending transfers
-    const sellerResponse = await api.get('/transfer/pending')
-    sellerPending.value = (sellerResponse.data?.data?.transfers ?? sellerResponse.data?.data ?? []).map((t: any) => ({
-      ...t,
-      type: 'seller_pending_acceptance',
-    }))
-
-    // Fetch buyer pending OTP transfers
-    const buyerResponse = await api.get('/transfer/my-pending')
-    buyerPending.value = (buyerResponse.data?.data?.transfers ?? buyerResponse.data?.data ?? []).map((t: any) => ({
-      ...t,
-      type: 'buyer_pending_otp',
-    }))
-  } catch {
-    // Non-critical
-  }
+  if (isDemoMode()) return
+  await notificationStore.fetchAll()
 }
 
 const notifList = computed<any[]>(() => {
@@ -131,29 +70,7 @@ const notifList = computed<any[]>(() => {
     return seededNotifications.filter((item) => !dismissedIds.value.includes(item.transferId))
   }
 
-  const merged = [
-    ...sellerPending.value.map((item) => ({
-      ...item,
-      type: 'seller_pending_acceptance',
-      title: 'Transfer Request',
-      body: `${item.sellerName || 'A seller'} wants to transfer ${item.eventName || 'a ticket'} to you.`,
-      primaryLabel: 'Open transfer',
-      primaryTo: `/transfer/${item.transferId}`,
-      secondaryLabel: 'Dismiss',
-    })),
-    ...buyerPending.value.map((item) => ({
-      ...item,
-      type: 'buyer_pending_otp',
-      title: 'OTP Required',
-      body: `Enter your verification code to complete the transfer for ${item.eventName || 'your ticket'}.`,
-      primaryLabel: 'Enter OTP',
-      primaryTo: `/transfer/${item.transferId}`,
-      secondaryLabel: 'Dismiss',
-    })),
-    ...ephemeralNotifications.value,
-  ]
-
-  return merged.filter((item) => !dismissedIds.value.includes(item.transferId || item.id))
+  return notificationStore.allNotifications.filter((item) => !dismissedIds.value.includes(item.id))
 })
 
 type NotificationType = 'transfer_request' | 'buyer_pending_otp' | 'seller_pending_acceptance' | 'transfer_completed' | 'topup_success' | 'ticket_sold' | 'hold_expiring'
@@ -195,49 +112,29 @@ function formatRelativeTime(isoString: string): string {
 }
 
 function dismissItem(id: string) {
-  dismissedIds.value = [...dismissedIds.value, id]
+  if (isDemoMode()) {
+    dismissedIds.value = [...dismissedIds.value, id]
+    return
+  }
+  notificationStore.dismiss(id)
 }
 
-// WebSocket subscriptions
-let unsubscribeTransfer: (() => void) | undefined
-let unsubscribeTicket: (() => void) | undefined
+function primaryLabel(item: any): string {
+  if (!item?.primaryTo) return ''
+  if (item.type === 'buyer_pending_otp') return 'Enter OTP'
+  if (item.type === 'seller_pending_acceptance') return 'Open transfer'
+  if (item.type === 'transfer_completed') {
+    return item.primaryTo === '/marketplace' ? 'Open marketplace' : 'View tickets'
+  }
+  if (item.type === 'ticket_update') return 'View tickets'
+  return 'Open'
+}
 
 onMounted(() => {
-  ephemeralNotifications.value = loadEphemeralNotifications()
   checkNotifications()
-
-  // Subscribe to real-time updates
-  unsubscribeTransfer = subscribe('transfer_update', (message: any) => {
-    const payload = message.payload
-    if (payload?.status === 'completed' && payload?.buyerId === auth.state.user?.userId) {
-      const newNotif = {
-        id: `transfer-complete-${payload.transferId}`,
-        transferId: payload.transferId,
-        type: 'transfer_completed',
-        title: 'Transfer Complete',
-        body: `Your transfer for ${payload.eventName || 'a ticket'} is now complete.`,
-        primaryLabel: 'View Tickets',
-        primaryTo: '/tickets',
-        secondaryLabel: 'Dismiss',
-        createdAt: new Date().toISOString(),
-      }
-      ephemeralNotifications.value = [newNotif, ...ephemeralNotifications.value]
-      saveEphemeralNotifications(ephemeralNotifications.value)
-    }
-    checkNotifications()
-  })
-
-  unsubscribeTicket = subscribe('ticket_update', (message: any) => {
-    const payload = message.payload
-    if (payload?.ownerId === auth.state.user?.userId) {
-      checkNotifications()
-    }
-  })
-})
-
-onUnmounted(() => {
-  if (unsubscribeTransfer) unsubscribeTransfer()
-  if (unsubscribeTicket) unsubscribeTicket()
+  if (!isDemoMode()) {
+    notificationStore.initialize()
+  }
 })
 </script>
 
@@ -285,8 +182,8 @@ onUnmounted(() => {
           </div>
 
           <div class="notification-actions">
-            <RouterLink v-if="item.primaryLabel && item.primaryTo" :to="item.primaryTo"><button>{{ item.primaryLabel }}</button></RouterLink>
-            <button v-if="item.secondaryLabel" class="secondary" @click="dismissItem(item.transferId || item.id)">{{ item.secondaryLabel }}</button>
+            <RouterLink v-if="item.primaryTo" :to="item.primaryTo"><button>{{ primaryLabel(item) }}</button></RouterLink>
+            <button class="secondary" @click="dismissItem(item.id || item.transferId)">Dismiss</button>
           </div>
         </div>
       </article>
