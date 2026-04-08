@@ -83,7 +83,7 @@ const notifList = computed<any[]>(() => {
   return notificationStore.allNotifications.filter((item) => !dismissedIds.value.includes(item.id))
 })
 
-type NotificationType = 'transfer_request' | 'buyer_pending_otp' | 'seller_pending_acceptance' | 'transfer_completed' | 'topup_success' | 'ticket_sold' | 'hold_expiring'
+type NotificationType = 'transfer_request' | 'buyer_pending_otp' | 'seller_pending_acceptance' | 'seller_pending_otp' | 'transfer_completed' | 'topup_success' | 'ticket_sold' | 'hold_expiring'
 
 interface NotificationMeta {
   icon: typeof BellIcon
@@ -101,6 +101,8 @@ function getNotificationMeta(type: NotificationType | string): NotificationMeta 
       return { icon: ClockIcon, colorClass: 'color-amber', label: 'Hold Expiring' }
     case 'buyer_pending_otp':
       return { icon: BellIcon, colorClass: 'color-primary', label: 'Buyer OTP Ready' }
+    case 'seller_pending_otp':
+      return { icon: BellIcon, colorClass: 'color-primary', label: 'Seller OTP Ready' }
     case 'transfer_completed':
       return { icon: CheckCircleIcon, colorClass: 'color-green', label: 'Transfer Complete' }
     case 'seller_pending_acceptance':
@@ -137,6 +139,7 @@ function primaryLabel(item: any): string {
   if (!item?.primaryTo) return ''
   if (item.type === 'buyer_pending_otp') return 'Enter buyer OTP'
   if (item.type === 'seller_pending_acceptance') return 'Review & accept'
+  if (item.type === 'seller_pending_otp') return 'Enter seller OTP'
   if (item.type === 'transfer_completed') {
     return item.primaryTo === '/marketplace' ? 'Open marketplace' : 'View tickets'
   }

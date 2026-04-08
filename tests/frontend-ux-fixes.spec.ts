@@ -18,7 +18,7 @@ const buyerPendingFixture = {
 
 const sellerPendingFixture = {
   transferId: 'trf-seller-001',
-  status: 'pending_seller_acceptance',
+  status: 'pending_seller_otp',
   createdAt: new Date().toISOString(),
   buyerName: 'Avery Buyer',
   event: {
@@ -81,7 +81,7 @@ async function navigateInApp(page: any, path: string) {
 }
 
 test.describe('Frontend UX Fixes Coverage', () => {
-  test('seller pending transfer is discoverable in notifications with accept-first copy', async ({ page, context }) => {
+  test('seller pending transfer is discoverable in notifications when seller OTP is ready', async ({ page, context }) => {
     await seedAuthSession(context, 'seller-001', 'user')
 
     await page.route('**/credits/balance*', (route) =>
@@ -108,9 +108,9 @@ test.describe('Frontend UX Fixes Coverage', () => {
 
     await page.goto('/notifications')
 
-    await expect(page.getByRole('heading', { name: 'Seller Action Required' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Seller OTP Ready' })).toBeVisible()
     await expect(page.getByText('Singapore Jazz Festival 2026', { exact: false })).toBeVisible()
-    await expect(page.getByText('accept it to receive your seller OTP', { exact: false })).toBeVisible()
+    await expect(page.getByText('Enter your seller OTP to complete the transfer', { exact: false })).toBeVisible()
     await expect(page.locator('a[href="/transfer/trf-seller-001"]')).toBeVisible()
   })
 

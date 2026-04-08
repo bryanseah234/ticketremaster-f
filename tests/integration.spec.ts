@@ -292,7 +292,7 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
         await expect(page.locator('.warning-box')).toContainText('Too many attempts');
     });
 
-    test('should handle successful OTP verification', async ({ page }) => {
+    test('should hand off from buyer OTP verification to seller waiting state', async ({ page }) => {
         await seedAuthSession(page, 'usr_001', 'buyer@example.com');
         await stubTransferShellRequests(page);
 
@@ -303,7 +303,6 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
                     status: 'pending_buyer_otp',
                     buyerId: 'usr_001',
                     sellerId: 'usr_002',
-                    sellerOtpVerified: true,
                     buyerVerificationSid: 'VE_buyer_002',
                     creditAmount: 100,
                     eventName: 'Neon Nights',
@@ -321,11 +320,13 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
                 body: JSON.stringify({
                     data: {
                         transferId: 'txr_002',
-                        status: 'completed',
-                        completedAt: new Date().toISOString(),
+                        status: 'pending_seller_otp',
+                        buyerOtpVerified: true,
+                        sellerVerificationSid: 'VE_seller_002',
                         creditAmount: 100,
                         eventName: 'Neon Nights',
-                        ticket: { ticketId: 'tkt_002', newOwnerId: 'usr_001', status: 'active' },
+                        seatRow: '12',
+                        seatNumber: '08',
                     },
                 }),
             });
@@ -339,12 +340,12 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
         await enterOtp(page, '123456');
         await page.getByRole('button', { name: 'Verify & Complete' }).click();
 
-        await expect(page.getByText('Transfer complete.')).toBeVisible({ timeout: 10000 });
-        await expect(page.getByRole('button', { name: 'View Tickets' })).toBeVisible();
-        await expect(page.getByText('$100.00')).toBeVisible();
+        await expect(page.getByText('Waiting for seller verification.')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('The buyer is verified. The seller now needs to enter their OTP to complete the transfer.')).toBeVisible();
+        await expect(page.locator('.otp-layout')).toHaveCount(0);
     });
 
-    test('should handle seller accepting transfer', async ({ page }) => {
+    test('should show the seller OTP screen after the buyer verifies', async ({ page }) => {
         await seedAuthSession(page, 'usr_002', 'seller@example.com');
         await stubTransferShellRequests(page);
 
@@ -352,9 +353,11 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
             await fulfillTransferApi(route, {
                 data: {
                     transferId: 'txr_003',
-                    status: 'pending_seller_acceptance',
+                    status: 'pending_seller_otp',
                     buyerId: 'usr_001',
                     sellerId: 'usr_002',
+                    buyerOtpVerified: true,
+                    sellerVerificationSid: 'VE_seller_003',
                     creditAmount: 100,
                     eventName: 'Symphony Night',
                     venueName: 'Victoria Concert Hall',
@@ -365,40 +368,15 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
             });
         });
 
-        await page.context().route('**/transfer/txr_003/seller-accept', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    data: {
-                        transferId: 'txr_003',
-                        status: 'pending_seller_otp',
-                        sellerId: 'usr_002',
-                        buyerId: 'usr_001',
-                        sellerVerificationSid: 'VE_seller_003',
-                        eventName: 'Symphony Night',
-                        seatRow: 'C',
-                        seatNumber: '21',
-                        message: 'Request accepted. OTP sent to seller.',
-                    },
-                }),
-            });
-        });
-
         await navigateInApp(page, '/transfer/txr_003');
-        await expect(page.getByText('Symphony Night')).toBeVisible({ timeout: 15000 });
-        await expect(page.getByText('Victoria Concert Hall')).toBeVisible();
-        await expect(page.getByText('VIP • Row C • Seat 21')).toBeVisible();
-
-        await page.getByRole('button', { name: 'Accept Transfer' }).click();
-
         await expect(page.locator('.otp-layout')).toBeVisible({ timeout: 10000 });
         await expect(page.locator('.otp-event-name')).toContainText('Symphony Night');
         await expect(page.locator('.otp-seat')).toContainText('Row C');
+        await expect(page.locator('.otp-copy')).toContainText('The buyer has finished verification');
         await expect(page.getByRole('button', { name: 'Verify & Continue' })).toBeVisible();
     });
 
-    test('should hand off from seller OTP to buyer waiting state after seller verification', async ({ page }) => {
+    test('should complete the transfer after seller verification', async ({ page }) => {
         await seedAuthSession(page, 'usr_002', 'seller@example.com');
         await stubTransferShellRequests(page);
 
@@ -409,6 +387,7 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
                     status: 'pending_seller_otp',
                     buyerId: 'usr_001',
                     sellerId: 'usr_002',
+                    buyerOtpVerified: true,
                     sellerVerificationSid: 'VE_seller_005',
                     creditAmount: 100,
                     eventName: 'Afterglow Arena',
@@ -425,9 +404,10 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
                 body: JSON.stringify({
                     data: {
                         transferId: 'txr_005',
-                        status: 'pending_buyer_otp',
+                        status: 'completed',
+                        completedAt: new Date().toISOString(),
                         sellerOtpVerified: true,
-                        buyerVerificationSid: 'VE_buyer_005',
+                        creditAmount: 100,
                         eventName: 'Afterglow Arena',
                         seatRow: 'F',
                         seatNumber: '03',
@@ -443,8 +423,9 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
         await enterOtp(page, '654321');
         await page.getByRole('button', { name: 'Verify & Continue' }).click();
 
-        await expect(page.getByText('Waiting for buyer verification.')).toBeVisible({ timeout: 10000 });
-        await expect(page.getByText('The seller is verified. The buyer now needs to enter their OTP to complete the transfer.')).toBeVisible();
+        await expect(page.getByText('Transfer complete.')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('button', { name: 'Back to Marketplace' })).toBeVisible();
+        await expect(page.getByText('$100.00')).toBeVisible();
     });
 });
 

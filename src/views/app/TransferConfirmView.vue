@@ -30,20 +30,30 @@ const rateLimited = ref(false)
 const rateLimitCountdown = ref(0)
 const otpInput = ref<HTMLInputElement | null>(null)
 
-const status = computed(() => transfer.value?.status || 'pending_seller_acceptance')
+const status = computed(() => transfer.value?.status || 'pending_buyer_otp')
 const isBuyer = computed(() => (auth.state.user ? transfer.value?.buyerId === auth.state.user.userId : false))
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
-const isSellerOtpTurn = computed(() => status.value === 'pending_seller_otp' && isSeller.value)
 const isBuyerOtpExplicitlyBlocked = computed(
   () =>
     status.value === 'pending_buyer_otp' &&
-    (transfer.value?.sellerOtpVerified === false || transfer.value?.buyerVerificationSid === null),
+    transfer.value?.buyerVerificationSid === null,
 )
 const isBuyerOtpReady = computed(
   () =>
     status.value === 'pending_buyer_otp' &&
     !isBuyerOtpExplicitlyBlocked.value,
 )
+const isSellerOtpExplicitlyBlocked = computed(
+  () =>
+    status.value === 'pending_seller_otp' &&
+    (transfer.value?.buyerOtpVerified === false || transfer.value?.sellerVerificationSid === null),
+)
+const isSellerOtpReady = computed(
+  () =>
+    status.value === 'pending_seller_otp' &&
+    !isSellerOtpExplicitlyBlocked.value,
+)
+const isSellerOtpTurn = computed(() => isSellerOtpReady.value && isSeller.value)
 const isBuyerOtpTurn = computed(() => isBuyerOtpReady.value && isBuyer.value)
 const isOtpStage = computed(() => isSellerOtpTurn.value || isBuyerOtpTurn.value)
 const verifyMode = computed<'buyer' | 'seller'>(() => (isSellerOtpTurn.value ? 'seller' : 'buyer'))
@@ -82,26 +92,32 @@ const displaySeatLabel = computed(() => {
 
 const verifyCopy = computed(() =>
   verifyMode.value === 'buyer'
-    ? 'The seller has finished their verification. Enter the 6-digit buyer code sent to your phone to complete the transfer.'
-    : 'Review accepted. Enter your 6-digit seller code to unlock buyer confirmation for this transfer.',
+    ? 'Enter the 6-digit buyer code sent to your phone to confirm the transfer. The seller will be notified after you verify.'
+    : 'The buyer has finished verification. Enter your 6-digit seller code to complete this transfer.',
 )
 const waitingState = computed(() => {
-  if (status.value === 'pending_seller_otp') {
-    return {
-      title: 'Waiting for seller verification.',
-      body: 'The seller still needs to enter their OTP before buyer confirmation becomes available.',
-    }
-  }
   if (status.value === 'pending_buyer_otp') {
     if (!isBuyerOtpReady.value) {
       return {
-        title: 'Waiting for seller verification.',
-        body: 'The seller has not completed OTP verification yet. Buyer confirmation will unlock after that step finishes.',
+        title: 'Preparing buyer verification.',
+        body: 'We are still getting the buyer OTP ready for this transfer.',
       }
     }
     return {
       title: 'Waiting for buyer verification.',
-      body: 'The seller is verified. The buyer now needs to enter their OTP to complete the transfer.',
+      body: 'The buyer still needs to enter their OTP before the seller step can begin.',
+    }
+  }
+  if (status.value === 'pending_seller_otp') {
+    if (!isSellerOtpReady.value) {
+      return {
+        title: 'Waiting for buyer verification.',
+        body: 'The buyer must finish OTP verification before seller confirmation becomes available.',
+      }
+    }
+    return {
+      title: 'Waiting for seller verification.',
+      body: 'The buyer is verified. The seller now needs to enter their OTP to complete the transfer.',
     }
   }
   return {
@@ -189,7 +205,7 @@ const normalizeTransfer = (raw: any) => {
     ...existing,
     ...raw,
     transferId: raw?.transferId || raw?.transfer_id || existing.transferId || currentTransferId(),
-    status: raw?.status || existing.status || 'pending_seller_acceptance',
+    status: raw?.status || existing.status || 'pending_buyer_otp',
     sellerId: raw?.sellerId || raw?.seller_id || existing.sellerId,
     buyerId: raw?.buyerId || raw?.buyer_id || existing.buyerId,
     sellerName: raw?.sellerName || raw?.seller_name || existing.sellerName,
@@ -369,7 +385,7 @@ const loadTransfer = async () => {
   if (isDemoMode()) {
     const baseTransfer = {
       transferId,
-      status: 'pending_seller_acceptance',
+      status: 'pending_buyer_otp',
       creditAmount: 180,
       sellerId: 'demo-seller-001',
       sellerName: 'Julian Vane',
@@ -414,7 +430,7 @@ const loadTransfer = async () => {
     if (!transfer.value) {
       applyTransferData({
         transferId,
-        status: 'pending_seller_acceptance',
+        status: 'pending_buyer_otp',
         buyerId: auth.state.user?.userId ?? null,
       })
     }
@@ -489,24 +505,24 @@ const verifyOtp = async () => {
     if (isDemoMode()) {
       await new Promise((resolve) => setTimeout(resolve, 900))
       applyTransferData(
-        verifyMode.value === 'seller'
-          ? { ...transfer.value, status: 'pending_buyer_otp' }
-          : { ...transfer.value, status: 'completed', completedAt: new Date().toISOString() },
+        verifyMode.value === 'buyer'
+          ? { ...transfer.value, buyerOtpVerified: true, status: 'pending_seller_otp' }
+          : { ...transfer.value, sellerOtpVerified: true, status: 'completed', completedAt: new Date().toISOString() },
       )
       otp.value = ''
-      toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
+      toast.push(verifyMode.value === 'buyer' ? 'Buyer verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
       return
     }
 
     const endpoint = verifyMode.value === 'seller' ? 'seller-verify' : 'buyer-verify'
     const { data } = await api.post(`/transfer/${route.params.transferId}/${endpoint}`, { otp: otp.value })
     applyTransferData(
-      verifyMode.value === 'seller'
-        ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_buyer_otp' }
+      verifyMode.value === 'buyer'
+        ? { ...transfer.value, ...(data?.data || {}), status: data?.data?.status || 'pending_seller_otp' }
         : { ...transfer.value, ...(data?.data || {}), status: 'completed', completedAt: data?.data?.completedAt || new Date().toISOString() },
     )
     otp.value = ''
-    toast.push(verifyMode.value === 'seller' ? 'Seller verified. Waiting for buyer.' : 'Transfer complete!', 'success', 3200)
+    toast.push(verifyMode.value === 'buyer' ? 'Buyer verified. Waiting for seller.' : 'Transfer complete!', 'success', 3200)
   } catch (error: any) {
     if (error?.response?.status === 429) {
       handleRateLimit()
