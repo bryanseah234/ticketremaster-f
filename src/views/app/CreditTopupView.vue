@@ -280,13 +280,13 @@ onUnmounted(() => {
               :key="quickAmount"
               class="amount-card"
               :class="{ active: amount === quickAmount }"
-              style="border-radius: 0.75rem"
+              style="border-radius: 12px"
               @click="amount = quickAmount"
             >
               <span>${{ quickAmount }}</span>
             </button>
 
-            <label class="amount-card custom-card" style="border-radius: 0.75rem">
+            <label class="amount-card custom-card" style="border-radius: 12px">
               <span class="custom-label">Custom</span>
               <div class="custom-input">
                 <strong>$</strong>

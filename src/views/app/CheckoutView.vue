@@ -305,6 +305,10 @@ onUnmounted(() => {
                 <span class="meta-label">Remaining Balance</span>
                 <strong :class="{ warning: !hasEnoughCredits }">SGD {{ remainingBalance.toFixed(2) }}</strong>
               </div>
+
+              <label class="credit-toggle-shell" aria-label="Credit wallet enabled">
+                <input checked disabled type="checkbox" class="credit-toggle-peer" />
+              </label>
             </div>
 
             <div class="summary-lines">
@@ -488,6 +492,21 @@ onUnmounted(() => {
   border-radius: 1.4rem;
   background: rgba(249, 115, 22, 0.06);
   border: 1px solid rgba(249, 115, 22, 0.16);
+}
+
+.credit-toggle-shell {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.credit-toggle-peer {
+  opacity: 0;
 }
 
 .wallet-topline,

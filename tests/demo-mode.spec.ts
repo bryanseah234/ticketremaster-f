@@ -206,9 +206,24 @@ test.describe('Demo Mode & Mock Data', () => {
             // Should already be on scanner page
             await expect(page).toHaveURL(/\/staff\/scan/);
 
-            // Verify scanner interface is visible
+            // Verify scanner setup interface is visible
             await expect(page.locator('.scanner-page')).toBeVisible();
-            await expect(page.getByText('QR Scanner')).toBeVisible();
+            await expect(page.getByText('Pick the active venue and event before opening the scanner.')).toBeVisible();
+
+            // Scanner should remain locked until event is selected and confirmed.
+            const venueSelect = page.locator('select').first();
+            await venueSelect.selectOption({ index: 1 });
+
+            const eventSelect = page.locator('select').nth(1);
+            await expect(eventSelect).toBeEnabled({ timeout: 10000 });
+            await eventSelect.selectOption({ index: 1 });
+
+            const confirmButton = page.getByRole('button', { name: /Confirm selection|Reconfirm selection/ });
+            await expect(confirmButton).toBeEnabled();
+            await confirmButton.click();
+
+            await expect(page.getByText('Scanning session')).toBeVisible();
+            await expect(page.locator('input[placeholder="Ticket ID"]')).toBeEnabled();
         });
     });
 
