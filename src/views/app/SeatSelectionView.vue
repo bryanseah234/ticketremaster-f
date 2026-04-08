@@ -311,8 +311,11 @@ onMounted(async () => {
           return
         }
       }
-    } catch {
-      // No active hold - continue normally
+    } catch (e: any) {
+      // 404 = no active hold, that's fine - continue normally
+      if (e?.response?.status !== 404) {
+        console.warn('Could not check for existing hold:', e?.message)
+      }
     }
   }
 })

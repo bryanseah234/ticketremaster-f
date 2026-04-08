@@ -104,6 +104,18 @@ const loadTransfer = async () => {
       location: raw.location || raw.venueName || raw.venue_name,
       eventImage: raw.eventImage || raw.event_image || raw.image,
     }
+
+    // Fetch event image if not included in transfer response
+    const eventId = raw.eventId || raw.event_id
+    if (eventId && !transfer.value.eventImage) {
+      try {
+        const { data: eventData } = await api.get(`/events/${eventId}`)
+        const ev = eventData?.data || eventData
+        if (ev?.image) transfer.value = { ...transfer.value, eventImage: ev.image }
+        if (ev?.name && !transfer.value.eventName) transfer.value = { ...transfer.value, eventName: ev.name }
+        if (ev?.date && !transfer.value.eventDate) transfer.value = { ...transfer.value, eventDate: ev.date }
+      } catch { /* non-critical */ }
+    }
   } catch {
     if (!transfer.value) {
       transfer.value = {
@@ -213,6 +225,8 @@ const verifyOtp = async () => {
     if (error?.response?.status === 429) {
       handleRateLimit()
       otpError.value = 'Too many attempts. Please wait 15 minutes before trying again.'
+    } else if (error?.response?.status === 403) {
+      otpError.value = 'You are not authorised to verify this transfer. Make sure you are logged in with the correct account.'
     } else {
       otp.value = ''
       otpError.value = error?.response?.data?.error?.message || 'Incorrect OTP. Please try again.'
@@ -706,6 +720,7 @@ onUnmounted(() => {
 .accept-layout {
   display: grid;
   justify-content: center;
+  justify-items: center;
 }
 
 .accept-card {

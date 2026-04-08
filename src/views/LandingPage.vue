@@ -415,6 +415,7 @@ onMounted(loadFeaturedEvents)
   background: rgba(19, 19, 19, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.05);
   min-height: 16rem;
+  height: 100%;
 }
 
 .featured-card-large {
@@ -561,10 +562,11 @@ onMounted(loadFeaturedEvents)
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 800;
+  color: #fff;
 }
 
 .category-row strong {
-  color: var(--primary);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 1.15rem;
 }
 

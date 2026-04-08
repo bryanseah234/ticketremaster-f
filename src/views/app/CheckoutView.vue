@@ -299,6 +299,7 @@ onUnmounted(() => {
                     <strong>SGD {{ balance.toFixed(2) }}</strong>
                   </div>
                 </div>
+              </div>
 
               <div class="wallet-balance-row">
                 <span class="meta-label">Remaining Balance</span>
