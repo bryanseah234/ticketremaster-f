@@ -92,8 +92,7 @@ const submit = async () => {
       <article class="glass admin-form">
         <div class="admin-head">
           <div>
-            <span class="badge">Admin Studio</span>
-            <h2 class="section-title">Admin Event Create</h2>
+            <h2 class="section-title">Event Create</h2>
             <p class="small muted">Set event details, venue metadata, dates, and initial pricing in one flow.</p>
           </div>
           <span v-if="created" class="badge">Created</span>

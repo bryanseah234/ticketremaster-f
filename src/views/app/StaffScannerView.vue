@@ -326,7 +326,7 @@ onMounted(() => {
 
 .history-list {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.5rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -335,7 +335,7 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   align-items: flex-start;
-  padding: 0.85rem;
+  padding: 0.65rem;
   border-radius: var(--radius-md);
   background: rgba(60,51,49,.45);
 }

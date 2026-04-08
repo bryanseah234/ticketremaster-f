@@ -105,7 +105,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <button class="primary-action" type="button" @click="notifyReadonly('Profile editing')">Update Information</button>
+          <button class="primary-action" type="button" disabled>Update Information</button>
         </article>
       </div>
     </div>
@@ -230,6 +230,13 @@ onMounted(() => {
   border-radius: 0.95rem;
   padding-inline: 1.4rem;
   padding-block: 0.9rem;
+}
+
+.primary-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .watermark-shell {
