@@ -306,6 +306,15 @@ onUnmounted(() => {
       <div class="otp-main">
         <article class="glass otp-card">
           <div class="otp-glow" aria-hidden="true"></div>
+
+          <!-- Event context for OTP stage -->
+          <div v-if="transfer?.eventName" class="otp-event-context">
+            <span class="otp-event-name">{{ transfer.eventName }}</span>
+            <span v-if="transfer.seatRow || transfer.seatNumber" class="otp-seat">
+              Row {{ transfer.seatRow }} · Seat {{ transfer.seatNumber }}
+            </span>
+          </div>
+
           <p class="otp-copy">{{ verifyCopy }}</p>
 
           <div v-if="rateLimited" class="warning-box">
@@ -530,6 +539,26 @@ onUnmounted(() => {
   background: rgba(249, 115, 22, 0.10);
   filter: blur(100px);
   pointer-events: none;
+}
+
+.otp-event-context {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.85rem;
+  background: rgba(249, 115, 22, 0.06);
+  border: 1px solid rgba(249, 115, 22, 0.14);
+  text-align: left;
+}
+
+.otp-event-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.otp-seat {
+  color: var(--textMuted);
+  font-size: 0.78rem;
 }
 
 .otp-copy {

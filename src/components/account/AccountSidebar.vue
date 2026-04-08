@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import {
@@ -24,6 +24,8 @@ const auth = useAuthStore()
 const { logout } = useLogout()
 const route = useRoute()
 
+const ADMIN_LAST_EVENT_KEY = 'adminLastEventId'
+
 const routeEventId = computed(() => {
   const paramId = typeof route.params.eventId === 'string' ? route.params.eventId : null
   if (paramId) return paramId
@@ -32,7 +34,17 @@ const routeEventId = computed(() => {
   return queryId || null
 })
 
-const resolvedDashboardTo = computed(() => props.dashboardTo || (routeEventId.value ? `/admin/events/${routeEventId.value}/dashboard` : null))
+// Persist the most recent eventId so the Dashboard link survives navigation
+// to non-event-scoped pages (e.g. /profile)
+watch(routeEventId, (id) => {
+  if (id) sessionStorage.setItem(ADMIN_LAST_EVENT_KEY, id)
+}, { immediate: true })
+
+const resolvedDashboardTo = computed(() => {
+  if (props.dashboardTo) return props.dashboardTo
+  const id = routeEventId.value || sessionStorage.getItem(ADMIN_LAST_EVENT_KEY)
+  return id ? `/admin/events/${id}/dashboard` : null
+})
 
 const links = computed(() => {
   if (auth.isStaff) {

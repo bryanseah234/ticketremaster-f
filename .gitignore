@@ -55,3 +55,7 @@ __screenshots__/
 *.timestamp-*-*.mjs
 .vercel
 .env*.local
+
+# Local design reference (Stitch exports)
+stitch_ticketremaster/
+stitch_exports/
