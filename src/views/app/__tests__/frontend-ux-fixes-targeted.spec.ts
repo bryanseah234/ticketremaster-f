@@ -449,6 +449,60 @@ describe('Frontend UX Fixes — targeted coverage', () => {
     expect(wrapper.text()).not.toContain('Waiting for seller verification')
   })
 
+  it('transfer shows the buyer OTP stage with live event details once seller verification is complete', async () => {
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = shallowMount(TransferConfirmView)
+    await flushAsync()
+
+    const vm = wrapper.vm as any
+    vm.transfer = {
+      transferId: 'demo-transfer-001',
+      status: 'pending_buyer_otp',
+      sellerOtpVerified: true,
+      buyerVerificationSid: 'VE_buyer',
+      sellerId: 'seller-001',
+      buyerId: 'user-self-001',
+      eventName: 'Singapore Jazz Festival 2026',
+      seatRow: 'B',
+      seatNumber: '14',
+    }
+    await nextTick()
+
+    expect(wrapper.find('.otp-layout').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Singapore Jazz Festival 2026')
+    expect(wrapper.text()).toContain('Row B')
+    expect(wrapper.text()).toContain('Seat 14')
+    expect(wrapper.text()).toContain('Verify & Complete')
+    expect(wrapper.text()).not.toContain('Waiting for seller verification')
+  })
+
+  it('transfer completion state keeps buyer and seller CTAs distinct', async () => {
+    const { default: TransferConfirmView } = await import('../TransferConfirmView.vue')
+    const wrapper = mount(TransferConfirmView)
+    await flushAsync()
+
+    const vm = wrapper.vm as any
+    vm.transfer = {
+      transferId: 'demo-transfer-001',
+      status: 'completed',
+      sellerId: 'seller-001',
+      buyerId: 'user-self-001',
+      creditAmount: 180,
+      eventName: 'Neon Nights',
+    }
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Transfer complete.')
+    expect(wrapper.text()).toContain('View Tickets')
+    expect(wrapper.text()).not.toContain('Back to Marketplace')
+
+    seedAuthUser({ userId: 'seller-001' })
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Back to Marketplace')
+    expect(wrapper.text()).not.toContain('View Tickets')
+  })
+
   it('transfer page uses cached initiated transfer context instead of placeholder copy when live fetch fails', async () => {
     vi.mocked(isDemoMode).mockReturnValue(false)
     vi.mocked(api.get).mockRejectedValueOnce({ response: { status: 404 } } as any)

@@ -16,6 +16,23 @@ const buyerPendingFixture = {
   },
 }
 
+const sellerPendingFixture = {
+  transferId: 'trf-seller-001',
+  status: 'pending_seller_acceptance',
+  createdAt: new Date().toISOString(),
+  buyerName: 'Avery Buyer',
+  event: {
+    name: 'Singapore Jazz Festival 2026',
+    date: '2026-05-10T20:00:00Z',
+    venue: { name: 'Singapore Indoor Stadium' },
+  },
+  seat: {
+    section: 'VIP',
+    rowNumber: 'B',
+    seatNumber: '14',
+  },
+}
+
 const completionCacheItem = {
   id: 'transfer_completed:trf-complete-001',
   type: 'transfer_completed',
@@ -64,6 +81,39 @@ async function navigateInApp(page: any, path: string) {
 }
 
 test.describe('Frontend UX Fixes Coverage', () => {
+  test('seller pending transfer is discoverable in notifications with accept-first copy', async ({ page, context }) => {
+    await seedAuthSession(context, 'seller-001', 'user')
+
+    await page.route('**/credits/balance*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { creditBalance: 410 } }),
+      }),
+    )
+    await page.route('**/transfer/pending*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { transfers: [sellerPendingFixture] } }),
+      }),
+    )
+    await page.route('**/transfer/my-pending*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { transfers: [] } }),
+      }),
+    )
+
+    await page.goto('/notifications')
+
+    await expect(page.getByRole('heading', { name: 'Seller Action Required' })).toBeVisible()
+    await expect(page.getByText('Singapore Jazz Festival 2026', { exact: false })).toBeVisible()
+    await expect(page.getByText('accept it to receive your seller OTP', { exact: false })).toBeVisible()
+    await expect(page.locator('a[href="/transfer/trf-seller-001"]')).toBeVisible()
+  })
+
   test('buyer pending transfer is discoverable in notifications', async ({ page, context }) => {
     await seedAuthSession(context, 'buyer-001', 'user')
 

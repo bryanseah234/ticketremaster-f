@@ -163,12 +163,86 @@ test.describe('Credit Top-up Flow', () => {
 });
 
 test.describe('Transfer Flow with OTP Rate Limiting', () => {
-    test.beforeEach(async ({ page, context }) => {
-        await context.addInitScript(() => {
-            localStorage.setItem('access_token', 'mock-token');
-            localStorage.setItem('refresh_token', 'refresh-token');
-            localStorage.setItem('user', JSON.stringify({ userId: 'usr_001', email: 'buyer@example.com', role: 'user' }));
+    const seedAuthSession = async (
+        page: any,
+        userId = 'usr_001',
+        email = 'buyer@example.com',
+    ) => {
+        await page.addInitScript(
+            ({ sessionUserId, sessionEmail }) => {
+                sessionStorage.removeItem('ticketremaster_demo_mode');
+                sessionStorage.removeItem('demo_access_token');
+                sessionStorage.removeItem('demo_user');
+                sessionStorage.removeItem('demo_context');
+                localStorage.setItem('access_token', 'mock-token');
+                localStorage.setItem('refresh_token', 'refresh-token');
+                localStorage.setItem(
+                    'user',
+                    JSON.stringify({
+                        userId: sessionUserId,
+                        email: sessionEmail,
+                        role: 'user',
+                    }),
+                );
+            },
+            { sessionUserId: userId, sessionEmail: email },
+        );
+    };
+
+    const stubTransferShellRequests = async (page: any) => {
+        await page.context().route('**/credits/balance*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ data: { creditBalance: 250 } }),
+            });
         });
+
+        await page.context().route('**/transfer/pending*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ data: { transfers: [] } }),
+            });
+        });
+
+        await page.context().route('**/transfer/my-pending*', async route => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ data: { transfers: [] } }),
+            });
+        });
+    };
+
+    const enterOtp = async (page: any, otp: string) => {
+        await page.locator('.otp-grid').click();
+        await page.keyboard.type(otp);
+    };
+
+    const navigateInApp = async (page: any, path: string) => {
+        await page.goto('/');
+        await page.locator('main').waitFor({ state: 'visible' });
+        await page.evaluate((nextPath) => {
+            window.history.pushState({}, '', nextPath);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }, path);
+    };
+
+    const fulfillTransferApi = async (route: any, body: unknown) => {
+        if (route.request().resourceType() === 'document') {
+            await route.continue();
+            return;
+        }
+
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(body),
+        });
+    };
+
+    test.beforeEach(async ({ page }) => {
         setupConsoleMonitoring(page);
     });
 
@@ -177,181 +251,200 @@ test.describe('Transfer Flow with OTP Rate Limiting', () => {
     });
 
     test('should show rate limit warning after 429 response', async ({ page }) => {
-        // Mock transfer state
-        await page.route('**/transfer/txr_001', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    data: {
-                        transferId: 'txr_001',
-                        status: 'pending_buyer_otp',
-                        buyerId: 'usr_001',
-                        sellerId: 'usr_002',
-                        creditAmount: 100,
-                        eventName: 'Test Event',
-                        venueName: 'Test Venue'
-                    }
-                })
+        await seedAuthSession(page, 'usr_001', 'buyer@example.com');
+        await stubTransferShellRequests(page);
+
+        await page.context().route('**/transfer/txr_001', async route => {
+            await fulfillTransferApi(route, {
+                data: {
+                    transferId: 'txr_001',
+                    status: 'pending_buyer_otp',
+                    buyerId: 'usr_001',
+                    sellerId: 'usr_002',
+                    sellerOtpVerified: true,
+                    buyerVerificationSid: 'VE_buyer_001',
+                    creditAmount: 100,
+                    eventName: 'Singapore Jazz Festival 2026',
+                    venueName: 'Singapore Indoor Stadium',
+                    seatRow: 'B',
+                    seatNumber: '14',
+                },
             });
         });
 
-        // Mock OTP verify returning 429
-        await page.route('**/transfer/txr_001/buyer-verify', async route => {
+        await page.context().route('**/transfer/txr_001/buyer-verify', async route => {
             await route.fulfill({
                 status: 429,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please wait.' }
-                })
+                    error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please wait.' },
+                }),
             });
         });
 
-        await page.goto('/transfer/txr_001');
-        await page.waitForLoadState('domcontentloaded');
-        await expect(page.locator('body')).toBeVisible({ timeout: 15000 });
+        await navigateInApp(page, '/transfer/txr_001');
+        await expect(page.locator('.otp-layout')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('.otp-event-name')).toContainText('Singapore Jazz Festival 2026');
 
-        // Enter OTP and submit
-        const otpInput = page.locator('input[placeholder*="6-digit"]');
-        if (await otpInput.count() > 0) {
-            await otpInput.fill('123456');
-            await page.click('button:has-text("Verify")');
+        await enterOtp(page, '123456');
+        await page.getByRole('button', { name: 'Verify & Complete' }).click();
 
-            // Should show rate limit warning (toast or inline)
-            const warning = page.locator('.rate-limit-warning, .toast.error');
-            await expect(warning.first()).toBeVisible({ timeout: 15000 });
-        }
+        await expect(page.locator('.warning-box')).toContainText('Too many attempts');
     });
 
     test('should handle successful OTP verification', async ({ page }) => {
-        await page.route('**/transfer/txr_002', async route => {
+        await seedAuthSession(page, 'usr_001', 'buyer@example.com');
+        await stubTransferShellRequests(page);
+
+        await page.context().route('**/transfer/txr_002', async route => {
+            await fulfillTransferApi(route, {
+                data: {
+                    transferId: 'txr_002',
+                    status: 'pending_buyer_otp',
+                    buyerId: 'usr_001',
+                    sellerId: 'usr_002',
+                    sellerOtpVerified: true,
+                    buyerVerificationSid: 'VE_buyer_002',
+                    creditAmount: 100,
+                    eventName: 'Neon Nights',
+                    venueName: 'Esplanade Concert Hall',
+                    seatRow: '12',
+                    seatNumber: '08',
+                },
+            });
+        });
+
+        await page.context().route('**/transfer/txr_002/buyer-verify', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
                     data: {
                         transferId: 'txr_002',
-                        status: 'pending_buyer_otp',
-                        buyerId: 'usr_001',
-                        sellerId: 'usr_002',
-                        creditAmount: 100
-                    }
-                })
+                        status: 'completed',
+                        completedAt: new Date().toISOString(),
+                        creditAmount: 100,
+                        eventName: 'Neon Nights',
+                        ticket: { ticketId: 'tkt_002', newOwnerId: 'usr_001', status: 'active' },
+                    },
+                }),
             });
         });
 
-        await page.route('**/transfer/txr_002/buyer-verify', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    data: {
-                        transferId: 'txr_002',
-                        status: 'pending_seller_otp',
-                        message: 'OTP verified. Waiting for seller.'
-                    }
-                })
-            });
-        });
+        await navigateInApp(page, '/transfer/txr_002');
+        await expect(page.locator('.otp-layout')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('.otp-event-name')).toContainText('Neon Nights');
+        await expect(page.locator('.otp-seat')).toContainText('Row 12');
 
-        await page.goto('/transfer/txr_002');
-        await page.waitForLoadState('networkidle');
-        const otpInput = page.locator('input[placeholder*="6-digit"]');
-        if (await otpInput.count() > 0) {
-            await otpInput.fill('123456');
-            await page.click('button:has-text("Verify")');
+        await enterOtp(page, '123456');
+        await page.getByRole('button', { name: 'Verify & Complete' }).click();
 
-            // Should transition to waiting state
-            await expect(page.locator('text=Waiting for seller')).toBeVisible({ timeout: 10000 });
-        }
+        await expect(page.getByText('Transfer complete.')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByRole('button', { name: 'View Tickets' })).toBeVisible();
+        await expect(page.getByText('$100.00')).toBeVisible();
     });
 
     test('should handle seller accepting transfer', async ({ page }) => {
-        await page.route('**/transfer/txr_003', async route => {
+        await seedAuthSession(page, 'usr_002', 'seller@example.com');
+        await stubTransferShellRequests(page);
+
+        await page.context().route('**/transfer/txr_003', async route => {
+            await fulfillTransferApi(route, {
+                data: {
+                    transferId: 'txr_003',
+                    status: 'pending_seller_acceptance',
+                    buyerId: 'usr_001',
+                    sellerId: 'usr_002',
+                    creditAmount: 100,
+                    eventName: 'Symphony Night',
+                    venueName: 'Victoria Concert Hall',
+                    seatSection: 'VIP',
+                    seatRow: 'C',
+                    seatNumber: '21',
+                },
+            });
+        });
+
+        await page.context().route('**/transfer/txr_003/seller-accept', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
                     data: {
                         transferId: 'txr_003',
-                        status: 'pending_seller_acceptance',
+                        status: 'pending_seller_otp',
+                        sellerId: 'usr_002',
                         buyerId: 'usr_001',
-                        sellerId: 'usr_001', // Current user is seller
-                        creditAmount: 100
-                    }
-                })
+                        sellerVerificationSid: 'VE_seller_003',
+                        eventName: 'Symphony Night',
+                        seatRow: 'C',
+                        seatNumber: '21',
+                        message: 'Request accepted. OTP sent to seller.',
+                    },
+                }),
             });
         });
 
-        await page.route('**/transfer/txr_003/seller-accept', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    data: {
-                        transferId: 'txr_003',
-                        status: 'pending_buyer_otp',
-                        message: 'Request accepted. OTP sent to buyer.'
-                    }
-                })
-            });
-        });
+        await navigateInApp(page, '/transfer/txr_003');
+        await expect(page.getByText('Symphony Night')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Victoria Concert Hall')).toBeVisible();
+        await expect(page.getByText('VIP • Row C • Seat 21')).toBeVisible();
 
-        await page.goto('/transfer/txr_003');
-        await page.waitForLoadState('networkidle');
-        const acceptBtn = page.locator('button:has-text("Accept")');
-        if (await acceptBtn.count() > 0) {
-            await expect(page.locator('text=A buyer wants your ticket')).toBeVisible();
-            await acceptBtn.click();
+        await page.getByRole('button', { name: 'Accept Transfer' }).click();
 
-            // Should transition to waiting for buyer state
-            await expect(page.locator('text=Waiting for buyer')).toBeVisible({ timeout: 10000 });
-        }
+        await expect(page.locator('.otp-layout')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('.otp-event-name')).toContainText('Symphony Night');
+        await expect(page.locator('.otp-seat')).toContainText('Row C');
+        await expect(page.getByRole('button', { name: 'Verify & Continue' })).toBeVisible();
     });
 
-    test('should handle transfer completion with seller OTP', async ({ page }) => {
-        await page.route('**/transfer/txr_005', async route => {
+    test('should hand off from seller OTP to buyer waiting state after seller verification', async ({ page }) => {
+        await seedAuthSession(page, 'usr_002', 'seller@example.com');
+        await stubTransferShellRequests(page);
+
+        await page.context().route('**/transfer/txr_005', async route => {
+            await fulfillTransferApi(route, {
+                data: {
+                    transferId: 'txr_005',
+                    status: 'pending_seller_otp',
+                    buyerId: 'usr_001',
+                    sellerId: 'usr_002',
+                    sellerVerificationSid: 'VE_seller_005',
+                    creditAmount: 100,
+                    eventName: 'Afterglow Arena',
+                    seatRow: 'F',
+                    seatNumber: '03',
+                },
+            });
+        });
+
+        await page.context().route('**/transfer/txr_005/seller-verify', async route => {
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
                     data: {
                         transferId: 'txr_005',
-                        status: 'pending_seller_otp',
-                        buyerId: 'usr_001',
-                        sellerId: 'usr_001',
-                        creditAmount: 100,
-                        eventName: 'Test Event'
-                    }
-                })
+                        status: 'pending_buyer_otp',
+                        sellerOtpVerified: true,
+                        buyerVerificationSid: 'VE_buyer_005',
+                        eventName: 'Afterglow Arena',
+                        seatRow: 'F',
+                        seatNumber: '03',
+                    },
+                }),
             });
         });
 
-        await page.route('**/transfer/txr_005/seller-verify', async route => {
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({
-                    data: {
-                        transferId: 'txr_005',
-                        status: 'completed',
-                        completedAt: new Date().toISOString(),
-                        ticket: { ticketId: 'tkt_001' }
-                    }
-                })
-            });
-        });
+        await navigateInApp(page, '/transfer/txr_005');
+        await expect(page.locator('.otp-layout')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('.otp-event-name')).toContainText('Afterglow Arena');
 
-        await page.goto('/transfer/txr_005');
-        await page.waitForLoadState('networkidle');
-        const otpInput = page.locator('input[placeholder*="6-digit"]');
-        if (await otpInput.count() > 0) {
-            await otpInput.fill('654321');
-            await page.click('button:has-text("Confirm")');
+        await enterOtp(page, '654321');
+        await page.getByRole('button', { name: 'Verify & Continue' }).click();
 
-            // Should show success
-            await expect(page.locator('text=Transfer complete')).toBeVisible({ timeout: 10000 });
-        }
+        await expect(page.getByText('Waiting for buyer verification.')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('The seller is verified. The buyer now needs to enter their OTP to complete the transfer.')).toBeVisible();
     });
 });
 
