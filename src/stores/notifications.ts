@@ -94,7 +94,7 @@ function mapSellerPendingTransfer(transfer: any): NotificationCenterItem {
     id: `seller-pending:${transferId || transfer?.listingId || Date.now()}`,
     type: 'seller_pending_acceptance' as NotificationItemType,
     title: 'Seller Action Required',
-    body: `${buyerName} wants ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Open the transfer to review it and enter your seller OTP.`,
+    body: `${buyerName} wants ${eventName}${seatLabel ? ` (${seatLabel})` : ''}. Open the transfer to review the request and accept it to receive your seller OTP.`,
     createdAt: toIsoDate(transfer?.createdAt || transfer?.created_at),
     primaryTo: transferId ? `/transfer/${transferId}` : '/notifications',
     transferId: transferId || undefined,

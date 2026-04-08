@@ -10,10 +10,12 @@ import api from '@/api/client'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { isDemoMode } from '@/services/mockData'
+import { resolveEventImage } from '@/utils/eventMedia'
 
 const FALLBACK_TRANSFER_IMAGE =
   '/stitch-media/transfer/accept-card.jpg'
 const TRANSFER_CONTEXT_KEY_PREFIX = 'transfer_context:'
+const SILENT_BACKGROUND_REQUEST = { suppressErrorToast: true, suppressErrorLog: true } as any
 
 const route = useRoute()
 const toast = useToast()
@@ -32,11 +34,15 @@ const status = computed(() => transfer.value?.status || 'pending_seller_acceptan
 const isBuyer = computed(() => (auth.state.user ? transfer.value?.buyerId === auth.state.user.userId : false))
 const isSeller = computed(() => (auth.state.user ? transfer.value?.sellerId === auth.state.user.userId : false))
 const isSellerOtpTurn = computed(() => status.value === 'pending_seller_otp' && isSeller.value)
+const isBuyerOtpExplicitlyBlocked = computed(
+  () =>
+    status.value === 'pending_buyer_otp' &&
+    (transfer.value?.sellerOtpVerified === false || transfer.value?.buyerVerificationSid === null),
+)
 const isBuyerOtpReady = computed(
   () =>
     status.value === 'pending_buyer_otp' &&
-    transfer.value?.sellerOtpVerified === true &&
-    Boolean(transfer.value?.buyerVerificationSid),
+    !isBuyerOtpExplicitlyBlocked.value,
 )
 const isBuyerOtpTurn = computed(() => isBuyerOtpReady.value && isBuyer.value)
 const isOtpStage = computed(() => isSellerOtpTurn.value || isBuyerOtpTurn.value)
@@ -52,7 +58,14 @@ const countdownFormatted = computed(
 )
 const otpDigits = computed(() => otp.value.padEnd(6, ' ').slice(0, 6).split(''))
 const activeDigitIndex = computed(() => Math.min(otp.value.length, 5))
-const eventPoster = computed(() => transfer.value?.eventImage || transfer.value?.image || FALLBACK_TRANSFER_IMAGE)
+const eventPoster = computed(() =>
+  resolveEventImage({
+    image: transfer.value?.eventImage,
+    eventId: transfer.value?.eventId,
+    type: transfer.value?.eventType,
+    context: 'ticket',
+  }) || FALLBACK_TRANSFER_IMAGE,
+)
 const displayEventName = computed(() => transfer.value?.eventName || 'Transfer request')
 const displaySellerName = computed(() => transfer.value?.sellerName || 'Pending seller')
 const displayLocation = computed(() => transfer.value?.location || transfer.value?.venueName || 'Location unavailable')
@@ -133,6 +146,43 @@ const writeCachedTransferContext = (payload: any) => {
   }
 }
 
+const readTransfers = (responseData: any): any[] => {
+  if (Array.isArray(responseData?.data?.transfers)) return responseData.data.transfers
+  if (Array.isArray(responseData?.data)) return responseData.data
+  if (Array.isArray(responseData?.transfers)) return responseData.transfers
+  if (Array.isArray(responseData)) return responseData
+  return []
+}
+
+const hasTransferVisualContext = (raw: any) =>
+  Boolean(
+    raw?.event?.name ||
+      raw?.eventName ||
+      raw?.event_name ||
+      raw?.event?.image ||
+      raw?.eventImage ||
+      raw?.event_image ||
+      raw?.event?.date ||
+      raw?.eventDate ||
+      raw?.event_date ||
+      raw?.event?.venue?.name ||
+      raw?.venue?.name ||
+      raw?.location ||
+      raw?.venueName ||
+      raw?.venue_name ||
+      raw?.seat?.section ||
+      raw?.seatSection ||
+      raw?.seat_section ||
+      raw?.seat?.rowNumber ||
+      raw?.seat?.row ||
+      raw?.seatRow ||
+      raw?.seat_row ||
+      raw?.seat?.seatNumber ||
+      raw?.seat?.seat ||
+      raw?.seatNumber ||
+      raw?.seat_number,
+  )
+
 const normalizeTransfer = (raw: any) => {
   const existing = transfer.value || {}
   return {
@@ -151,9 +201,11 @@ const normalizeTransfer = (raw: any) => {
     buyerVerificationSid: raw?.buyerVerificationSid || existing.buyerVerificationSid,
     sellerVerificationSid: raw?.sellerVerificationSid || existing.sellerVerificationSid,
     completedAt: raw?.completedAt || raw?.completed_at || existing.completedAt,
+    eventId: raw?.event?.eventId || raw?.event?.id || raw?.eventId || raw?.event_id || existing.eventId,
+    eventType: raw?.event?.type || raw?.eventType || raw?.event_type || existing.eventType,
     eventName: raw?.event?.name || raw?.eventName || raw?.event_name || existing.eventName,
     eventDate: raw?.event?.date || raw?.eventDate || raw?.event_date || existing.eventDate,
-    eventImage: raw?.event?.image || raw?.eventImage || raw?.event_image || raw?.image || existing.eventImage,
+    eventImage: raw?.event?.image || raw?.eventImage || raw?.event_image || existing.eventImage,
     venueName:
       raw?.event?.venue?.name || raw?.venue?.name || raw?.venueName || raw?.venue_name || existing.venueName,
     location:
@@ -179,6 +231,135 @@ const applyTransferData = (raw: any) => {
   const normalized = normalizeTransfer(raw)
   transfer.value = normalized
   writeCachedTransferContext(normalized)
+}
+
+const fetchTransferFromCollections = async (transferId: string) => {
+  const endpoints = ['/transfer/pending', '/transfer/my-pending', '/transfer/history']
+
+  for (const endpoint of endpoints) {
+    try {
+      const { data } = await api.get(endpoint, SILENT_BACKGROUND_REQUEST)
+      const match = readTransfers(data).find((item: any) => {
+        const itemId = item?.transferId || item?.transfer_id || item?.id
+        return String(itemId || '') === transferId
+      })
+      if (match) return match
+    } catch {
+      // continue checking alternate transfer collections
+    }
+  }
+
+  return null
+}
+
+const enrichTransferFromResources = async (raw: any) => {
+  let listing = raw?.listing || null
+  let ticket = raw?.ticket || null
+  let event = raw?.event || null
+  let venue = raw?.venue || raw?.event?.venue || null
+
+  try {
+    const listingId = raw?.listingId || raw?.listing_id || listing?.listingId
+    if (!listing && listingId) {
+      const { data } = await api.get(`/marketplace/${listingId}`, SILENT_BACKGROUND_REQUEST)
+      listing = data?.data || data || null
+    }
+  } catch {
+    // non-blocking enrichment
+  }
+
+  try {
+    const ticketId = raw?.ticketId || raw?.ticket_id || ticket?.ticketId || listing?.ticketId
+    if (!ticket && ticketId) {
+      const { data } = await api.get(`/tickets/${ticketId}`, SILENT_BACKGROUND_REQUEST)
+      ticket = data?.data || data || null
+    }
+  } catch {
+    // non-blocking enrichment
+  }
+
+  try {
+    const eventId =
+      raw?.eventId ||
+      raw?.event_id ||
+      event?.eventId ||
+      event?.id ||
+      ticket?.event?.eventId ||
+      ticket?.eventId ||
+      listing?.event?.eventId ||
+      listing?.eventId
+    if (!event && eventId) {
+      const { data } = await api.get(`/events/${eventId}`, SILENT_BACKGROUND_REQUEST)
+      event = data?.data || data || null
+    }
+  } catch {
+    // non-blocking enrichment
+  }
+
+  try {
+    const venueId =
+      venue?.venueId ||
+      event?.venue?.venueId ||
+      event?.venueId ||
+      ticket?.venue?.venueId ||
+      ticket?.venueId ||
+      raw?.venueId ||
+      raw?.venue_id
+    if (!venue && venueId) {
+      const { data } = await api.get(`/venues/${venueId}`, SILENT_BACKGROUND_REQUEST)
+      venue = data?.data || data || null
+    }
+  } catch {
+    // non-blocking enrichment
+  }
+
+  const mergedEvent = event
+    ? {
+        ...event,
+        venue: event?.venue || venue || ticket?.venue || listing?.event?.venue,
+      }
+    : listing?.event || ticket?.event || null
+
+  const mergedVenue = mergedEvent?.venue || venue || ticket?.venue || raw?.venue || null
+  const mergedSeat = raw?.seat || ticket?.seat || null
+
+  if (!mergedEvent && !mergedVenue && !mergedSeat) return null
+
+  return {
+    ...raw,
+    event: mergedEvent || raw?.event,
+    venue: mergedVenue || raw?.venue,
+    seat: mergedSeat || raw?.seat,
+    eventId:
+      raw?.eventId ||
+      raw?.event_id ||
+      mergedEvent?.eventId ||
+      mergedEvent?.id ||
+      listing?.eventId ||
+      ticket?.eventId,
+    eventType: raw?.eventType || raw?.event_type || mergedEvent?.type || listing?.event?.type || ticket?.event?.type,
+    eventName: raw?.eventName || raw?.event_name || mergedEvent?.name,
+    eventDate: raw?.eventDate || raw?.event_date || mergedEvent?.date || mergedEvent?.eventDate,
+    eventImage: raw?.eventImage || raw?.event_image || mergedEvent?.image || listing?.event?.image || ticket?.event?.image,
+    venueName: raw?.venueName || raw?.venue_name || mergedVenue?.name,
+    location: raw?.location || mergedVenue?.name,
+    seatSection: raw?.seatSection || raw?.seat_section || mergedSeat?.section,
+    seatRow: raw?.seatRow || raw?.seat_row || mergedSeat?.rowNumber || mergedSeat?.row,
+    seatNumber: raw?.seatNumber || raw?.seat_number || mergedSeat?.seatNumber || mergedSeat?.seat,
+    seatGate: raw?.seatGate || raw?.seat_gate || mergedSeat?.gate,
+  }
+}
+
+const hydrateTransferContext = async (transferId: string, raw: any) => {
+  const collectionMatch = await fetchTransferFromCollections(transferId)
+  if (collectionMatch && hasTransferVisualContext(collectionMatch)) {
+    return collectionMatch
+  }
+
+  return enrichTransferFromResources({
+    ...raw,
+    ...(collectionMatch || {}),
+  })
 }
 
 const loadTransfer = async () => {
@@ -217,7 +398,17 @@ const loadTransfer = async () => {
     if (!raw) return
 
     applyTransferData(raw)
+    if (!hasTransferVisualContext(raw)) {
+      const hydrated = await hydrateTransferContext(transferId, raw)
+      if (hydrated) applyTransferData(hydrated)
+    }
   } catch {
+    const hydrated = await hydrateTransferContext(transferId, transfer.value)
+    if (hydrated) {
+      applyTransferData(hydrated)
+      return
+    }
+
     if (!transfer.value) {
       applyTransferData({
         transferId,
