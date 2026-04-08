@@ -21,6 +21,7 @@ import fc from 'fast-check'
 // Global mocks
 // ---------------------------------------------------------------------------
 
+const mockRouterPush = vi.fn()
 const mockApiGet = vi.fn().mockResolvedValue({ data: {} })
 const mockApiPost = vi.fn().mockResolvedValue({ data: {} })
 const mockApiDelete = vi.fn().mockResolvedValue({ data: {} })
@@ -82,7 +83,7 @@ vi.mock('vue-router', async () => {
   return {
     ...actual,
     useRoute: vi.fn().mockReturnValue({ params: { transferId: 'demo-t-001', orderId: 'demo-o-001' } }),
-    useRouter: vi.fn().mockReturnValue({ push: vi.fn() }),
+    useRouter: vi.fn().mockReturnValue({ push: mockRouterPush }),
     RouterLink: { template: '<a><slot /></a>' },
     onBeforeRouteLeave: vi.fn(),
   }
@@ -311,6 +312,7 @@ describe('CheckoutView — preservation (clauses 3.4–3.5)', () => {
 
   afterEach(() => {
     localStorage.removeItem('pendingOrder')
+    mockRouterPush.mockReset()
     vi.clearAllMocks()
   })
 
@@ -382,6 +384,69 @@ describe('CheckoutView — preservation (clauses 3.4–3.5)', () => {
       expect.anything(),
       expect.anything(),
     )
+  })
+
+  it('3.5c — pay() redirects to /tickets after a successful live purchase', async () => {
+    vi.useFakeTimers()
+    const { isDemoMode } = await import('@/services/mockData')
+    vi.mocked(isDemoMode).mockReturnValue(false)
+
+    try {
+      mockApiGet.mockResolvedValue({ data: { data: { creditBalance: 500 } } })
+      mockApiPost.mockResolvedValueOnce({ data: { data: { ticketId: 'tkt-001', status: 'active', price: 120 } } })
+
+      const { default: CheckoutView } = await import('../CheckoutView.vue')
+      const wrapper = shallowMount(CheckoutView)
+      await wrapper.vm.$nextTick()
+      await vi.advanceTimersByTimeAsync(50)
+
+      const vm = wrapper.vm as any
+      await vm.pay()
+
+      expect(vm.ticket?.ticketId).toBe('tkt-001')
+      expect(mockRouterPush).not.toHaveBeenCalledWith('/tickets')
+
+      await vi.advanceTimersByTimeAsync(1400)
+
+      expect(mockRouterPush).toHaveBeenCalledWith('/tickets')
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+      vi.mocked(isDemoMode).mockReturnValue(true)
+    }
+  })
+
+  it('3.5d — pay() does not redirect to /tickets after a failed live purchase', async () => {
+    vi.useFakeTimers()
+    const { isDemoMode } = await import('@/services/mockData')
+    vi.mocked(isDemoMode).mockReturnValue(false)
+
+    try {
+      mockApiGet.mockResolvedValue({ data: { data: { creditBalance: 500 } } })
+      mockApiPost.mockReset()
+      mockApiPost.mockRejectedValue({
+        response: {
+          status: 400,
+          data: { error: { code: 'VALIDATION_ERROR', message: 'Invalid request' } },
+        },
+      })
+
+      const { default: CheckoutView } = await import('../CheckoutView.vue')
+      const wrapper = shallowMount(CheckoutView)
+      await wrapper.vm.$nextTick()
+      await vi.advanceTimersByTimeAsync(50)
+
+      const vm = wrapper.vm as any
+      await vm.pay()
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(vm.ticket).toBeNull()
+      expect(mockRouterPush).not.toHaveBeenCalledWith('/tickets')
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+      vi.mocked(isDemoMode).mockReturnValue(true)
+    }
   })
 })
 

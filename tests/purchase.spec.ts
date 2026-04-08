@@ -70,7 +70,8 @@ test.describe('Purchase Flow', () => {
                 await reserveBtn.click();
                 await expect(page.locator('h1')).toContainText(/Checkout/);
                 await page.click('button:has-text("Confirm Purchase")');
-                await expect(page.locator('text=Purchase Successful')).toBeVisible({ timeout: 10000 });
+                await page.waitForURL('**/tickets', { timeout: 10000 });
+                await expect(page.locator('h1')).toContainText(/My Tickets|Tickets/);
             }
         }
     });
