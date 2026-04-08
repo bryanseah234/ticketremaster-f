@@ -240,8 +240,8 @@ export const mockEvents: EventSummary[] = [
     date: '2026-07-29T19:30:00',
     venueId: 'ven_001',
     price: 98.00,
-    type: 'theater',
-    image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theater', context: 'event' }),
+    type: 'theatre',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'event' }),
     venue: venueById['ven_001'],
     seatsAvailable: 1000,
   },
@@ -251,8 +251,8 @@ export const mockEvents: EventSummary[] = [
     date: '2026-11-06T19:30:00',
     venueId: 'ven_003',
     price: 115.00,
-    type: 'theater',
-    image: resolveEventImage({ image: 'https://picsum.photos/seed/cats-musical-sg/800/450', eventId: 'evt_014', type: 'theater', context: 'event' }),
+    type: 'theatre',
+    image: resolveEventImage({ image: 'https://picsum.photos/seed/cats-musical-sg/800/450', eventId: 'evt_014', type: 'theatre', context: 'event' }),
     venue: venueById['ven_003'],
     seatsAvailable: 600,
   },
@@ -340,7 +340,7 @@ export const mockTickets: Ticket[] = [
     status: 'cancelled',
     price: 98.00,
     purchasedAt: '2026-03-05T09:00:00Z',
-    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theater', context: 'ticket' }) },
+    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'ticket' }) },
     seat: mockSeats[20],
     venue: venueById['ven_001'],
   },
@@ -392,7 +392,7 @@ export const mockListings: MarketplaceListing[] = [
     price: 120.00,
     status: 'active',
     createdAt: '2026-03-08T10:00:00Z',
-    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theater', context: 'marketplace' }) },
+    event: { ...mockEvents[12], image: resolveEventImage({ image: 'https://picsum.photos/seed/legally-blonde-sg/800/450', eventId: 'evt_013', type: 'theatre', context: 'marketplace' }) },
   },
   {
     listingId: 'demo-listing-004',
@@ -566,4 +566,5 @@ export function setDemoMode(enabled: boolean): void {
 export function getDemoBannerMessage(): string {
   return 'Demo Mode: Showing mock data. Backend features like login, purchases, and real-time updates are disabled.'
 }
+
 
