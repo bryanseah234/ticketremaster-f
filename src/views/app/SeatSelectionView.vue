@@ -241,6 +241,7 @@ const reserveSeat = async () => {
         orderId: orderId.value,
         inventoryId: orderId.value,
         holdToken: data?.data?.holdToken || '',
+        heldUntil: heldUntil || new Date(Date.now() + 300000).toISOString(),
         eventId: route.params.eventId,
         seat: {
           seatId: selectedSeat.value.seatId,

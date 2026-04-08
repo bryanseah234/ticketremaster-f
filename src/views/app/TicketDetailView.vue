@@ -164,7 +164,6 @@ onUnmounted(() => {
 
         <div class="action-row" v-if="isActive">
           <RouterLink :to="`/ticket-qr/${qrData?.qrHash || ticket?.ticketId || ticketId}`"><button>Open Full QR</button></RouterLink>
-          <RouterLink :to="`/transfer/initiate?ticketId=${ticketId}`"><button class="secondary">Transfer Ticket</button></RouterLink>
         </div>
       </div>
 

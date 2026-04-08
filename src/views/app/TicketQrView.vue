@@ -162,9 +162,6 @@ onUnmounted(() => {
             <WalletIcon class="wallet-icon" />
             <span>Add to Apple Wallet</span>
           </button>
-          <RouterLink :to="`/transfer/initiate?ticketId=${ticket?.ticketId || ''}`">
-            <button class="secondary">Transfer Ticket</button>
-          </RouterLink>
         </div>
       </div>
     </article>
