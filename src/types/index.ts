@@ -42,7 +42,7 @@ export interface Venue {
 
 // ── Event Types ─────────────────────────────────────────────────────
 
-export type EventType = 'concert' | 'sports' | 'theater' | 'conference' | 'festival' | 'other'
+export type EventType = 'concert' | 'sports' | 'theatre' | 'classical' | 'festival' | 'other'
 
 export interface Event {
   eventId: string
