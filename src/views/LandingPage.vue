@@ -395,14 +395,15 @@ onMounted(loadFeaturedEvents)
 .featured-grid {
   display: grid;
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-rows: 37rem;
   gap: 1.5rem;
-  min-height: 37rem;
 }
 
 .featured-stack,
 .loading-stack {
   display: grid;
   gap: 1.5rem;
+  grid-template-rows: 1fr 1fr;
 }
 
 .featured-card,
@@ -417,7 +418,7 @@ onMounted(loadFeaturedEvents)
 }
 
 .featured-card-large {
-  min-height: 37rem;
+  height: 100%;
 }
 
 .hero-loading {
@@ -645,6 +646,15 @@ onMounted(loadFeaturedEvents)
   .category-section,
   .category-gallery {
     grid-template-columns: 1fr;
+  }
+
+  .featured-grid {
+    grid-template-rows: auto;
+  }
+
+  .featured-stack,
+  .loading-stack {
+    grid-template-rows: auto;
   }
 
   .featured-card-large,
