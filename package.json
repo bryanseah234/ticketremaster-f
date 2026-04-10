@@ -16,7 +16,7 @@
     "@chenfengyuan/vue-qrcode": "^2.0.0",
     "@heroicons/vue": "^2.1.5",
     "@sentry/tracing": "^7.114.0",
-    "@sentry/vue": "^10.47.0",
+    "@sentry/vue": "^10.48.0",
     "@stripe/stripe-js": "^9.0.1",
     "@vueuse/core": "^14.2.1",
     "@vueuse/motion": "^3.0.3",
