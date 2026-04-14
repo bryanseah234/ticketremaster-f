@@ -26,7 +26,7 @@
     "dayjs": "^1.11.20",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
-    "posthog-js": "^1.367.0",
+    "posthog-js": "^1.368.2",
     "qrcode": "^1.5.4",
     "socket.io-client": "^4.8.0",
     "three": "^0.183.2",
