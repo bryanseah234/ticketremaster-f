@@ -46,7 +46,7 @@
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.6",
-    "fast-check": "^4.6.0",
+    "fast-check": "^4.7.0",
     "jsdom": "^29.0.2",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^4.1.13",
