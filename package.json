@@ -17,7 +17,7 @@
     "@heroicons/vue": "^2.1.5",
     "@sentry/tracing": "^7.114.0",
     "@sentry/vue": "^10.50.0",
-    "@stripe/stripe-js": "^9.2.0",
+    "@stripe/stripe-js": "^9.3.0",
     "@vueuse/core": "^14.2.1",
     "@vueuse/motion": "^3.0.3",
     "axios": "^1.15.2",
