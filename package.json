@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npx vue-tsc; npx vite build",
+    "build": "vite build",
+    "build:full": "vue-tsc && vite build",
     "build:skip-types": "vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
