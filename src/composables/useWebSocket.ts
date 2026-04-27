@@ -42,18 +42,18 @@ export function useWebSocket() {
       handlers.forEach((_handlerSet, eventType) => {
         socket.value?.emit('subscribe', { channel: eventType })
       })
-      console.log('[WebSocket] Connected')
+      if (import.meta.env.DEV) console.log('[WebSocket] Connected')
     })
 
     socket.value.on('disconnect', (reason) => {
       state.value.connected = false
-      console.log(`[WebSocket] Disconnected: ${reason}`)
+      if (import.meta.env.DEV) console.log(`[WebSocket] Disconnected: ${reason}`)
     })
 
     socket.value.on('connect_error', (error) => {
       state.value.error = error.message
       state.value.connected = false
-      console.error('[WebSocket] Connection error:', error)
+      if (import.meta.env.DEV) console.error('[WebSocket] Connection error:', error)
     })
 
     // Subscribe to real-time events
@@ -124,6 +124,8 @@ export function useWebSocket() {
       socket.value = null
       state.value.connected = false
     }
+    // Clear all handlers to prevent memory leaks
+    handlers.clear()
   }
 
   onMounted(() => {

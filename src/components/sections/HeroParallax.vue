@@ -19,28 +19,46 @@ const layers = [
 
 const pos = reactive(layers.map(() => ({ x: 0, y: 0 })))
 let raf = 0
+const isVisible = ref(true)
+
 const animate = () => {
-  layers.forEach((layer, i) => {
-    const tx = x.value * layer.depth
-    const ty = y.value * layer.depth
-    pos[i].x += (tx - pos[i].x) * 0.07
-    pos[i].y += (ty - pos[i].y) * 0.07
-  })
+  if (isVisible.value) {
+    layers.forEach((layer, i) => {
+      const tx = x.value * layer.depth
+      const ty = y.value * layer.depth
+      pos[i].x += (tx - pos[i].x) * 0.07
+      pos[i].y += (ty - pos[i].y) * 0.07
+    })
+  }
   raf = requestAnimationFrame(animate)
 }
+
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
 const onResize = () => {
   windowWidth.value = window.innerWidth
 }
 
+let observer: IntersectionObserver | null = null
+
 onMounted(() => {
-  window.addEventListener('resize', onResize)
+  window.addEventListener('resize', onResize, { passive: true })
   raf = requestAnimationFrame(animate)
+
+  // Pause animation when hero is scrolled out of view to save CPU/GPU
+  if ('IntersectionObserver' in window && rootRef.value) {
+    observer = new IntersectionObserver(
+      ([entry]) => { isVisible.value = entry.isIntersecting },
+      { threshold: 0 }
+    )
+    observer.observe(rootRef.value)
+  }
 })
+
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   cancelAnimationFrame(raf)
+  observer?.disconnect()
 })
 
 const filteredLayers = computed(() => {
@@ -60,7 +78,7 @@ const filteredLayers = computed(() => {
       class="floating"
       :style="{ top: layer.top, left: layer.left, width: layer.width, transform: `translate3d(${pos[i].x}px, ${pos[i].y}px, 0)` }"
     >
-      <img :src="layer.src" alt="live event" />
+      <img :src="layer.src" alt="live event" loading="lazy" decoding="async" />
     </div>
 
 
