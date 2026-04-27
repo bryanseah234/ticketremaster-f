@@ -10,6 +10,8 @@ let earth: THREE.Mesh
 let atmosphere: THREE.Mesh
 let pointsGroup: THREE.Group
 let raf = 0
+let isVisible = true
+let observer: IntersectionObserver | null = null
 
 const locations = [
   { lat: 1.3521, lon: 103.8198 },
@@ -38,7 +40,7 @@ const init = () => {
   camera.position.z = 2.8
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Cap at 2x to save GPU on high-DPI screens
   renderer.setSize(containerRef.value.clientWidth, containerRef.value.clientHeight)
   containerRef.value.appendChild(renderer.domElement)
 
@@ -57,7 +59,7 @@ const init = () => {
   const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
   const normalMap = loader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg')
 
-  // Geometry
+  // Geometry — reuse geometry/material across all markers
   const sphereGeom = new THREE.SphereGeometry(1, 64, 64)
   const earthMat = new THREE.MeshStandardMaterial({
     map: earthTexture,
@@ -68,7 +70,7 @@ const init = () => {
   earth = new THREE.Mesh(sphereGeom, earthMat)
   scene.add(earth)
 
-  // Atmosphere (Glow effect using a simple shader-like approach)
+  // Atmosphere glow
   const atmosGeom = new THREE.SphereGeometry(1.03, 64, 64)
   const atmosMat = new THREE.ShaderMaterial({
     transparent: true,
@@ -100,29 +102,24 @@ const init = () => {
   atmosphere = new THREE.Mesh(atmosGeom, atmosMat)
   scene.add(atmosphere)
 
-  // Markers
+  // Markers — share geometry and material instances across all points
   pointsGroup = new THREE.Group()
   const pointGeom = new THREE.SphereGeometry(0.012, 16, 16)
-  const pointMat = new THREE.MeshBasicMaterial({ color: 0xffa500 }) // Brighter orange
+  const pointMat = new THREE.MeshBasicMaterial({ color: 0xffa500 })
+  const pulseGeom = new THREE.SphereGeometry(0.025, 12, 12)
+  const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.6 })
 
   locations.forEach(loc => {
     const lat = (loc.lat * Math.PI) / 180
     const lon = (loc.lon * Math.PI) / 180
-    
-    // Convert lat/lon to 3D Cartesian coords
     const x = Math.cos(lat) * Math.cos(lon)
     const y = Math.sin(lat)
-    const z = Math.cos(lat) * Math.sin(-lon) // Invert lon for correct mapping
+    const z = Math.cos(lat) * Math.sin(-lon)
 
     const point = new THREE.Mesh(pointGeom, pointMat)
     point.position.set(x, y, z)
-    
-    // Add a small pulse/glow to the point
-    const pulseGeom = new THREE.SphereGeometry(0.025, 12, 12)
-    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, opacity: 0.6 }) // More opaque
     const pulse = new THREE.Mesh(pulseGeom, pulseMat)
     point.add(pulse)
-    
     pointsGroup.add(point)
   })
   earth.add(pointsGroup)
@@ -132,6 +129,8 @@ const init = () => {
 
 const animate = () => {
   raf = requestAnimationFrame(animate)
+  // Skip rendering when scrolled out of view to save GPU
+  if (!isVisible) return
   if (earth) {
     earth.rotation.y += 0.0012
   }
@@ -147,12 +146,22 @@ const onResize = () => {
 
 onMounted(() => {
   init()
-  window.addEventListener('resize', onResize)
+  window.addEventListener('resize', onResize, { passive: true })
+
+  // Pause rendering when globe is off-screen
+  if ('IntersectionObserver' in window && containerRef.value) {
+    observer = new IntersectionObserver(
+      ([entry]) => { isVisible = entry.isIntersecting },
+      { threshold: 0 }
+    )
+    observer.observe(containerRef.value)
+  }
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   cancelAnimationFrame(raf)
+  observer?.disconnect()
   if (renderer) {
     renderer.dispose()
   }
