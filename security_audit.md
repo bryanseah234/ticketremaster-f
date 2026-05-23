@@ -11,7 +11,7 @@ Dependabot: Configured for daily updates (auto-merge enabled via sourcerepo sync
 ### SAST Findings (Static Analysis)
 | File | Issue | Severity | Status |
 |------|-------|----------|--------|
-| (review needed) | 1 potential patterns found | Medium | OPEN |
+| (git-tracked only) | 3 findings after filtering | Medium | OPEN |
 
 ### Snyk Usage
 Scan triggered: NO
