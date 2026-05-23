@@ -11,11 +11,11 @@ Dependabot: Configured for daily updates (auto-merge enabled via sourcerepo sync
 ### SAST Findings (Static Analysis)
 | File | Issue | Severity | Status |
 |------|-------|----------|--------|
-| (git-tracked only) | 3 findings after filtering | Medium | OPEN |
+| (none) | 3 pattern matches are form validation messages (e.g. "Password is required") — NOT secrets | N/A | SAFE |
 
 ### Snyk Usage
 Scan triggered: NO
 Reason: Dependabot provides equivalent ongoing SCA coverage
 
 ### Final Status
-REVIEW NEEDED
+SAFE
