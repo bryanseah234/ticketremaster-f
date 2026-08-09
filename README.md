@@ -231,4 +231,4 @@ Add translations in `src/locales/`.
 
 ## License
 
-Proprietary — All rights reserved.
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

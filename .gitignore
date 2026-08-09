@@ -85,3 +85,12 @@ stitch_exports/
 !.env.sample
 !.sourcery.yml
 !.deepsource.toml
+node_modules/
+.venv/
+venv/
+dist/
+build/
+.next/
+coverage/
+__pycache__/
+.pytest_cache/
